@@ -384,13 +384,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const handleResetDefaults = () => {
+  const handleResetDefaults = async () => {
     if (
       window.confirm(
         'Are you sure you want to reset all website content and settings to original defaults? Any custom text will be replaced.'
       )
     ) {
-      resetHotelToDefaults();
+      setIsSaving(true);
+      await resetHotelToDefaults(hotel?.id);
+      setIsSaving(false);
       onHotelUpdated();
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -404,9 +406,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="fixed top-6 right-6 z-50 p-4 bg-emerald-600 text-white rounded-xl shadow-xl flex items-center gap-3 animate-fade-in-up">
           <CheckCircle2 className="w-6 h-6 shrink-0" />
           <div>
-            <p className="font-bold text-sm">Website Updated Successfully!</p>
+            <p className="font-bold text-sm">Website Updated &amp; Stored in Supabase!</p>
             <p className="text-xs text-emerald-100">
-              Changes are immediately live on the public guest website.
+              All dynamic website settings are saved in Supabase and live across all devices.
             </p>
           </div>
         </div>

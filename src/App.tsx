@@ -132,8 +132,28 @@ export function MainApp() {
       }
     });
 
+    // Realtime subscription for dynamic website settings in Supabase
+    const settingsChannel = supabase
+      .channel('public-website-settings-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hotels' },
+        () => {
+          loadHotelData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hotel_settings' },
+        () => {
+          loadHotelData();
+        }
+      )
+      .subscribe();
+
     return () => {
       authListener.subscription.unsubscribe();
+      supabase.removeChannel(settingsChannel);
     };
   }, [navigate]);
 

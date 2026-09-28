@@ -2,6 +2,7 @@ import { getSupabase } from '../lib/supabase';
 import { Room, RoomCategory, RoomStatus } from '../types';
 import { logAction } from './auditService';
 import { emitPMSNotification } from './notificationService';
+import { isValidUuid, resolveSupabaseHotelId } from './hotelService';
 
 const LOCAL_STORAGE_CATEGORIES_KEY = 'pms_custom_room_categories';
 const LOCAL_STORAGE_ROOMS_KEY = 'pms_custom_rooms';
@@ -19,7 +20,9 @@ export const DEFAULT_ROOM_CATEGORIES: RoomCategory[] = [
     room_size_sqft: 200,
     bed_type: 'Queen Bed',
     amenities: ['Air Conditioning', 'Free Wi-Fi', 'Smart TV', 'Daily Housekeeping'],
-    images: ['https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80'],
+    images: [
+      'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
+    ],
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -35,8 +38,16 @@ export const DEFAULT_ROOM_CATEGORIES: RoomCategory[] = [
     max_children: 1,
     room_size_sqft: 280,
     bed_type: 'King Bed',
-    amenities: ['Air Conditioning', 'Free Wi-Fi', 'Smart TV', 'Electric Kettle', 'Work Desk'],
-    images: ['https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80'],
+    amenities: [
+      'Air Conditioning',
+      'Free Wi-Fi',
+      'Smart TV',
+      'Electric Kettle',
+      'Work Desk',
+    ],
+    images: [
+      'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80',
+    ],
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -52,8 +63,17 @@ export const DEFAULT_ROOM_CATEGORIES: RoomCategory[] = [
     max_children: 1,
     room_size_sqft: 320,
     bed_type: 'King Bed',
-    amenities: ['Air Conditioning', 'Free Wi-Fi', 'Smart TV', 'Electric Kettle', 'Minibar Fridge', 'In-room Dining'],
-    images: ['https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80'],
+    amenities: [
+      'Air Conditioning',
+      'Free Wi-Fi',
+      'Smart TV',
+      'Electric Kettle',
+      'Minibar Fridge',
+      'In-room Dining',
+    ],
+    images: [
+      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
+    ],
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -69,8 +89,18 @@ export const DEFAULT_ROOM_CATEGORIES: RoomCategory[] = [
     max_children: 2,
     room_size_sqft: 450,
     bed_type: 'Super King Bed',
-    amenities: ['Air Conditioning', 'Free Wi-Fi', 'Smart TV', 'Electric Kettle', 'Minibar Fridge', 'Bathtub', 'Balcony'],
-    images: ['https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1200&q=80'],
+    amenities: [
+      'Air Conditioning',
+      'Free Wi-Fi',
+      'Smart TV',
+      'Electric Kettle',
+      'Minibar Fridge',
+      'Bathtub',
+      'Balcony',
+    ],
+    images: [
+      'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1200&q=80',
+    ],
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -113,22 +143,68 @@ function saveStoredRooms(rooms: Room[]): void {
   }
 }
 
-export async function getRoomCategories(hotelId: string, activeOnly: boolean = false): Promise<RoomCategory[]> {
+export async function getRoomCategories(
+  hotelId: string,
+  activeOnly: boolean = false
+): Promise<RoomCategory[]> {
   const localCats = getStoredCategories();
   const supabase = getSupabase();
 
   if (supabase) {
     try {
-      let query = supabase.from('room_categories').select('*').eq('hotel_id', hotelId).order('base_price', { ascending: true });
-      if (activeOnly) {
-        query = query.eq('is_active', true);
-      }
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        return data as RoomCategory[];
+      const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
+      if (resolvedHotelId) {
+        const { data: allDbCats, error } = await supabase
+          .from('room_categories')
+          .select('*')
+          .eq('hotel_id', resolvedHotelId)
+          .order('base_price', { ascending: true });
+
+        if (!error && allDbCats) {
+          if (allDbCats.length === 0 && localCats.length > 0) {
+            // Seed initial room categories into Supabase once
+            const seedRows = localCats.map((c) => ({
+              hotel_id: resolvedHotelId,
+              name: c.name,
+              slug:
+                c.slug ||
+                c.name
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/(^-|-$)/g, ''),
+              description: c.description || '',
+              base_price: Number(c.base_price),
+              max_adults: Number(c.max_adults || 2),
+              max_children: Number(c.max_children ?? 1),
+              room_size_sqft: Number(c.room_size_sqft || 250),
+              bed_type: c.bed_type || 'King Bed',
+              amenities: Array.isArray(c.amenities) ? c.amenities : [],
+              images: Array.isArray(c.images) ? c.images : [],
+              is_active: c.is_active !== false,
+            }));
+
+            const { data: seeded } = await supabase
+              .from('room_categories')
+              .upsert(seedRows, { onConflict: 'hotel_id,slug' })
+              .select('*')
+              .order('base_price', { ascending: true });
+
+            if (seeded && seeded.length > 0) {
+              saveStoredCategories(seeded as RoomCategory[]);
+              return activeOnly
+                ? (seeded as RoomCategory[]).filter((c) => c.is_active)
+                : (seeded as RoomCategory[]);
+            }
+          } else {
+            saveStoredCategories(allDbCats as RoomCategory[]);
+            return activeOnly
+              ? (allDbCats as RoomCategory[]).filter((c) => c.is_active)
+              : (allDbCats as RoomCategory[]);
+          }
+        }
       }
     } catch (err) {
-      console.warn('Using local room categories (DB pending or empty):', err);
+      console.warn('Using local room categories (DB pending):', err);
     }
   }
 
@@ -141,27 +217,53 @@ export async function getRoomCategories(hotelId: string, activeOnly: boolean = f
 export async function createRoomCategory(
   categoryData: Omit<RoomCategory, 'id' | 'created_at' | 'updated_at'>
 ): Promise<{ success: boolean; data?: RoomCategory; error?: string }> {
-  const newCat: RoomCategory = {
+  let newCat: RoomCategory = {
     id: `cat-${Date.now()}`,
     ...categoryData,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
-  const current = getStoredCategories();
-  saveStoredCategories([...current, newCat]);
-
   const supabase = getSupabase();
   if (supabase) {
     try {
-      await supabase.from('room_categories').insert([categoryData]);
+      const resolvedHotelId = await resolveSupabaseHotelId(categoryData.hotel_id);
+      if (resolvedHotelId) {
+        const slug =
+          categoryData.slug ||
+          categoryData.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '');
+        const { data: inserted } = await supabase
+          .from('room_categories')
+          .upsert([{ ...categoryData, hotel_id: resolvedHotelId, slug }], {
+            onConflict: 'hotel_id,slug',
+          })
+          .select('*')
+          .single();
+
+        if (inserted) {
+          newCat = inserted as RoomCategory;
+        }
+      }
     } catch (e) {
       console.warn('Supabase category insert skipped; stored locally:', e);
     }
   }
 
+  const current = getStoredCategories();
+  saveStoredCategories([...current.filter((c) => c.id !== newCat.id), newCat]);
+
   try {
-    await logAction(categoryData.hotel_id, `Created Room Category: ${categoryData.name}`, 'RoomCategory', newCat.id);
+    if (isValidUuid(newCat.hotel_id)) {
+      await logAction(
+        newCat.hotel_id,
+        `Created Room Category: ${categoryData.name}`,
+        'RoomCategory',
+        newCat.id
+      );
+    }
   } catch {}
 
   return { success: true, data: newCat };
@@ -173,41 +275,72 @@ export async function updateRoomCategory(
   updates: Partial<RoomCategory>
 ): Promise<{ success: boolean; error?: string }> {
   const current = getStoredCategories();
-  const updated = current.map((c) => (c.id === id ? { ...c, ...updates, updated_at: new Date().toISOString() } : c));
+  const targetCat = current.find((c) => c.id === id);
+  const updated = current.map((c) =>
+    c.id === id ? { ...c, ...updates, updated_at: new Date().toISOString() } : c
+  );
   saveStoredCategories(updated);
 
   const supabase = getSupabase();
   if (supabase) {
     try {
-      await supabase.from('room_categories').update(updates).eq('id', id);
+      const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
+      if (isValidUuid(id)) {
+        await supabase.from('room_categories').update(updates).eq('id', id);
+      } else if (resolvedHotelId && targetCat?.slug) {
+        await supabase
+          .from('room_categories')
+          .update(updates)
+          .eq('hotel_id', resolvedHotelId)
+          .eq('slug', targetCat.slug);
+      }
     } catch (e) {
       console.warn('Supabase category update skipped; updated locally:', e);
     }
   }
 
   try {
-    await logAction(hotelId, `Updated Room Category`, 'RoomCategory', id, updates);
+    const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
+    if (resolvedHotelId) {
+      await logAction(resolvedHotelId, `Updated Room Category`, 'RoomCategory', id, updates);
+    }
   } catch {}
 
   return { success: true };
 }
 
-export async function deleteRoomCategory(id: string, hotelId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteRoomCategory(
+  id: string,
+  hotelId: string
+): Promise<{ success: boolean; error?: string }> {
   const current = getStoredCategories();
+  const targetCat = current.find((c) => c.id === id);
   const filtered = current.filter((c) => c.id !== id);
   saveStoredCategories(filtered);
 
   const supabase = getSupabase();
   if (supabase) {
     try {
-      await supabase.from('room_categories').delete().eq('id', id);
+      const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
+      if (isValidUuid(id)) {
+        await supabase.from('room_categories').delete().eq('id', id);
+      } else if (resolvedHotelId && targetCat?.slug) {
+        await supabase
+          .from('room_categories')
+          .delete()
+          .eq('hotel_id', resolvedHotelId)
+          .eq('slug', targetCat.slug);
+      }
     } catch (e) {
       console.warn('Supabase category delete skipped; deleted locally:', e);
     }
   }
 
   try {
-    await logAction(hotelId, `Deleted Room Category`, 'RoomCategory', id);
+    const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
+    if (resolvedHotelId) {
+      await logAction(resolvedHotelId, `Deleted Room Category`, 'RoomCategory', id);
+    }
   } catch {}
 
   return { success: true };
@@ -219,15 +352,59 @@ export async function getRooms(hotelId: string): Promise<Room[]> {
 
   if (supabase) {
     try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*, category:room_categories(*)')
-        .eq('hotel_id', hotelId)
-        .order('floor', { ascending: true })
-        .order('room_number', { ascending: true });
+      const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
+      if (resolvedHotelId) {
+        const { data, error } = await supabase
+          .from('rooms')
+          .select('*, category:room_categories(*)')
+          .eq('hotel_id', resolvedHotelId)
+          .order('floor', { ascending: true })
+          .order('room_number', { ascending: true });
 
-      if (!error && data && data.length > 0) {
-        return data as Room[];
+        if (!error && data) {
+          if (data.length > 0) {
+            saveStoredRooms(data as Room[]);
+            return data as Room[];
+          }
+
+          // If Supabase `rooms` is empty, seed the 30 rooms linked to real Supabase `room_categories`
+          const dbCategories = await getRoomCategories(resolvedHotelId, false);
+          const stdId = dbCategories.find((c) => c.name.includes('Standard'))?.id;
+          const delId = dbCategories.find((c) => c.name.includes('Deluxe') && !c.name.includes('Super'))?.id;
+          const supId = dbCategories.find((c) => c.name.includes('Super'))?.id;
+          const steId = dbCategories.find((c) => c.name.includes('Suite'))?.id;
+
+          const seedRooms: Array<Record<string, any>> = [];
+          for (let floor = 1; floor <= 3; floor++) {
+            for (let r = 1; r <= 10; r++) {
+              const roomNum = `${floor}${r < 10 ? '0' : ''}${r}`;
+              let catId = delId;
+              if (r <= 3) catId = supId;
+              else if (r <= 6) catId = delId;
+              else if (r <= 8) catId = stdId;
+              else catId = steId;
+
+              seedRooms.push({
+                hotel_id: resolvedHotelId,
+                room_number: roomNum,
+                floor,
+                status: 'Available',
+                category_id: isValidUuid(catId) ? catId : null,
+                is_smoking: false,
+              });
+            }
+          }
+
+          const { data: seededRooms } = await supabase
+            .from('rooms')
+            .upsert(seedRooms, { onConflict: 'hotel_id,room_number' })
+            .select('*, category:room_categories(*)');
+
+          if (seededRooms && seededRooms.length > 0) {
+            saveStoredRooms(seededRooms as Room[]);
+            return seededRooms as Room[];
+          }
+        }
       }
     } catch (err) {
       console.warn('Error fetching rooms, using local:', err);
@@ -238,7 +415,7 @@ export async function getRooms(hotelId: string): Promise<Room[]> {
     return localRooms;
   }
 
-  // If no rooms yet, generate 30 default rooms so staff and front desk are fully usable
+  // Fallback local 30 rooms
   const defaultRooms: Room[] = [];
   const categories = getStoredCategories();
   const stdId = categories.find((c) => c.name.includes('Standard'))?.id;
@@ -276,27 +453,57 @@ export async function getRooms(hotelId: string): Promise<Room[]> {
 export async function createRoom(
   roomData: Omit<Room, 'id' | 'created_at' | 'updated_at'>
 ): Promise<{ success: boolean; data?: Room; error?: string }> {
-  const newRoom: Room = {
+  let newRoom: Room = {
     id: `room-${roomData.room_number}`,
     ...roomData,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
-  const current = getStoredRooms();
-  saveStoredRooms([...current, newRoom]);
-
   const supabase = getSupabase();
   if (supabase) {
     try {
-      await supabase.from('rooms').insert([roomData]);
+      const resolvedHotelId = await resolveSupabaseHotelId(roomData.hotel_id);
+      if (resolvedHotelId) {
+        const { data: inserted } = await supabase
+          .from('rooms')
+          .upsert(
+            [
+              {
+                ...roomData,
+                hotel_id: resolvedHotelId,
+                category_id: isValidUuid(roomData.category_id) ? roomData.category_id : null,
+              },
+            ],
+            { onConflict: 'hotel_id,room_number' }
+          )
+          .select('*, category:room_categories(*)')
+          .single();
+
+        if (inserted) {
+          newRoom = inserted as Room;
+        }
+      }
     } catch (e) {
       console.warn('Supabase room insert skipped; stored locally:', e);
     }
   }
 
+  const current = getStoredRooms();
+  saveStoredRooms([
+    ...current.filter((r) => r.room_number !== newRoom.room_number),
+    newRoom,
+  ]);
+
   try {
-    await logAction(roomData.hotel_id, `Added Room ${roomData.room_number}`, 'Room', newRoom.id);
+    if (isValidUuid(newRoom.hotel_id)) {
+      await logAction(
+        newRoom.hotel_id,
+        `Added Room ${roomData.room_number}`,
+        'Room',
+        newRoom.id
+      );
+    }
   } catch {}
 
   return { success: true, data: newRoom };
@@ -308,20 +515,41 @@ export async function updateRoom(
   updates: Partial<Room>
 ): Promise<{ success: boolean; error?: string }> {
   const current = getStoredRooms();
-  const updated = current.map((r) => (r.id === id ? { ...r, ...updates, updated_at: new Date().toISOString() } : r));
+  const targetRoom = current.find((r) => r.id === id);
+  const updated = current.map((r) =>
+    r.id === id ? { ...r, ...updates, updated_at: new Date().toISOString() } : r
+  );
   saveStoredRooms(updated);
 
   const supabase = getSupabase();
   if (supabase) {
     try {
-      await supabase.from('rooms').update(updates).eq('id', id);
+      const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
+      const dbUpdates = { ...updates };
+      delete (dbUpdates as any).category;
+      if (dbUpdates.category_id && !isValidUuid(dbUpdates.category_id)) {
+        delete dbUpdates.category_id;
+      }
+
+      if (isValidUuid(id)) {
+        await supabase.from('rooms').update(dbUpdates).eq('id', id);
+      } else if (resolvedHotelId && targetRoom?.room_number) {
+        await supabase
+          .from('rooms')
+          .update(dbUpdates)
+          .eq('hotel_id', resolvedHotelId)
+          .eq('room_number', targetRoom.room_number);
+      }
     } catch (e) {
       console.warn('Supabase room update skipped; updated locally:', e);
     }
   }
 
   try {
-    await logAction(hotelId, `Updated Room Details`, 'Room', id, updates);
+    const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
+    if (resolvedHotelId) {
+      await logAction(resolvedHotelId, `Updated Room Details`, 'Room', id, updates);
+    }
   } catch {}
 
   return { success: true };
@@ -357,7 +585,9 @@ export async function updateRoomStatus(
       ? roomNumber
       : targetRoomObj?.room_number || id.replace('room-', '');
 
-  const updated = current.map((r) => (r.id === id ? { ...r, status, notes: notes !== undefined ? notes : r.notes } : r));
+  const updated = current.map((r) =>
+    r.id === id ? { ...r, status, notes: notes !== undefined ? notes : r.notes } : r
+  );
   saveStoredRooms(updated);
 
   if (status === 'Maintenance' || status === 'Out of Order') {
@@ -379,9 +609,19 @@ export async function updateRoomStatus(
   const supabase = getSupabase();
   if (supabase) {
     try {
+      const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
       const updates: Partial<Room> = { status };
       if (notes !== undefined) updates.notes = notes;
-      await supabase.from('rooms').update(updates).eq('id', id);
+
+      if (isValidUuid(id)) {
+        await supabase.from('rooms').update(updates).eq('id', id);
+      } else if (resolvedHotelId && resolvedRoomNumber) {
+        await supabase
+          .from('rooms')
+          .update(updates)
+          .eq('hotel_id', resolvedHotelId)
+          .eq('room_number', resolvedRoomNumber);
+      }
     } catch (e) {
       console.warn('Supabase room status update skipped; updated locally:', e);
     }
@@ -389,7 +629,16 @@ export async function updateRoomStatus(
 
   if (hotelId) {
     try {
-      await logAction(hotelId, `Room ${roomNumber} status changed to ${status}`, 'Room', id, { status, notes });
+      const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
+      if (resolvedHotelId) {
+        await logAction(
+          resolvedHotelId,
+          `Room ${resolvedRoomNumber} status changed to ${status}`,
+          'Room',
+          id,
+          { status, notes }
+        );
+      }
     } catch {}
   }
 
