@@ -1,0 +1,251 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================================
+   PMS PORTAL NIGHT-SHIFT DARK MODE SYSTEM
+   Calibrated low-glare slate/charcoal palette for 24/7 front-desk & night-audit
+   ============================================================================ */
+
+.pms-portal.pms-dark,
+html.pms-dark .pms-modal {
+  color-scheme: dark;
+}
+
+/* Primary Canvas & Structural Surfaces */
+.pms-portal.pms-dark {
+  background-color: #0c0a09 !important;
+  color: #f5f5f4 !important;
+}
+
+.pms-portal.pms-dark .bg-stone-100 {
+  background-color: #0c0a09 !important;
+}
+
+.pms-portal.pms-dark .bg-white,
+html.pms-dark .pms-modal .bg-white {
+  background-color: #1c1917 !important;
+  color: #f5f5f4;
+}
+
+.pms-portal.pms-dark .bg-stone-50,
+.pms-portal.pms-dark .bg-stone-50\/75,
+.pms-portal.pms-dark .bg-stone-50\/50,
+html.pms-dark .pms-modal .bg-stone-50,
+html.pms-dark .pms-modal .bg-stone-50\/75 {
+  background-color: #151311 !important;
+}
+
+.pms-portal.pms-dark .bg-stone-200,
+.pms-portal.pms-dark .bg-stone-200\/70,
+.pms-portal.pms-dark .bg-stone-200\/60,
+html.pms-dark .pms-modal .bg-stone-200 {
+  background-color: #292524 !important;
+}
+
+/* Soft tinted accent surfaces in dark mode */
+.pms-portal.pms-dark .bg-amber-50,
+.pms-portal.pms-dark .bg-amber-50\/70,
+.pms-portal.pms-dark .bg-amber-50\/50,
+.pms-portal.pms-dark .bg-amber-50\/30,
+html.pms-dark .pms-modal .bg-amber-50,
+html.pms-dark .pms-modal .bg-amber-50\/70 {
+  background-color: rgba(180, 83, 9, 0.16) !important;
+}
+
+.pms-portal.pms-dark .bg-amber-100,
+.pms-portal.pms-dark .bg-amber-100\/80 {
+  background-color: rgba(217, 119, 6, 0.24) !important;
+}
+
+.pms-portal.pms-dark .bg-emerald-50,
+.pms-portal.pms-dark .bg-emerald-50\/70 {
+  background-color: rgba(6, 95, 70, 0.22) !important;
+}
+
+.pms-portal.pms-dark .bg-emerald-100 {
+  background-color: rgba(5, 150, 105, 0.25) !important;
+}
+
+.pms-portal.pms-dark .bg-rose-50,
+.pms-portal.pms-dark .bg-rose-50\/70 {
+  background-color: rgba(159, 18, 57, 0.22) !important;
+}
+
+.pms-portal.pms-dark .bg-rose-100 {
+  background-color: rgba(225, 29, 72, 0.25) !important;
+}
+
+.pms-portal.pms-dark .bg-sky-50,
+.pms-portal.pms-dark .bg-sky-100 {
+  background-color: rgba(3, 105, 161, 0.24) !important;
+}
+
+/* Typography Hierarchy & Optical Compensation */
+.pms-portal.pms-dark .text-stone-900,
+html.pms-dark .pms-modal .text-stone-900 {
+  color: #f5f5f4 !important;
+}
+
+.pms-portal.pms-dark .text-stone-800,
+html.pms-dark .pms-modal .text-stone-800 {
+  color: #e7e5e4 !important;
+}
+
+.pms-portal.pms-dark .text-stone-700,
+html.pms-dark .pms-modal .text-stone-700 {
+  color: #d6d3d1 !important;
+}
+
+.pms-portal.pms-dark .text-stone-600,
+html.pms-dark .pms-modal .text-stone-600 {
+  color: #a8a29e !important;
+}
+
+.pms-portal.pms-dark .text-stone-500,
+html.pms-dark .pms-modal .text-stone-500 {
+  color: #a8a29e !important;
+}
+
+.pms-portal.pms-dark .text-stone-400,
+html.pms-dark .pms-modal .text-stone-400 {
+  color: #78716c !important;
+}
+
+.pms-portal.pms-dark .text-amber-950,
+.pms-portal.pms-dark .text-amber-900,
+.pms-portal.pms-dark .text-amber-800,
+.pms-portal.pms-dark .text-amber-700,
+html.pms-dark .pms-modal .text-amber-900,
+html.pms-dark .pms-modal .text-amber-800 {
+  color: #fbbf24 !important;
+}
+
+.pms-portal.pms-dark .text-emerald-900,
+.pms-portal.pms-dark .text-emerald-800,
+.pms-portal.pms-dark .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+
+.pms-portal.pms-dark .text-rose-900,
+.pms-portal.pms-dark .text-rose-800,
+.pms-portal.pms-dark .text-rose-700 {
+  color: #fda4af !important;
+}
+
+.pms-portal.pms-dark .text-sky-900,
+.pms-portal.pms-dark .text-sky-800,
+.pms-portal.pms-dark .text-sky-700 {
+  color: #7dd3fc !important;
+}
+
+/* Borders & Dividers */
+.pms-portal.pms-dark .border-stone-100,
+.pms-portal.pms-dark .border-stone-200,
+html.pms-dark .pms-modal .border-stone-100,
+html.pms-dark .pms-modal .border-stone-200 {
+  border-color: #292524 !important;
+}
+
+.pms-portal.pms-dark .border-stone-300,
+html.pms-dark .pms-modal .border-stone-300 {
+  border-color: #44403c !important;
+}
+
+.pms-portal.pms-dark .border-amber-200,
+.pms-portal.pms-dark .border-amber-200\/80,
+.pms-portal.pms-dark .border-amber-200\/70,
+.pms-portal.pms-dark .border-amber-300,
+html.pms-dark .pms-modal .border-amber-200,
+html.pms-dark .pms-modal .border-amber-300 {
+  border-color: rgba(217, 119, 6, 0.4) !important;
+}
+
+.pms-portal.pms-dark .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.pms-portal.pms-dark .border-rose-200 {
+  border-color: rgba(244, 63, 94, 0.35) !important;
+}
+
+.pms-portal.pms-dark .divide-stone-100 > :not([hidden]) ~ :not([hidden]),
+.pms-portal.pms-dark .divide-stone-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #292524 !important;
+}
+
+/* Form Controls: Inputs, Selects, Textareas */
+.pms-portal.pms-dark input:not([type="checkbox"]):not([type="radio"]),
+.pms-portal.pms-dark select,
+.pms-portal.pms-dark textarea,
+html.pms-dark .pms-modal input:not([type="checkbox"]):not([type="radio"]),
+html.pms-dark .pms-modal select,
+html.pms-dark .pms-modal textarea {
+  background-color: #141210 !important;
+  color: #f5f5f4 !important;
+  border-color: #44403c !important;
+}
+
+.pms-portal.pms-dark input::placeholder,
+.pms-portal.pms-dark textarea::placeholder,
+html.pms-dark .pms-modal input::placeholder,
+html.pms-dark .pms-modal textarea::placeholder {
+  color: #78716c !important;
+}
+
+.pms-portal.pms-dark input:focus,
+.pms-portal.pms-dark select:focus,
+.pms-portal.pms-dark textarea:focus,
+html.pms-dark .pms-modal input:focus,
+html.pms-dark .pms-modal select:focus,
+html.pms-dark .pms-modal textarea:focus {
+  border-color: #d97706 !important;
+  outline: none;
+}
+
+/* Hover States in Dark Mode */
+.pms-portal.pms-dark .hover\:bg-stone-50:hover,
+.pms-portal.pms-dark .hover\:bg-stone-100:hover,
+html.pms-dark .pms-modal .hover\:bg-stone-50:hover,
+html.pms-dark .pms-modal .hover\:bg-stone-100:hover {
+  background-color: #292524 !important;
+}
+
+.pms-portal.pms-dark .hover\:bg-stone-200:hover {
+  background-color: #44403c !important;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-invoice,
+  #printable-invoice * {
+    visibility: visible;
+  }
+
+  #printable-invoice {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: #ffffff !important;
+    color: #1c1917 !important;
+    box-shadow: none !important;
+    border: none !important;
+    z-index: 99999;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+}

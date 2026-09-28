@@ -1,0 +1,6 @@
+{
+  "name": "Hotel Website & Management System",
+  "description": "Production-grade hotel website and full property management system (PMS) for a 30-room hotel in Sector 117 Noida, featuring reservations, front desk, billing, housekeeping, and Supabase integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
