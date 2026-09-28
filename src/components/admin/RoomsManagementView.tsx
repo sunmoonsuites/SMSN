@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Hotel, Room, RoomCategory, RoomStatus } from '../../types';
+import { Hotel, Room, RoomCategory, RoomStatus, GalleryItem } from '../../types';
 import {
   getRooms,
   getRoomCategories,
@@ -8,19 +8,20 @@ import {
   createRoomCategory,
   updateRoomCategory,
 } from '../../services/roomsService';
-import { uploadImageToSupabase } from '../../services/storageService';
+import { getGalleryItems } from '../../services/galleryService';
 import { formatINR } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { EmptyState } from '../common/EmptyState';
 import { Modal } from '../common/Modal';
+import { GalleryPickerModal } from '../common/GalleryPickerModal';
 import {
   Bed,
   Sparkles,
   Plus,
   CheckCircle2,
   AlertCircle,
-  Upload,
   Image as ImageIcon,
+  Images,
 } from 'lucide-react';
 
 interface RoomsManagementViewProps {
@@ -30,12 +31,15 @@ interface RoomsManagementViewProps {
 export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [categories, setCategories] = useState<RoomCategory[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [floorFilter, setFloorFilter] = useState<number | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Category modal (Create or Edit)
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showFullGalleryPicker, setShowFullGalleryPicker] = useState(false);
+  const [galleryFilterInModal, setGalleryFilterInModal] = useState<string>('ALL');
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [newCatName, setNewCatName] = useState('');
   const [newCatDesc, setNewCatDesc] = useState('');
@@ -44,7 +48,6 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
   const [newCatSize, setNewCatSize] = useState(280);
   const [newCatMaxAdults, setNewCatMaxAdults] = useState(2);
   const [newCatImageUrl, setNewCatImageUrl] = useState('');
-  const [isUploadingCatImage, setIsUploadingCatImage] = useState(false);
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [categoryError, setCategoryError] = useState('');
 
@@ -61,12 +64,14 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
   const loadData = async () => {
     if (!hotel?.id) return;
     setIsLoading(true);
-    const [roomsData, catsData] = await Promise.all([
+    const [roomsData, catsData, galleryData] = await Promise.all([
       getRooms(hotel.id),
       getRoomCategories(hotel.id, false),
+      getGalleryItems(hotel.id),
     ]);
     setRooms(roomsData);
     setCategories(catsData);
+    setGalleryImages(galleryData);
     setIsLoading(false);
   };
 
@@ -98,7 +103,11 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
     }
   };
 
-  const openAddCategoryModal = () => {
+  const openAddCategoryModal = async () => {
+    if (hotel?.id) {
+      const latestGallery = await getGalleryItems(hotel.id);
+      setGalleryImages(latestGallery);
+    }
     setEditingCategoryId(null);
     setNewCatName('');
     setNewCatDesc('');
@@ -106,12 +115,17 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
     setNewCatBed('King Bed');
     setNewCatSize(280);
     setNewCatMaxAdults(2);
-    setNewCatImageUrl('');
+    setNewCatImageUrl(galleryImages[0]?.image_url || '');
+    setGalleryFilterInModal('ALL');
     setCategoryError('');
     setShowCategoryModal(true);
   };
 
-  const openEditCategoryModal = (cat: RoomCategory) => {
+  const openEditCategoryModal = async (cat: RoomCategory) => {
+    if (hotel?.id) {
+      const latestGallery = await getGalleryItems(hotel.id);
+      setGalleryImages(latestGallery);
+    }
     setEditingCategoryId(cat.id);
     setNewCatName(cat.name);
     setNewCatDesc(cat.description || '');
@@ -120,25 +134,9 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
     setNewCatSize(Number(cat.room_size_sqft || 250));
     setNewCatMaxAdults(Number(cat.max_adults || 2));
     setNewCatImageUrl(cat.images?.[0] || '');
+    setGalleryFilterInModal('ALL');
     setCategoryError('');
     setShowCategoryModal(true);
-  };
-
-  const handleCategoryFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploadingCatImage(true);
-    setCategoryError('');
-
-    const res = await uploadImageToSupabase(file, 'rooms');
-    setIsUploadingCatImage(false);
-
-    if (res.success && res.publicUrl) {
-      setNewCatImageUrl(res.publicUrl);
-    } else {
-      setCategoryError(res.error || 'Failed to upload image to Supabase Storage.');
-    }
-    e.target.value = '';
   };
 
   const handleSaveCategory = async (e: React.FormEvent) => {
@@ -150,7 +148,10 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
 
     const imagesArray = newCatImageUrl.trim()
       ? [newCatImageUrl.trim()]
-      : ['https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80'];
+      : [
+          galleryImages[0]?.image_url ||
+            'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
+        ];
 
     if (editingCategoryId) {
       const res = await updateRoomCategory(editingCategoryId, hotel.id, {
@@ -166,7 +167,7 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
       setIsCreatingCategory(false);
       if (res.success) {
         setShowCategoryModal(false);
-        setMessage(`Updated "${newCatName.trim()}" photo & tariff in Supabase!`);
+        setMessage(`Updated "${newCatName.trim()}" photo & tariff from Gallery!`);
         loadData();
         setTimeout(() => setMessage(''), 4000);
       } else {
@@ -212,6 +213,11 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
   const filteredRooms = rooms.filter((r) => {
     if (floorFilter !== 'ALL' && r.floor !== floorFilter) return false;
     if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
+    return true;
+  });
+
+  const modalGalleryFiltered = galleryImages.filter((img) => {
+    if (galleryFilterInModal !== 'ALL' && img.category !== galleryFilterInModal) return false;
     return true;
   });
 
@@ -281,7 +287,7 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
                 Website Room Categories, Tariffs &amp; Photos ({categories.length})
               </h4>
               <p className="text-xs text-stone-500">
-                Click <strong>Change Photo / Tariff</strong> on any category to upload a room photo to Supabase Storage (<code>hotel-media/rooms/</code>)
+                Click <strong>Select Photo from Gallery / Tariff</strong> on any room category to choose its display photo directly from your Website Gallery
               </p>
             </div>
           </div>
@@ -323,8 +329,8 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
                     onClick={() => openEditCategoryModal(cat)}
                     className="w-full py-1.5 px-2.5 bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                   >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Change Photo / Tariff</span>
+                    <Images className="w-3.5 h-3.5" />
+                    <span>Choose Photo from Gallery</span>
                   </button>
                 </div>
               </div>
@@ -442,59 +448,119 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
         </div>
       )}
 
-      {/* ADD / EDIT ROOM CATEGORY MODAL */}
+      {/* ADD / EDIT ROOM CATEGORY MODAL (GALLERY SELECTION ONLY) */}
       <Modal
         isOpen={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}
-        title={editingCategoryId ? 'Edit Room Category & Photo' : 'Add Room Category'}
-        subtitle="Upload room photo to Supabase Storage (hotel-media) and configure pricing"
-        maxWidth="md"
+        title={editingCategoryId ? 'Edit Room Category & Select Gallery Photo' : 'Add Room Category'}
+        subtitle="Select any photo from your Website Gallery below and configure room pricing"
+        maxWidth="lg"
       >
         <form onSubmit={handleSaveCategory} className="space-y-4">
-          {/* Upload Room Photo to Supabase Storage */}
-          <div className="p-3.5 border-2 border-dashed border-amber-300 rounded-xl bg-amber-50/40 space-y-2 text-center">
-            <label className="inline-flex items-center gap-2 px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors">
-              <Upload className="w-4 h-4" />
-              <span>
-                {isUploadingCatImage
-                  ? 'Uploading to Supabase...'
-                  : 'Upload Room Photo to Supabase'}
-              </span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleCategoryFileUpload}
-                disabled={isUploadingCatImage}
-                className="hidden"
-              />
-            </label>
-            <p className="text-[11px] text-stone-500">
-              Saves photo in Supabase Storage bucket <code>hotel-media/rooms/</code>
-            </p>
-          </div>
-
-          {newCatImageUrl && (
-            <div className="aspect-video w-full rounded-lg overflow-hidden border border-stone-200 bg-stone-100">
-              <img
-                src={newCatImageUrl}
-                alt="Room preview"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
+          {/* Selected Room Photo Preview + Gallery Selector */}
+          <div className="p-3.5 rounded-xl border border-stone-200 bg-stone-50 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-800">
+                Select Room Photo from Website Gallery *
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowFullGalleryPicker(true)}
+                className="px-3 py-1 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Images className="w-3.5 h-3.5" />
+                <span>Open Full Gallery View ({galleryImages.length})</span>
+              </button>
             </div>
-          )}
 
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-              Room Image URL (Supabase Storage URL)
-            </label>
-            <input
-              type="url"
-              placeholder="https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/..."
-              value={newCatImageUrl}
-              onChange={(e) => setNewCatImageUrl(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg font-mono"
-            />
+            {/* Active Selected Image Preview */}
+            {newCatImageUrl && (
+              <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-emerald-200">
+                <img
+                  src={newCatImageUrl}
+                  alt="Selected Room Photo"
+                  referrerPolicy="no-referrer"
+                  className="w-24 h-16 object-cover rounded-md shrink-0 bg-stone-100"
+                />
+                <div className="min-w-0 flex-1">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Selected Room Photo
+                  </span>
+                  <p className="text-[11px] text-stone-500 truncate">
+                    Click any photo in the Gallery grid below to change selection
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Category Filter Pills for Gallery inside Modal */}
+            <div className="flex flex-wrap gap-1.5">
+              {(['ALL', 'Rooms', 'Hotel & Lobby', 'Banquet Hall', 'Dining'] as const).map(
+                (catTab) => (
+                  <button
+                    key={catTab}
+                    type="button"
+                    onClick={() => setGalleryFilterInModal(catTab)}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md cursor-pointer transition-colors ${
+                      galleryFilterInModal === catTab
+                        ? 'bg-stone-900 text-white'
+                        : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
+                    }`}
+                  >
+                    {catTab === 'ALL' ? `All Gallery (${galleryImages.length})` : catTab}
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* Interactive Gallery Grid inside Modal */}
+            {modalGalleryFiltered.length === 0 ? (
+              <div className="p-4 text-center text-xs text-stone-500 bg-white rounded-lg border border-stone-200">
+                No photos found in this category. Switch to &ldquo;All Gallery&rdquo; or upload new photos in the{' '}
+                <strong>Website Gallery</strong> section first.
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
+                {modalGalleryFiltered.map((img) => {
+                  const isSelected = newCatImageUrl === img.image_url;
+                  return (
+                    <button
+                      key={img.id}
+                      type="button"
+                      onClick={() => setNewCatImageUrl(img.image_url)}
+                      className={`group relative rounded-lg overflow-hidden border-2 text-left transition-all cursor-pointer bg-white ${
+                        isSelected
+                          ? 'border-emerald-600 ring-2 ring-emerald-500/30'
+                          : 'border-stone-200 hover:border-amber-600'
+                      }`}
+                    >
+                      <div className="aspect-video bg-stone-100 relative">
+                        <img
+                          src={img.image_url}
+                          alt={img.caption || img.category}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-emerald-900/25 flex items-center justify-center">
+                            <span className="px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-bold rounded flex items-center gap-0.5 shadow">
+                              <CheckCircle2 className="w-2.5 h-2.5" />
+                              Selected
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-1">
+                        <p className="text-[10px] font-medium text-stone-700 truncate">
+                          {img.caption || img.category}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>
@@ -598,7 +664,7 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
             </button>
             <button
               type="submit"
-              disabled={isCreatingCategory || isUploadingCatImage}
+              disabled={isCreatingCategory}
               className="px-5 py-2.5 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
             >
               {isCreatingCategory ? 'Saving...' : 'Save Category'}
@@ -606,6 +672,19 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
           </div>
         </form>
       </Modal>
+
+      {/* Full Screen Gallery Picker Modal */}
+      {hotel?.id && (
+        <GalleryPickerModal
+          isOpen={showFullGalleryPicker}
+          onClose={() => setShowFullGalleryPicker(false)}
+          hotelId={hotel.id}
+          currentImageUrl={newCatImageUrl}
+          defaultCategory="ALL"
+          title="Choose Room Category Photo from Gallery"
+          onSelect={(imageUrl) => setNewCatImageUrl(imageUrl)}
+        />
+      )}
     </div>
   );
 };

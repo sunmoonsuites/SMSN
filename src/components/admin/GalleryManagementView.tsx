@@ -3,9 +3,10 @@ import { Hotel, GalleryItem } from '../../types';
 import {
   getGalleryItems,
   addGalleryItem,
+  addMultipleGalleryItems,
   deleteGalleryItem,
 } from '../../services/galleryService';
-import { uploadImageToSupabase } from '../../services/storageService';
+import { uploadMultipleImagesToSupabase } from '../../services/storageService';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { EmptyState } from '../common/EmptyState';
 import { Modal } from '../common/Modal';
@@ -15,24 +16,41 @@ import {
   Upload,
   AlertCircle,
   CheckCircle2,
+  Images,
+  X,
 } from 'lucide-react';
 
 interface GalleryManagementViewProps {
   hotel: Hotel | null;
 }
 
+interface PendingGalleryUpload {
+  id: string;
+  image_url: string;
+  caption: string;
+  category: string;
+}
+
 export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ hotel }) => {
   const [images, setImages] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [statusBanner, setStatusBanner] = useState('');
 
-  // Add Image Modal
+  // Add / Batch Upload Modal State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [caption, setCaption] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [category, setCategory] = useState('Rooms');
+  const [pendingUploads, setPendingUploads] = useState<PendingGalleryUpload[]>([]);
+  const [manualUrl, setManualUrl] = useState('');
+  const [manualCaption, setManualCaption] = useState('');
+
+  // Multi-file upload progress state
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ completed: number; total: number }>({
+    completed: 0,
+    total: 0,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
@@ -57,49 +75,180 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploadingFile(true);
+  // Multi-file upload inside Modal (stages all uploaded files in pendingUploads list)
+  const handleMultipleFilesSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    setIsUploadingFiles(true);
     setUploadError('');
+    setUploadProgress({ completed: 0, total: fileList.length });
 
-    const res = await uploadImageToSupabase(file, 'gallery');
-    setIsUploadingFile(false);
-
-    if (res.success && res.publicUrl) {
-      setImageUrl(res.publicUrl);
-      if (!caption.trim()) {
-        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' ');
-        setCaption(cleanName);
+    const results = await uploadMultipleImagesToSupabase(
+      fileList,
+      'gallery',
+      (completed, total) => {
+        setUploadProgress({ completed, total });
       }
-    } else {
-      setUploadError(res.error || 'Failed to upload image to Supabase Storage.');
+    );
+
+    setIsUploadingFiles(false);
+
+    const newPending: PendingGalleryUpload[] = [];
+    const errors: string[] = [];
+
+    results.forEach((res, idx) => {
+      if (res.success && res.publicUrl) {
+        newPending.push({
+          id: `pending-${Date.now()}-${idx}`,
+          image_url: res.publicUrl,
+          caption: res.fileName || `${category} Photo`,
+          category,
+        });
+      } else if (res.error) {
+        errors.push(res.error);
+      }
+    });
+
+    if (newPending.length > 0) {
+      setPendingUploads((prev) => [...prev, ...newPending]);
     }
+    if (errors.length > 0) {
+      setUploadError(errors[0]);
+    }
+
     e.target.value = '';
   };
 
-  const handleCreateSubmit = async (e: React.FormEvent) => {
+  // Quick 1-Step Direct Multi-File Upload & Save from Header
+  const handleQuickDirectBatchUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0 || !hotel?.id) return;
+
+    const targetCategory = categoryFilter === 'ALL' ? 'Rooms' : categoryFilter;
+    setIsUploadingFiles(true);
+    setUploadError('');
+    setStatusBanner('');
+    setUploadProgress({ completed: 0, total: fileList.length });
+
+    const results = await uploadMultipleImagesToSupabase(
+      fileList,
+      'gallery',
+      (completed, total) => {
+        setUploadProgress({ completed, total });
+      }
+    );
+
+    const validItems = results
+      .filter((r) => r.success && r.publicUrl)
+      .map((r, idx) => ({
+        hotel_id: hotel.id,
+        caption: r.fileName || `${targetCategory} Photo`,
+        image_url: r.publicUrl!,
+        category: targetCategory,
+        sort_order: images.length + idx + 1,
+        is_featured: false,
+      }));
+
+    if (validItems.length > 0) {
+      await addMultipleGalleryItems(validItems);
+      await loadGallery();
+      setStatusBanner(
+        `Successfully uploaded and saved ${validItems.length} photo${
+          validItems.length > 1 ? 's' : ''
+        } to "${targetCategory}" in Gallery!`
+      );
+      setTimeout(() => setStatusBanner(''), 5000);
+    }
+
+    setIsUploadingFiles(false);
+    e.target.value = '';
+  };
+
+  const handleUpdatePendingCaption = (id: string, newCaption: string) => {
+    setPendingUploads((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, caption: newCaption } : item))
+    );
+  };
+
+  const handleUpdatePendingCategory = (id: string, newCategory: string) => {
+    setPendingUploads((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, category: newCategory } : item))
+    );
+  };
+
+  const handleRemovePending = (id: string) => {
+    setPendingUploads((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleSaveBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hotel?.id || !imageUrl.trim()) return;
+    if (!hotel?.id) return;
+
     setIsSubmitting(true);
+    setUploadError('');
 
-    const res = await addGalleryItem({
-      hotel_id: hotel.id,
-      caption: caption.trim() || undefined,
-      image_url: imageUrl.trim(),
-      category,
-      sort_order: images.length + 1,
-      is_featured: false,
-    });
+    // If user uploaded multiple files into pendingUploads
+    if (pendingUploads.length > 0) {
+      const batchPayload = pendingUploads.map((item, idx) => ({
+        hotel_id: hotel.id,
+        caption: item.caption.trim() || item.category,
+        image_url: item.image_url,
+        category: item.category,
+        sort_order: images.length + idx + 1,
+        is_featured: false,
+      }));
 
-    setIsSubmitting(false);
+      // Also include manual URL if entered
+      if (manualUrl.trim()) {
+        batchPayload.push({
+          hotel_id: hotel.id,
+          caption: manualCaption.trim() || category,
+          image_url: manualUrl.trim(),
+          category,
+          sort_order: images.length + batchPayload.length + 1,
+          is_featured: false,
+        });
+      }
 
-    if (res.success) {
-      setShowAddModal(false);
-      setCaption('');
-      setImageUrl('');
-      setUploadError('');
-      loadGallery();
+      const res = await addMultipleGalleryItems(batchPayload);
+      setIsSubmitting(false);
+
+      if (res.success) {
+        setShowAddModal(false);
+        setPendingUploads([]);
+        setManualUrl('');
+        setManualCaption('');
+        setStatusBanner(
+          `Successfully saved ${batchPayload.length} photo${
+            batchPayload.length > 1 ? 's' : ''
+          } to Website Gallery!`
+        );
+        loadGallery();
+        setTimeout(() => setStatusBanner(''), 5000);
+      }
+      return;
+    }
+
+    // Fallback if user only pasted a manual URL
+    if (manualUrl.trim()) {
+      const res = await addGalleryItem({
+        hotel_id: hotel.id,
+        caption: manualCaption.trim() || category,
+        image_url: manualUrl.trim(),
+        category,
+        sort_order: images.length + 1,
+        is_featured: false,
+      });
+      setIsSubmitting(false);
+      if (res.success) {
+        setShowAddModal(false);
+        setManualUrl('');
+        setManualCaption('');
+        loadGallery();
+      }
+    } else {
+      setIsSubmitting(false);
     }
   };
 
@@ -120,25 +269,87 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h3 className="font-serif font-bold text-2xl text-stone-900">
-            Property Photo Gallery (Supabase Storage)
+            Central Website Photo Gallery (Supabase Storage)
           </h3>
           <p className="text-xs text-stone-500">
-            Upload photos directly to your Supabase <code>hotel-media</code> bucket and display them live on the website
+            Upload multiple photos together here. All other sections (Rooms, Hero Banner) select their images directly from this Gallery.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setUploadError('');
-            setShowAddModal(true);
-          }}
-          className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Upload / Add Photo</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Quick 1-Step Multi-File Upload Button */}
+          <label className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer">
+            <Upload className="w-4 h-4" />
+            <span>
+              {isUploadingFiles
+                ? `Uploading (${uploadProgress.completed}/${uploadProgress.total})...`
+                : 'Quick Upload Multiple Photos'}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleQuickDirectBatchUpload}
+              disabled={isUploadingFiles}
+              className="hidden"
+            />
+          </label>
+
+          {/* Open Upload Modal with Category & Caption customization */}
+          <button
+            type="button"
+            onClick={() => {
+              setUploadError('');
+              setPendingUploads([]);
+              if (categoryFilter !== 'ALL') {
+                setCategory(categoryFilter);
+              }
+              setShowAddModal(true);
+            }}
+            className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Upload with Category / Captions</span>
+          </button>
+        </div>
       </div>
+
+      {/* Live Batch Upload Progress Banner */}
+      {isUploadingFiles && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-amber-900">
+            <span>
+              Uploading multiple photos to Supabase Storage ({uploadProgress.completed} of{' '}
+              {uploadProgress.total})...
+            </span>
+            <span>
+              {uploadProgress.total > 0
+                ? Math.round((uploadProgress.completed / uploadProgress.total) * 100)
+                : 0}
+              %
+            </span>
+          </div>
+          <div className="w-full h-2 bg-amber-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-amber-700 transition-all duration-200"
+              style={{
+                width: `${
+                  uploadProgress.total > 0
+                    ? Math.round((uploadProgress.completed / uploadProgress.total) * 100)
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {statusBanner && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs rounded-xl flex items-center gap-2 font-medium">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{statusBanner}</span>
+        </div>
+      )}
 
       {/* Category Filter */}
       <div className="flex flex-wrap gap-2">
@@ -153,20 +364,23 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
         >
           All Photos ({images.length})
         </button>
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            type="button"
-            onClick={() => setCategoryFilter(cat)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              categoryFilter === cat
-                ? 'bg-amber-800 text-white'
-                : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-50'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+        {categories.map((cat) => {
+          const count = images.filter((i) => i.category === cat).length;
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                categoryFilter === cat
+                  ? 'bg-amber-800 text-white'
+                  : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-50'
+              }`}
+            >
+              {cat} ({count})
+            </button>
+          );
+        })}
       </div>
 
       {/* Photos Grid */}
@@ -178,8 +392,8 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
               ? 'No photos currently in the gallery database.'
               : 'No photos match the selected category.'
           }
-          actionLabel={images.length === 0 ? 'Upload First Photo' : undefined}
-          onAction={images.length === 0 ? () => setShowAddModal(true) : undefined}
+          actionLabel="Upload Multiple Photos"
+          onAction={() => setShowAddModal(true)}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -218,32 +432,59 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
         </div>
       )}
 
-      {/* ADD / UPLOAD PHOTO MODAL */}
+      {/* BATCH MULTI-FILE UPLOAD MODAL */}
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Upload Hotel Photo to Supabase"
-        subtitle="Upload directly from your device to Supabase Storage (hotel-media) or paste a public URL"
-        maxWidth="md"
+        title="Upload Multiple Photos to Website Gallery"
+        subtitle="Select multiple photos at once from your computer or mobile to upload to Supabase Storage"
+        maxWidth="lg"
       >
-        <form onSubmit={handleCreateSubmit} className="space-y-4">
-          {/* Direct Device-to-Supabase Upload Box */}
-          <div className="p-4 border-2 border-dashed border-amber-300 rounded-xl bg-amber-50/40 text-center space-y-2">
-            <label className="inline-flex items-center gap-2 px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors">
-              <Upload className="w-4 h-4" />
+        <form onSubmit={handleSaveBatchSubmit} className="space-y-4">
+          {/* Step 1: Default Category for Uploaded Batch */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
+              1. Select Default Category for Photos
+            </label>
+            <select
+              value={category}
+              onChange={(e) => {
+                const newCat = e.target.value;
+                setCategory(newCat);
+                setPendingUploads((prev) =>
+                  prev.map((item) => ({ ...item, category: newCat }))
+                );
+              }}
+              className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg font-semibold"
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Step 2: Multi-file Device-to-Supabase Upload Box */}
+          <div className="p-5 border-2 border-dashed border-amber-300 rounded-xl bg-amber-50/40 text-center space-y-2">
+            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-xs">
+              <Images className="w-4 h-4" />
               <span>
-                {isUploadingFile ? 'Uploading to Supabase Storage...' : 'Choose Photo from Computer / Mobile'}
+                {isUploadingFiles
+                  ? `Uploading ${uploadProgress.completed} of ${uploadProgress.total} Photos...`
+                  : 'Select Multiple Photos from Computer / Mobile'}
               </span>
               <input
                 type="file"
                 accept="image/*"
-                onChange={handleFileUpload}
-                disabled={isUploadingFile}
+                multiple
+                onChange={handleMultipleFilesSelect}
+                disabled={isUploadingFiles}
                 className="hidden"
               />
             </label>
-            <p className="text-[11px] text-stone-500">
-              Uploads directly to Supabase Storage bucket <code>hotel-media/gallery/</code> (JPG, PNG, WebP)
+            <p className="text-[11px] text-stone-600 font-medium">
+              You can select <strong>multiple files at once</strong> (Hold Ctrl / Shift on computer or tap multiple photos on mobile)
             </p>
           </div>
 
@@ -254,68 +495,97 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
             </div>
           )}
 
-          {imageUrl && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Image Ready for Website Display</span>
+          {/* Staged Multi-Photo Preview Grid */}
+          {pendingUploads.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-bold">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>
+                    {pendingUploads.length} Photo{pendingUploads.length > 1 ? 's' : ''} Uploaded &amp; Ready to Save
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPendingUploads([])}
+                  className="text-[11px] text-rose-600 hover:underline font-semibold cursor-pointer"
+                >
+                  Clear All
+                </button>
               </div>
-              <div className="aspect-video w-full rounded-lg overflow-hidden border border-stone-200 bg-stone-100">
-                <img
-                  src={imageUrl}
-                  alt="Preview"
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto p-1 border border-stone-200 rounded-xl bg-stone-50">
+                {pendingUploads.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2.5 bg-white p-2 rounded-lg border border-stone-200 shadow-2xs"
+                  >
+                    <img
+                      src={item.image_url}
+                      alt={item.caption}
+                      referrerPolicy="no-referrer"
+                      className="w-16 h-12 object-cover rounded shrink-0 bg-stone-100"
+                    />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <input
+                        type="text"
+                        value={item.caption}
+                        onChange={(e) => handleUpdatePendingCaption(item.id, e.target.value)}
+                        placeholder="Photo caption..."
+                        className="w-full px-2 py-1 text-[11px] border border-stone-200 rounded font-medium"
+                      />
+                      <select
+                        value={item.category}
+                        onChange={(e) => handleUpdatePendingCategory(item.id, e.target.value)}
+                        className="w-full px-2 py-0.5 text-[10px] border border-stone-200 rounded text-stone-600 bg-stone-50"
+                      >
+                        {categories.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePending(item.id)}
+                      className="p-1 text-stone-400 hover:text-rose-600 cursor-pointer"
+                      title="Remove"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Optional Manual URL Input (collapsed/secondary) */}
+          {pendingUploads.length === 0 && (
+            <div className="pt-2 border-t border-stone-200/80 space-y-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
+                Or Add by Direct Image URL (Optional)
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <input
+                  type="url"
+                  placeholder="https://... (Image URL)"
+                  value={manualUrl}
+                  onChange={(e) => setManualUrl(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg font-mono text-[11px]"
+                />
+                <input
+                  type="text"
+                  placeholder="Caption (e.g. Deluxe Room)"
+                  value={manualCaption}
+                  onChange={(e) => setManualCaption(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg"
                 />
               </div>
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-              Photo Caption
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Deluxe Room City View, Grand Banquet Hall"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-              Category
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg"
-            >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-              Supabase Storage Public URL (or Image Link) *
-            </label>
-            <input
-              type="url"
-              required
-              placeholder="https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/..."
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg font-mono text-[11px]"
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-200">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200">
             <button
               type="button"
               onClick={() => setShowAddModal(false)}
@@ -325,10 +595,20 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || isUploadingFile || !imageUrl.trim()}
-              className="px-5 py-2 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+              disabled={
+                isSubmitting ||
+                isUploadingFiles ||
+                (pendingUploads.length === 0 && !manualUrl.trim())
+              }
+              className="px-5 py-2.5 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
             >
-              {isSubmitting ? 'Saving...' : 'Save to Website Gallery'}
+              {isSubmitting
+                ? 'Saving to Gallery...'
+                : pendingUploads.length > 0
+                ? `Save All ${pendingUploads.length} Photo${
+                    pendingUploads.length > 1 ? 's' : ''
+                  } to Gallery`
+                : 'Save to Website Gallery'}
             </button>
           </div>
         </form>

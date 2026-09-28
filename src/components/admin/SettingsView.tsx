@@ -23,6 +23,7 @@ import { getCleanHotelPhone, getCleanHotelWhatsApp } from '../../lib/utils';
 import { getAmenityIcon } from '../website/AmenitiesSection';
 import { usePMSTheme } from '../../services/themeService';
 import { uploadImageToSupabase } from '../../services/storageService';
+import { GalleryPickerModal } from '../common/GalleryPickerModal';
 import {
   Settings,
   Building,
@@ -43,6 +44,7 @@ import {
   Phone,
   MessageCircle,
   Image as ImageIcon,
+  Images,
   HelpCircle,
   FileText,
   Sun,
@@ -171,22 +173,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [saveError, setSaveError] = useState('');
   const [importJsonText, setImportJsonText] = useState('');
   const [showImportBox, setShowImportBox] = useState(false);
-  const [isUploadingHeroImage, setIsUploadingHeroImage] = useState(false);
-
-  const handleHeroFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploadingHeroImage(true);
-    setSaveError('');
-    const res = await uploadImageToSupabase(file, 'hero');
-    setIsUploadingHeroImage(false);
-    if (res.success && res.publicUrl) {
-      setHeroImageUrl(res.publicUrl);
-    } else {
-      setSaveError(res.error || 'Failed to upload image to Supabase Storage.');
-    }
-    e.target.value = '';
-  };
+  const [showHeroGalleryPicker, setShowHeroGalleryPicker] = useState(false);
 
   // Sync state whenever hotel prop changes
   useEffect(() => {
@@ -1016,27 +1003,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div>
               <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
-                Hero Background Image (Upload to Supabase Storage or Paste URL)
+                Hero Background Image (Select from Website Gallery)
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="url"
                   value={heroImageUrl}
                   onChange={(e) => setHeroImageUrl(e.target.value)}
-                  placeholder="https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/..."
+                  placeholder="Select photo from Website Gallery or paste URL..."
                   className="flex-1 min-w-[240px] px-3 py-2 border border-stone-300 rounded-lg font-mono text-xs"
                 />
-                <label className="px-3.5 py-2 bg-stone-900 hover:bg-amber-800 text-white rounded-lg font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors">
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>{isUploadingHeroImage ? 'Uploading...' : 'Upload to Supabase'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleHeroFileUpload}
-                    disabled={isUploadingHeroImage}
-                    className="hidden"
-                  />
-                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowHeroGalleryPicker(true)}
+                  className="px-3.5 py-2 bg-stone-900 hover:bg-amber-800 text-white rounded-lg font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors"
+                >
+                  <Images className="w-3.5 h-3.5" />
+                  <span>Choose from Gallery</span>
+                </button>
                 {heroImageUrl && (
                   <button
                     type="button"
@@ -1777,6 +1761,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* Gallery Picker Modal for Hero Section */}
+      {hotel?.id && (
+        <GalleryPickerModal
+          isOpen={showHeroGalleryPicker}
+          onClose={() => setShowHeroGalleryPicker(false)}
+          hotelId={hotel.id}
+          currentImageUrl={heroImageUrl}
+          defaultCategory="Hotel & Lobby"
+          title="Choose Hero Banner Photo from Website Gallery"
+          onSelect={(selectedUrl) => setHeroImageUrl(selectedUrl)}
+        />
       )}
     </div>
   );

@@ -183,6 +183,61 @@ export async function addGalleryItem(
   return { success: true, data: newItem };
 }
 
+export async function addMultipleGalleryItems(
+  itemsData: Omit<GalleryItem, 'id' | 'created_at'>[]
+): Promise<{ success: boolean; data?: GalleryItem[]; error?: string }> {
+  if (!itemsData || itemsData.length === 0) {
+    return { success: true, data: [] };
+  }
+
+  const now = Date.now();
+  let newItems: GalleryItem[] = itemsData.map((item, idx) => ({
+    id: `gal-${now}-${idx}`,
+    ...item,
+    created_at: new Date().toISOString(),
+  }));
+
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const resolvedHotelId = await resolveSupabaseHotelId(itemsData[0].hotel_id);
+      if (resolvedHotelId) {
+        const payload = itemsData.map((item) => ({
+          ...item,
+          hotel_id: resolvedHotelId,
+        }));
+
+        const { data: inserted, error } = await supabase
+          .from('gallery')
+          .insert(payload)
+          .select('*');
+
+        if (!error && inserted && inserted.length > 0) {
+          newItems = inserted as GalleryItem[];
+        }
+      }
+    } catch (e) {
+      console.warn('Supabase batch gallery insert skipped; stored locally:', e);
+    }
+  }
+
+  const current = getStoredGallery();
+  saveStoredGallery([...newItems, ...current]);
+
+  try {
+    if (newItems[0] && isValidUuid(newItems[0].hotel_id)) {
+      await logAction(
+        newItems[0].hotel_id,
+        `Batch Added ${newItems.length} Images to Gallery`,
+        'Gallery',
+        newItems[0].id
+      );
+    }
+  } catch {}
+
+  return { success: true, data: newItems };
+}
+
 export async function deleteGalleryItem(
   id: string,
   hotelId: string
