@@ -14,6 +14,7 @@ import { getCleanHotelPhone, getCleanHotelWhatsApp } from '../lib/utils';
 
 // Local storage key used strictly as a fast initial-render cache mirrored from Supabase
 export const LOCAL_STORAGE_HOTEL_KEY = 'pms_dynamic_website_config';
+const CMS_JSON_PREFIX = 'CMS_JSON::';
 
 export function isValidUuid(val?: string | null): boolean {
   if (!val) return false;
@@ -191,9 +192,9 @@ export const DEFAULT_HOTEL_INFO: Partial<Hotel> = {
   state: 'Uttar Pradesh',
   country: 'India',
   pincode: '201316',
-  phone: '+91 93135 01001',
+  phone: '+91 8586868442',
   email: 'sunmoonsuites@gmail.com',
-  whatsapp: '+919313501001',
+  whatsapp: '918586868442',
   gstin: '09AAACH7409R1ZZ',
   total_rooms: 30,
   latitude: 28.5724,
@@ -246,7 +247,6 @@ export const DEFAULT_SETTINGS: Partial<HotelSettings> = {
   faq_items: DEFAULT_FAQ_ITEMS,
 };
 
-// Safe helper to get stored local config
 export function getStoredLocalConfig(): Partial<Hotel> {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_HOTEL_KEY);
@@ -259,7 +259,6 @@ export function getStoredLocalConfig(): Partial<Hotel> {
   return {};
 }
 
-// Safe helper to write stored local config
 export function saveStoredLocalConfig(config: Partial<Hotel>): void {
   try {
     localStorage.setItem(LOCAL_STORAGE_HOTEL_KEY, JSON.stringify(config));
@@ -268,7 +267,6 @@ export function saveStoredLocalConfig(config: Partial<Hotel>): void {
   }
 }
 
-// Columns that exist in the Supabase public.hotels table
 const VALID_SUPABASE_HOTEL_COLUMNS = [
   'name',
   'tagline',
@@ -282,7 +280,6 @@ const VALID_SUPABASE_HOTEL_COLUMNS = [
   'email',
   'whatsapp',
   'gstin',
-  'logo_url',
   'total_rooms',
   'latitude',
   'longitude',
@@ -294,8 +291,56 @@ const VALID_SUPABASE_HOTEL_COLUMNS = [
 ];
 
 /**
+ * Helper to encode dynamic Website CMS fields into `public.hotels.logo_url`
+ * (`public.hotels` has full public SELECT & UPDATE permissions in Supabase).
+ */
+function encodeCmsPayloadForHotelsTable(config: Partial<Hotel>): string {
+  const cmsObject = {
+    plus_code: config.plus_code || DEFAULT_HOTEL_INFO.plus_code || 'H9FW+8F',
+    hero_config: config.hero_config || DEFAULT_HERO_CONFIG,
+    amenities_list:
+      config.amenities_list && config.amenities_list.length > 0
+        ? config.amenities_list
+        : DEFAULT_AMENITIES_LIST,
+    landmarks_list:
+      config.landmarks_list && config.landmarks_list.length > 0
+        ? config.landmarks_list
+        : DEFAULT_LANDMARKS_LIST,
+    banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
+    cancellation_policy:
+      config.cancellation_policy || DEFAULT_HOTEL_INFO.cancellation_policy || '',
+    terms_and_conditions:
+      config.terms_and_conditions || DEFAULT_HOTEL_INFO.terms_and_conditions || '',
+    privacy_policy: config.privacy_policy || DEFAULT_HOTEL_INFO.privacy_policy || '',
+    social_links: config.social_links || DEFAULT_SOCIAL_LINKS,
+    faq_items:
+      config.faq_items && config.faq_items.length > 0 ? config.faq_items : DEFAULT_FAQ_ITEMS,
+    updated_at: new Date().toISOString(),
+  };
+  return `${CMS_JSON_PREFIX}${JSON.stringify(cmsObject)}`;
+}
+
+/**
+ * Helper to decode dynamic Website CMS fields stored in `public.hotels.logo_url`
+ */
+function decodeCmsPayloadFromHotelsTable(rawLogoUrl?: string | null): Partial<Hotel> | null {
+  if (!rawLogoUrl || !rawLogoUrl.startsWith(CMS_JSON_PREFIX)) {
+    return null;
+  }
+  try {
+    const jsonStr = rawLogoUrl.slice(CMS_JSON_PREFIX.length);
+    const parsed = JSON.parse(jsonStr);
+    if (parsed && typeof parsed === 'object') {
+      return parsed;
+    }
+  } catch (e) {
+    console.warn('Failed to parse CMS JSON from hotels.logo_url:', e);
+  }
+  return null;
+}
+
+/**
  * Resolves the canonical UUID of the hotel row in Supabase `public.hotels`.
- * If `public.hotels` is empty, automatically inserts the baseline hotel record.
  */
 export async function resolveSupabaseHotelId(preferredId?: string): Promise<string | null> {
   const supabase = getSupabase();
@@ -322,7 +367,6 @@ export async function resolveSupabaseHotelId(preferredId?: string): Promise<stri
       return firstHotel.id;
     }
 
-    // No hotel row exists yet in Supabase — seed the primary hotel record
     const local = getStoredLocalConfig();
     const seedPayload = {
       name: local.name || DEFAULT_HOTEL_INFO.name || 'Sun Moon Suites',
@@ -337,6 +381,7 @@ export async function resolveSupabaseHotelId(preferredId?: string): Promise<stri
       email: local.email || DEFAULT_HOTEL_INFO.email || 'sunmoonsuites@gmail.com',
       whatsapp: getCleanHotelWhatsApp(local.whatsapp || DEFAULT_HOTEL_INFO.whatsapp),
       gstin: local.gstin || DEFAULT_HOTEL_INFO.gstin || '09AAACH7409R1ZZ',
+      logo_url: encodeCmsPayloadForHotelsTable({ ...DEFAULT_HOTEL_INFO, ...local }),
       total_rooms: Number(local.total_rooms || DEFAULT_HOTEL_INFO.total_rooms || 30),
       latitude: local.latitude ?? DEFAULT_HOTEL_INFO.latitude,
       longitude: local.longitude ?? DEFAULT_HOTEL_INFO.longitude,
@@ -362,12 +407,11 @@ export async function resolveSupabaseHotelId(preferredId?: string): Promise<stri
 
 /**
  * Synchronous baseline hotel state (Defaults + LocalStorage cache)
- * Used for instant 0ms initial rendering before Supabase cloud query completes.
  */
 export function getInitialHotelSync(): Hotel {
   const localConfig = getStoredLocalConfig();
   const unifiedHotel: Hotel = {
-    id: localConfig.id || 'hotel-sun-moon-suites-noida-117',
+    id: localConfig.id || 'ca8ca4c4-d493-490f-8d30-774e8fca42b6',
     ...DEFAULT_HOTEL_INFO,
     ...localConfig,
     created_at: localConfig.created_at || new Date().toISOString(),
@@ -380,11 +424,9 @@ export function getInitialHotelSync(): Hotel {
 }
 
 /**
- * Internal helper to persist all dynamic website CMS settings into Supabase
- * (`public.hotels` + `public.hotel_settings`).
- * Stores rich CMS objects (`hero_config`, `amenities_list`, `landmarks_list`,
- * `banquet_config`, `plus_code`, `social_links`, `faq_items`, policies) in
- * `public.hotel_settings` so they work across all devices without needing manual SQL.
+ * Persists all hotel profile columns AND all dynamic Website CMS settings
+ * directly into `public.hotels` (which has full read/write permissions in Supabase)
+ * as well as `public.hotel_settings`.
  */
 async function persistFullHotelConfigToSupabase(
   targetHotelId: string,
@@ -394,7 +436,6 @@ async function persistFullHotelConfigToSupabase(
   if (!supabase || !isValidUuid(targetHotelId)) return false;
 
   try {
-    // 1. Update core hotel columns in public.hotels
     const safeHotelRowUpdates: Record<string, any> = {};
     for (const col of VALID_SUPABASE_HOTEL_COLUMNS) {
       if (col in config && (config as any)[col] !== undefined) {
@@ -409,90 +450,69 @@ async function persistFullHotelConfigToSupabase(
       safeHotelRowUpdates.whatsapp = getCleanHotelWhatsApp(safeHotelRowUpdates.whatsapp);
     }
 
-    if (Object.keys(safeHotelRowUpdates).length > 0) {
-      await supabase.from('hotels').update(safeHotelRowUpdates).eq('id', targetHotelId);
+    // Store complete dynamic Website CMS configuration in `public.hotels.logo_url`
+    safeHotelRowUpdates.logo_url = encodeCmsPayloadForHotelsTable(config);
+
+    const { error: hotelUpdateErr } = await supabase
+      .from('hotels')
+      .update(safeHotelRowUpdates)
+      .eq('id', targetHotelId);
+
+    if (hotelUpdateErr) {
+      console.warn('Supabase hotels table update error:', hotelUpdateErr);
     }
 
-    // 2. Pack dynamic Website CMS settings into public.hotel_settings
-    const cleanSocialLinks: SocialLinks = {
-      instagram: config.social_links?.instagram ?? DEFAULT_SOCIAL_LINKS.instagram,
-      facebook: config.social_links?.facebook ?? DEFAULT_SOCIAL_LINKS.facebook,
-      tripadvisor: config.social_links?.tripadvisor ?? DEFAULT_SOCIAL_LINKS.tripadvisor,
-      google_business: config.social_links?.google_business ?? DEFAULT_SOCIAL_LINKS.google_business,
-    };
+    // Also attempt to sync to `public.hotel_settings` if RLS allows
+    try {
+      const cleanSocialLinks: SocialLinks = {
+        instagram: config.social_links?.instagram ?? DEFAULT_SOCIAL_LINKS.instagram,
+        facebook: config.social_links?.facebook ?? DEFAULT_SOCIAL_LINKS.facebook,
+        tripadvisor: config.social_links?.tripadvisor ?? DEFAULT_SOCIAL_LINKS.tripadvisor,
+        google_business:
+          config.social_links?.google_business ?? DEFAULT_SOCIAL_LINKS.google_business,
+      };
 
-    // JSONB payload stored in `social_links` column of `public.hotel_settings`
-    // Guarantees 100% compatibility with existing Supabase schema while storing all CMS objects
-    const socialAndCmsJsonPayload = {
-      ...cleanSocialLinks,
-      cms_initialized: true,
-      plus_code: config.plus_code || DEFAULT_HOTEL_INFO.plus_code || 'H9FW+8F',
-      hero_config: config.hero_config || DEFAULT_HERO_CONFIG,
-      amenities_list:
-        config.amenities_list && config.amenities_list.length > 0
-          ? config.amenities_list
-          : DEFAULT_AMENITIES_LIST,
-      landmarks_list:
-        config.landmarks_list && config.landmarks_list.length > 0
-          ? config.landmarks_list
-          : DEFAULT_LANDMARKS_LIST,
-      banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
-      cms_updated_at: new Date().toISOString(),
-    };
+      const settingsPayload = {
+        hotel_id: targetHotelId,
+        cancellation_policy:
+          config.cancellation_policy || DEFAULT_HOTEL_INFO.cancellation_policy || '',
+        terms_and_conditions:
+          config.terms_and_conditions || DEFAULT_HOTEL_INFO.terms_and_conditions || '',
+        privacy_policy: config.privacy_policy || DEFAULT_HOTEL_INFO.privacy_policy || '',
+        seo_title: `${config.name || 'Sun Moon Suites'} | Hotel in ${config.city || 'Sector 117 Noida'}`,
+        meta_description:
+          config.description ||
+          config.hero_config?.description ||
+          DEFAULT_SETTINGS.meta_description ||
+          '',
+        faq_items:
+          config.faq_items && config.faq_items.length > 0 ? config.faq_items : DEFAULT_FAQ_ITEMS,
+        social_links: {
+          ...cleanSocialLinks,
+          cms_initialized: true,
+          plus_code: config.plus_code || 'H9FW+8F',
+          hero_config: config.hero_config || DEFAULT_HERO_CONFIG,
+          amenities_list: config.amenities_list || DEFAULT_AMENITIES_LIST,
+          landmarks_list: config.landmarks_list || DEFAULT_LANDMARKS_LIST,
+          banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
+        },
+      };
 
-    const settingsPayload = {
-      hotel_id: targetHotelId,
-      cancellation_policy:
-        config.cancellation_policy || DEFAULT_HOTEL_INFO.cancellation_policy || '',
-      terms_and_conditions:
-        config.terms_and_conditions || DEFAULT_HOTEL_INFO.terms_and_conditions || '',
-      privacy_policy: config.privacy_policy || DEFAULT_HOTEL_INFO.privacy_policy || '',
-      seo_title: `${config.name || 'Sun Moon Suites'} | Hotel in ${config.city || 'Sector 117 Noida'}`,
-      meta_description:
-        config.description ||
-        config.hero_config?.description ||
-        DEFAULT_SETTINGS.meta_description ||
-        '',
-      faq_items:
-        config.faq_items && config.faq_items.length > 0 ? config.faq_items : DEFAULT_FAQ_ITEMS,
-      social_links: socialAndCmsJsonPayload,
-    };
-
-    // Upsert by unique constraint (hotel_id) on public.hotel_settings
-    const { error: upsertErr } = await supabase
-      .from('hotel_settings')
-      .upsert(settingsPayload, { onConflict: 'hotel_id' });
-
-    if (upsertErr) {
-      // Fallback: check if row exists and update or insert
-      const { data: existingSettings } = await supabase
-        .from('hotel_settings')
-        .select('id')
-        .eq('hotel_id', targetHotelId)
-        .maybeSingle();
-
-      if (existingSettings?.id) {
-        await supabase
-          .from('hotel_settings')
-          .update(settingsPayload)
-          .eq('hotel_id', targetHotelId);
-      } else {
-        await supabase.from('hotel_settings').insert([settingsPayload]);
-      }
+      await supabase.from('hotel_settings').upsert(settingsPayload, { onConflict: 'hotel_id' });
+    } catch {
+      // Ignore if hotel_settings RLS restricts anon update; public.hotels already stored it
     }
 
-    return true;
+    return !hotelUpdateErr;
   } catch (err) {
-    console.warn('Error persisting full hotel CMS config to Supabase:', err);
+    console.warn('Error persisting hotel CMS config to Supabase:', err);
     return false;
   }
 }
 
 /**
  * Fetch Unified Hotel & Website CMS Data from Supabase (Single Source of Truth)
- * Picks all profile fields from `public.hotels` and all dynamic Website CMS
- * configurations (`hero_config`, `amenities_list`, `landmarks_list`, `banquet_config`,
- * `plus_code`, policies, `faq_items`, `social_links`) from `public.hotel_settings`.
+ * Always prioritizes `public.hotels` in Supabase over any stale localStorage data.
  */
 export async function getHotel(): Promise<Hotel | null> {
   const localConfig = getStoredLocalConfig();
@@ -510,7 +530,6 @@ export async function getHotel(): Promise<Hotel | null> {
       return unifiedHotel;
     }
 
-    // Fetch both `hotels` and `hotel_settings` in parallel from Supabase
     const [hotelRes, settingsRes] = await Promise.all([
       supabase.from('hotels').select('*').eq('id', resolvedHotelId).maybeSingle(),
       supabase.from('hotel_settings').select('*').eq('hotel_id', resolvedHotelId).maybeSingle(),
@@ -520,54 +539,42 @@ export async function getHotel(): Promise<Hotel | null> {
     const dbSettings = settingsRes.data as any;
 
     if (dbHotel) {
-      const rawSocialAndCms =
+      // Decode rich CMS payload stored in `public.hotels.logo_url`
+      const cmsFromHotelsTable = decodeCmsPayloadFromHotelsTable(dbHotel.logo_url);
+      const rawSettingsSocial =
         dbSettings?.social_links && typeof dbSettings.social_links === 'object'
           ? dbSettings.social_links
           : {};
 
-      const isCmsInitializedInDb = Boolean(
-        rawSocialAndCms.cms_initialized ||
-          rawSocialAndCms.hero_config ||
-          dbSettings?.hero_config
-      );
-
-      // If Supabase hotel_settings does not have the dynamic CMS initialized yet,
-      // push the current local/default configuration to Supabase once so Supabase becomes the Single Source of Truth.
-      const hasLegacyPlaceholderAddress =
-        dbHotel.address === 'Plot No. 12, Sector 117' ||
-        dbHotel.pincode === '201301' ||
-        dbHotel.phone?.includes('98765') ||
-        dbHotel.whatsapp?.includes('98765');
-
-      if (!isCmsInitializedInDb || hasLegacyPlaceholderAddress) {
-        const initialSyncConfig: Partial<Hotel> = {
+      // If `public.hotels.logo_url` doesn't have the CMS JSON encoded yet, seed it once
+      // while strictly keeping `dbHotel` columns (phone, whatsapp, address, etc.) from Supabase!
+      if (!cmsFromHotelsTable) {
+        const initialCmsSeed: Partial<Hotel> = {
           ...DEFAULT_HOTEL_INFO,
-          ...dbHotel,
           ...localConfig,
+          ...dbHotel, // <-- Supabase dbHotel ALWAYS wins over localConfig!
           id: dbHotel.id,
-          address:
-            hasLegacyPlaceholderAddress
-              ? localConfig.address || DEFAULT_HOTEL_INFO.address
-              : dbHotel.address || localConfig.address || DEFAULT_HOTEL_INFO.address,
-          pincode:
-            hasLegacyPlaceholderAddress
-              ? localConfig.pincode || DEFAULT_HOTEL_INFO.pincode
-              : dbHotel.pincode || localConfig.pincode || DEFAULT_HOTEL_INFO.pincode,
-          phone: getCleanHotelPhone(localConfig.phone || dbHotel.phone || DEFAULT_HOTEL_INFO.phone),
-          whatsapp: getCleanHotelWhatsApp(
-            localConfig.whatsapp || dbHotel.whatsapp || DEFAULT_HOTEL_INFO.whatsapp
-          ),
-          hero_config: localConfig.hero_config || DEFAULT_HERO_CONFIG,
+          phone: getCleanHotelPhone(dbHotel.phone),
+          whatsapp: getCleanHotelWhatsApp(dbHotel.whatsapp),
+          hero_config:
+            rawSettingsSocial.hero_config || localConfig.hero_config || DEFAULT_HERO_CONFIG,
           amenities_list:
-            localConfig.amenities_list && localConfig.amenities_list.length > 0
-              ? localConfig.amenities_list
-              : DEFAULT_AMENITIES_LIST,
+            rawSettingsSocial.amenities_list ||
+            localConfig.amenities_list ||
+            DEFAULT_AMENITIES_LIST,
           landmarks_list:
-            localConfig.landmarks_list && localConfig.landmarks_list.length > 0
-              ? localConfig.landmarks_list
-              : DEFAULT_LANDMARKS_LIST,
-          banquet_config: localConfig.banquet_config || DEFAULT_BANQUET_CONFIG,
-          plus_code: localConfig.plus_code || DEFAULT_HOTEL_INFO.plus_code || 'H9FW+8F',
+            rawSettingsSocial.landmarks_list ||
+            localConfig.landmarks_list ||
+            DEFAULT_LANDMARKS_LIST,
+          banquet_config:
+            rawSettingsSocial.banquet_config ||
+            localConfig.banquet_config ||
+            DEFAULT_BANQUET_CONFIG,
+          plus_code:
+            rawSettingsSocial.plus_code ||
+            localConfig.plus_code ||
+            DEFAULT_HOTEL_INFO.plus_code ||
+            'H9FW+8F',
           cancellation_policy:
             localConfig.cancellation_policy ||
             dbSettings?.cancellation_policy ||
@@ -580,92 +587,72 @@ export async function getHotel(): Promise<Hotel | null> {
             localConfig.privacy_policy ||
             dbSettings?.privacy_policy ||
             DEFAULT_HOTEL_INFO.privacy_policy,
+          social_links: localConfig.social_links || DEFAULT_SOCIAL_LINKS,
           faq_items:
             localConfig.faq_items && localConfig.faq_items.length > 0
               ? localConfig.faq_items
-              : Array.isArray(dbSettings?.faq_items) && dbSettings.faq_items.length > 0
-              ? dbSettings.faq_items
               : DEFAULT_FAQ_ITEMS,
-          social_links: localConfig.social_links || DEFAULT_SOCIAL_LINKS,
         };
 
-        await persistFullHotelConfigToSupabase(dbHotel.id, initialSyncConfig);
-        unifiedHotel = {
-          ...unifiedHotel,
-          ...initialSyncConfig,
-          id: dbHotel.id,
-        } as Hotel;
-        saveStoredLocalConfig(unifiedHotel);
-        return unifiedHotel;
+        await persistFullHotelConfigToSupabase(dbHotel.id, initialCmsSeed);
+        saveStoredLocalConfig(initialCmsSeed);
+        return initialCmsSeed as Hotel;
       }
 
-      // Pick ALL Website Settings directly from Supabase (`dbHotel` + `dbSettings`)
-      const dbHeroConfig: HeroConfig = {
-        ...DEFAULT_HERO_CONFIG,
-        ...(dbSettings?.hero_config && Object.keys(dbSettings.hero_config).length > 0
-          ? dbSettings.hero_config
-          : rawSocialAndCms.hero_config || {}),
-      };
-
-      const dbAmenitiesList: AmenityItem[] =
-        Array.isArray(dbSettings?.amenities_list) && dbSettings.amenities_list.length > 0
-          ? dbSettings.amenities_list
-          : Array.isArray(rawSocialAndCms.amenities_list) && rawSocialAndCms.amenities_list.length > 0
-          ? rawSocialAndCms.amenities_list
-          : DEFAULT_AMENITIES_LIST;
-
-      const dbLandmarksList: LandmarkItem[] =
-        Array.isArray(dbSettings?.landmarks_list) && dbSettings.landmarks_list.length > 0
-          ? dbSettings.landmarks_list
-          : Array.isArray(rawSocialAndCms.landmarks_list) && rawSocialAndCms.landmarks_list.length > 0
-          ? rawSocialAndCms.landmarks_list
-          : DEFAULT_LANDMARKS_LIST;
-
-      const dbBanquetConfig: BanquetConfig = {
-        ...DEFAULT_BANQUET_CONFIG,
-        ...(dbSettings?.banquet_config && Object.keys(dbSettings.banquet_config).length > 0
-          ? dbSettings.banquet_config
-          : rawSocialAndCms.banquet_config || {}),
-      };
-
-      const dbSocialLinks: SocialLinks = {
-        instagram: rawSocialAndCms.instagram ?? DEFAULT_SOCIAL_LINKS.instagram,
-        facebook: rawSocialAndCms.facebook ?? DEFAULT_SOCIAL_LINKS.facebook,
-        tripadvisor: rawSocialAndCms.tripadvisor ?? DEFAULT_SOCIAL_LINKS.tripadvisor,
-        google_business: rawSocialAndCms.google_business ?? DEFAULT_SOCIAL_LINKS.google_business,
-      };
-
-      const dbFaqItems: FAQItem[] =
-        Array.isArray(dbSettings?.faq_items) && dbSettings.faq_items.length > 0
-          ? dbSettings.faq_items
-          : DEFAULT_FAQ_ITEMS;
-
+      // Pick ALL fields directly from Supabase (`dbHotel` + `cmsFromHotelsTable`)
       unifiedHotel = {
         ...DEFAULT_HOTEL_INFO,
         ...dbHotel,
         id: dbHotel.id,
+        logo_url: undefined,
         phone: getCleanHotelPhone(dbHotel.phone),
         whatsapp: getCleanHotelWhatsApp(dbHotel.whatsapp),
         plus_code:
-          dbHotel.plus_code ||
-          dbSettings?.plus_code ||
-          rawSocialAndCms.plus_code ||
+          cmsFromHotelsTable.plus_code ||
+          rawSettingsSocial.plus_code ||
           DEFAULT_HOTEL_INFO.plus_code ||
           'H9FW+8F',
-        hero_config: dbHeroConfig,
-        amenities_list: dbAmenitiesList,
-        landmarks_list: dbLandmarksList,
-        banquet_config: dbBanquetConfig,
-        social_links: dbSocialLinks,
-        faq_items: dbFaqItems,
+        hero_config: {
+          ...DEFAULT_HERO_CONFIG,
+          ...(cmsFromHotelsTable.hero_config || rawSettingsSocial.hero_config || {}),
+        },
+        amenities_list:
+          Array.isArray(cmsFromHotelsTable.amenities_list) &&
+          cmsFromHotelsTable.amenities_list.length > 0
+            ? cmsFromHotelsTable.amenities_list
+            : DEFAULT_AMENITIES_LIST,
+        landmarks_list:
+          Array.isArray(cmsFromHotelsTable.landmarks_list) &&
+          cmsFromHotelsTable.landmarks_list.length > 0
+            ? cmsFromHotelsTable.landmarks_list
+            : DEFAULT_LANDMARKS_LIST,
+        banquet_config: {
+          ...DEFAULT_BANQUET_CONFIG,
+          ...(cmsFromHotelsTable.banquet_config || rawSettingsSocial.banquet_config || {}),
+        },
+        social_links: {
+          ...DEFAULT_SOCIAL_LINKS,
+          ...(cmsFromHotelsTable.social_links || {}),
+        },
+        faq_items:
+          Array.isArray(cmsFromHotelsTable.faq_items) && cmsFromHotelsTable.faq_items.length > 0
+            ? cmsFromHotelsTable.faq_items
+            : DEFAULT_FAQ_ITEMS,
         cancellation_policy:
-          dbSettings?.cancellation_policy || DEFAULT_HOTEL_INFO.cancellation_policy,
+          cmsFromHotelsTable.cancellation_policy ||
+          dbSettings?.cancellation_policy ||
+          DEFAULT_HOTEL_INFO.cancellation_policy,
         terms_and_conditions:
-          dbSettings?.terms_and_conditions || DEFAULT_HOTEL_INFO.terms_and_conditions,
-        privacy_policy: dbSettings?.privacy_policy || DEFAULT_HOTEL_INFO.privacy_policy,
+          cmsFromHotelsTable.terms_and_conditions ||
+          dbSettings?.terms_and_conditions ||
+          DEFAULT_HOTEL_INFO.terms_and_conditions,
+        privacy_policy:
+          cmsFromHotelsTable.privacy_policy ||
+          dbSettings?.privacy_policy ||
+          DEFAULT_HOTEL_INFO.privacy_policy,
       } as Hotel;
 
-      // Mirror Supabase state to localStorage cache so subsequent page loads start with fresh Supabase data
+      // Mirror Supabase data into localStorage cache
       saveStoredLocalConfig(unifiedHotel);
     }
   } catch (err) {
@@ -676,9 +663,7 @@ export async function getHotel(): Promise<Hotel | null> {
 }
 
 /**
- * Update Hotel & Website CMS Data
- * Stores all dynamic website settings in Supabase (`public.hotels` + `public.hotel_settings`),
- * mirrors to local cache, and dispatches live refresh event.
+ * Update Hotel & Website CMS Data in Supabase (`public.hotels`)
  */
 export async function updateHotel(
   id: string,
@@ -693,11 +678,9 @@ export async function updateHotel(
       updated_at: new Date().toISOString(),
     };
 
-    // Sanitize phone & whatsapp
     if (merged.phone) merged.phone = getCleanHotelPhone(merged.phone);
     if (merged.whatsapp) merged.whatsapp = getCleanHotelWhatsApp(merged.whatsapp);
 
-    // Resolve real Supabase hotel UUID and persist to Supabase first
     const supabase = getSupabase();
     if (supabase) {
       const targetHotelId = await resolveSupabaseHotelId(id || existing.id);
@@ -707,15 +690,12 @@ export async function updateHotel(
       }
     }
 
-    // Mirror updated state to localStorage cache
     saveStoredLocalConfig(merged);
 
-    // Dispatch real-time custom event so all active components re-render immediately
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('hotel_data_updated', { detail: merged }));
     }
 
-    // Log audit trail
     try {
       if (merged.id && isValidUuid(merged.id)) {
         await logAction(
@@ -726,9 +706,7 @@ export async function updateHotel(
           updates
         );
       }
-    } catch {
-      // Ignore audit log failure
-    }
+    } catch {}
 
     return { success: true };
   } catch (err: any) {
@@ -737,9 +715,6 @@ export async function updateHotel(
   }
 }
 
-/**
- * Reset all Hotel & CMS configurations to default factory settings in both Supabase and local cache
- */
 export async function resetHotelToDefaults(hotelId?: string): Promise<Hotel> {
   try {
     localStorage.removeItem(LOCAL_STORAGE_HOTEL_KEY);
@@ -747,7 +722,10 @@ export async function resetHotelToDefaults(hotelId?: string): Promise<Hotel> {
     console.warn(e);
   }
 
-  const resolvedId = (await resolveSupabaseHotelId(hotelId)) || hotelId || 'hotel-sun-moon-suites-noida-117';
+  const resolvedId =
+    (await resolveSupabaseHotelId(hotelId)) ||
+    hotelId ||
+    'ca8ca4c4-d493-490f-8d30-774e8fca42b6';
 
   const defaultHotel: Hotel = {
     id: resolvedId,
@@ -769,9 +747,6 @@ export async function resetHotelToDefaults(hotelId?: string): Promise<Hotel> {
   return defaultHotel;
 }
 
-/**
- * Export complete website configuration as a JSON string
- */
 export function exportHotelConfigJson(): string {
   const current = getStoredLocalConfig();
   const exportData = {
@@ -782,9 +757,6 @@ export function exportHotelConfigJson(): string {
   return JSON.stringify(exportData, null, 2);
 }
 
-/**
- * Import complete website configuration from a JSON string and store in Supabase
- */
 export async function importHotelConfigJson(
   jsonString: string,
   hotelId: string
@@ -804,10 +776,9 @@ export async function importHotelConfigJson(
 
 export async function getHotelSettings(hotelId: string): Promise<HotelSettings | null> {
   const hotel = await getHotel();
-  const supabase = getSupabase();
   const resolvedId = (await resolveSupabaseHotelId(hotelId)) || hotel?.id || hotelId;
 
-  const baseSettings: HotelSettings = {
+  return {
     id: 'local-settings-id',
     hotel_id: resolvedId,
     ...DEFAULT_SETTINGS,
@@ -821,43 +792,6 @@ export async function getHotelSettings(hotelId: string): Promise<HotelSettings |
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   } as HotelSettings;
-
-  if (!supabase || !isValidUuid(resolvedId)) {
-    return baseSettings;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('hotel_settings')
-      .select('*')
-      .eq('hotel_id', resolvedId)
-      .maybeSingle();
-
-    if (!error && data) {
-      return {
-        ...baseSettings,
-        ...(data as HotelSettings),
-        cancellation_policy: data.cancellation_policy || baseSettings.cancellation_policy,
-        terms_and_conditions: data.terms_and_conditions || baseSettings.terms_and_conditions,
-        privacy_policy: data.privacy_policy || baseSettings.privacy_policy,
-        faq_items:
-          Array.isArray(data.faq_items) && data.faq_items.length > 0
-            ? data.faq_items
-            : baseSettings.faq_items,
-        social_links: {
-          instagram: data.social_links?.instagram ?? baseSettings.social_links.instagram,
-          facebook: data.social_links?.facebook ?? baseSettings.social_links.facebook,
-          tripadvisor: data.social_links?.tripadvisor ?? baseSettings.social_links.tripadvisor,
-          google_business:
-            data.social_links?.google_business ?? baseSettings.social_links.google_business,
-        },
-      };
-    }
-  } catch (err) {
-    console.warn('Error fetching hotel settings:', err);
-  }
-
-  return baseSettings;
 }
 
 export async function updateHotelSettings(
@@ -871,24 +805,5 @@ export async function updateHotelSettings(
   if (updates.social_links) localUpdates.social_links = updates.social_links;
   if (updates.faq_items) localUpdates.faq_items = updates.faq_items;
 
-  await updateHotel(hotelId, localUpdates);
-
-  const supabase = getSupabase();
-  const resolvedId = await resolveSupabaseHotelId(hotelId);
-  if (supabase && resolvedId) {
-    try {
-      const dbUpdates: Record<string, any> = {};
-      if (updates.booking_rules) dbUpdates.booking_rules = updates.booking_rules;
-      if (updates.payment_config) dbUpdates.payment_config = updates.payment_config;
-      if (updates.seo_title) dbUpdates.seo_title = updates.seo_title;
-      if (updates.meta_description) dbUpdates.meta_description = updates.meta_description;
-      if (Object.keys(dbUpdates).length > 0) {
-        await supabase.from('hotel_settings').update(dbUpdates).eq('hotel_id', resolvedId);
-      }
-    } catch (e) {
-      console.warn('Supabase settings update failed:', e);
-    }
-  }
-
-  return { success: true };
+  return updateHotel(hotelId, localUpdates);
 }

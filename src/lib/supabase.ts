@@ -3,6 +3,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const STORAGE_KEY_URL = 'sunmoon_supabase_url';
 const STORAGE_KEY_KEY = 'sunmoon_supabase_anon_key';
 
+// Public client-side Supabase project URL & Publishable Key for Sun Moon Suites
+const DEFAULT_PUBLIC_SUPABASE_URL = 'https://uaagbjoxehxmyhngyomv.supabase.co';
+const DEFAULT_PUBLIC_SUPABASE_ANON_KEY = 'sb_publishable_kQKQZaeaYhXZi1htiDjbgA_9oEMnW2t';
+
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
@@ -10,7 +14,7 @@ export interface SupabaseConfig {
 }
 
 /**
- * Get active Supabase configuration from environment or secure user storage
+ * Get active Supabase configuration from environment, user storage, or project default
  */
 export function getSupabaseConfig(): SupabaseConfig {
   const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
@@ -39,9 +43,9 @@ export function getSupabaseConfig(): SupabaseConfig {
   }
 
   return {
-    url: '',
-    anonKey: '',
-    source: 'none',
+    url: DEFAULT_PUBLIC_SUPABASE_URL,
+    anonKey: DEFAULT_PUBLIC_SUPABASE_ANON_KEY,
+    source: 'env',
   };
 }
 

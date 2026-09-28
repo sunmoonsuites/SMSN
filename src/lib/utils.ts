@@ -77,8 +77,8 @@ export function calculateGST(amount: number): { rate: number; tax: number; total
   };
 }
 
-export const DEFAULT_HOTEL_PHONE = '+91 93135 01001';
-export const DEFAULT_HOTEL_WHATSAPP = '919313501001';
+export const DEFAULT_HOTEL_PHONE = '+91 8586868442';
+export const DEFAULT_HOTEL_WHATSAPP = '918586868442';
 
 /**
  * Returns a guaranteed clean, validated phone number, replacing any legacy demo number
