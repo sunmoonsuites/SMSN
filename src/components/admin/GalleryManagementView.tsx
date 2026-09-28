@@ -5,12 +5,16 @@ import {
   addGalleryItem,
   deleteGalleryItem,
 } from '../../services/galleryService';
+import { uploadImageToSupabase } from '../../services/storageService';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { EmptyState } from '../common/EmptyState';
 import { Modal } from '../common/Modal';
 import {
   Plus,
   Trash2,
+  Upload,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface GalleryManagementViewProps {
@@ -28,6 +32,8 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
   const [imageUrl, setImageUrl] = useState('');
   const [category, setCategory] = useState('Rooms');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
     if (hotel?.id) {
@@ -51,6 +57,27 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingFile(true);
+    setUploadError('');
+
+    const res = await uploadImageToSupabase(file, 'gallery');
+    setIsUploadingFile(false);
+
+    if (res.success && res.publicUrl) {
+      setImageUrl(res.publicUrl);
+      if (!caption.trim()) {
+        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' ');
+        setCaption(cleanName);
+      }
+    } else {
+      setUploadError(res.error || 'Failed to upload image to Supabase Storage.');
+    }
+    e.target.value = '';
+  };
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hotel?.id || !imageUrl.trim()) return;
@@ -71,11 +98,12 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
       setShowAddModal(false);
       setCaption('');
       setImageUrl('');
+      setUploadError('');
       loadGallery();
     }
   };
 
-  const categories = ['Rooms', 'Banquet Hall', 'Lobby & Reception', 'Exterior & Facade'];
+  const categories = ['Rooms', 'Banquet Hall', 'Hotel & Lobby', 'Dining', 'Exterior & Facade'];
 
   const filtered = images.filter((img) => {
     if (categoryFilter !== 'ALL' && img.category !== categoryFilter) return false;
@@ -83,7 +111,7 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
   });
 
   if (isLoading) {
-    return <LoadingSpinner message="Fetching gallery photographs..." />;
+    return <LoadingSpinner message="Fetching gallery photographs from Supabase..." />;
   }
 
   return (
@@ -92,20 +120,23 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h3 className="font-serif font-bold text-2xl text-stone-900">
-            Property Photo Gallery
+            Property Photo Gallery (Supabase Storage)
           </h3>
           <p className="text-xs text-stone-500">
-            Visual showcase of rooms, lobby, dining, and banquets on the public website
+            Upload photos directly to your Supabase <code>hotel-media</code> bucket and display them live on the website
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            setUploadError('');
+            setShowAddModal(true);
+          }}
           className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Photo</span>
+          <span>Upload / Add Photo</span>
         </button>
       </div>
 
@@ -161,6 +192,7 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
                 <img
                   src={img.image_url}
                   alt={img.caption || 'Hotel photo'}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/70 text-white text-[10px] font-bold rounded">
@@ -176,6 +208,7 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
                   type="button"
                   onClick={() => handleDelete(img.id)}
                   className="p-1 text-stone-400 hover:text-rose-600 rounded cursor-pointer"
+                  title="Delete Photo"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -185,15 +218,59 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
         </div>
       )}
 
-      {/* ADD PHOTO MODAL */}
+      {/* ADD / UPLOAD PHOTO MODAL */}
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Add Gallery Photograph"
-        subtitle="Add high-resolution image URL for property showcase"
+        title="Upload Hotel Photo to Supabase"
+        subtitle="Upload directly from your device to Supabase Storage (hotel-media) or paste a public URL"
         maxWidth="md"
       >
         <form onSubmit={handleCreateSubmit} className="space-y-4">
+          {/* Direct Device-to-Supabase Upload Box */}
+          <div className="p-4 border-2 border-dashed border-amber-300 rounded-xl bg-amber-50/40 text-center space-y-2">
+            <label className="inline-flex items-center gap-2 px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors">
+              <Upload className="w-4 h-4" />
+              <span>
+                {isUploadingFile ? 'Uploading to Supabase Storage...' : 'Choose Photo from Computer / Mobile'}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                disabled={isUploadingFile}
+                className="hidden"
+              />
+            </label>
+            <p className="text-[11px] text-stone-500">
+              Uploads directly to Supabase Storage bucket <code>hotel-media/gallery/</code> (JPG, PNG, WebP)
+            </p>
+          </div>
+
+          {uploadError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+              <span>{uploadError}</span>
+            </div>
+          )}
+
+          {imageUrl && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Image Ready for Website Display</span>
+              </div>
+              <div className="aspect-video w-full rounded-lg overflow-hidden border border-stone-200 bg-stone-100">
+                <img
+                  src={imageUrl}
+                  alt="Preview"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
               Photo Caption
@@ -226,12 +303,12 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-              Image URL *
+              Supabase Storage Public URL (or Image Link) *
             </label>
             <input
               type="url"
               required
-              placeholder="https://images.unsplash.com/..."
+              placeholder="https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/..."
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
               className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg font-mono text-[11px]"
@@ -248,10 +325,10 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2.5 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white text-xs font-semibold uppercase tracking-wider rounded-lg cursor-pointer"
+              disabled={isSubmitting || isUploadingFile || !imageUrl.trim()}
+              className="px-5 py-2 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
             >
-              {isSubmitting ? 'Adding...' : 'Add Photograph'}
+              {isSubmitting ? 'Saving...' : 'Save to Website Gallery'}
             </button>
           </div>
         </form>

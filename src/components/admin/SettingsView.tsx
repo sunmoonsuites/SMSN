@@ -22,6 +22,7 @@ import { getSupabaseConfig } from '../../lib/supabase';
 import { getCleanHotelPhone, getCleanHotelWhatsApp } from '../../lib/utils';
 import { getAmenityIcon } from '../website/AmenitiesSection';
 import { usePMSTheme } from '../../services/themeService';
+import { uploadImageToSupabase } from '../../services/storageService';
 import {
   Settings,
   Building,
@@ -170,6 +171,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [saveError, setSaveError] = useState('');
   const [importJsonText, setImportJsonText] = useState('');
   const [showImportBox, setShowImportBox] = useState(false);
+  const [isUploadingHeroImage, setIsUploadingHeroImage] = useState(false);
+
+  const handleHeroFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingHeroImage(true);
+    setSaveError('');
+    const res = await uploadImageToSupabase(file, 'hero');
+    setIsUploadingHeroImage(false);
+    if (res.success && res.publicUrl) {
+      setHeroImageUrl(res.publicUrl);
+    } else {
+      setSaveError(res.error || 'Failed to upload image to Supabase Storage.');
+    }
+    e.target.value = '';
+  };
 
   // Sync state whenever hotel prop changes
   useEffect(() => {
@@ -999,16 +1016,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div>
               <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
-                Hero Background Image URL (Leave empty to use default luxury lobby photo)
+                Hero Background Image (Upload to Supabase Storage or Paste URL)
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <input
                   type="url"
                   value={heroImageUrl}
                   onChange={(e) => setHeroImageUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="flex-1 px-3 py-2 border border-stone-300 rounded-lg font-mono text-xs"
+                  placeholder="https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/..."
+                  className="flex-1 min-w-[240px] px-3 py-2 border border-stone-300 rounded-lg font-mono text-xs"
                 />
+                <label className="px-3.5 py-2 bg-stone-900 hover:bg-amber-800 text-white rounded-lg font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{isUploadingHeroImage ? 'Uploading...' : 'Upload to Supabase'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleHeroFileUpload}
+                    disabled={isUploadingHeroImage}
+                    className="hidden"
+                  />
+                </label>
                 {heroImageUrl && (
                   <button
                     type="button"
