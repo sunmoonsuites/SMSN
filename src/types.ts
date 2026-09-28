@@ -34,6 +34,7 @@ export interface LandmarkItem {
 }
 
 export interface BanquetConfig {
+  is_enabled?: boolean;
   title?: string;
   subtitle?: string;
   description?: string;

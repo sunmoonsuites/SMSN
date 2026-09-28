@@ -48,7 +48,9 @@ export const Footer: React.FC<FooterProps> = ({
     paymentAccepted: 'Cash, Credit Card, UPI',
     amenityFeature: [
       { '@type': 'LocationFeatureSpecification', name: 'Free Wi-Fi', value: true },
-      { '@type': 'LocationFeatureSpecification', name: 'Banquet Hall', value: true },
+      ...(hotel?.banquet_config?.is_enabled !== false
+        ? [{ '@type': 'LocationFeatureSpecification', name: 'Banquet Hall', value: true }]
+        : []),
       { '@type': 'LocationFeatureSpecification', name: '100% Power Backup', value: true },
       { '@type': 'LocationFeatureSpecification', name: 'Free Parking', value: true },
     ],
@@ -131,15 +133,17 @@ export const Footer: React.FC<FooterProps> = ({
                   Rooms &amp; Suites (30 Rooms)
                 </button>
               </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigateSection('banquet')}
-                  className="hover:text-white transition-colors"
-                >
-                  Ground Floor Banquet Hall
-                </button>
-              </li>
+              {hotel?.banquet_config?.is_enabled !== false && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateSection('banquet')}
+                    className="hover:text-white transition-colors"
+                  >
+                    Ground Floor Banquet Hall
+                  </button>
+                </li>
+              )}
               <li>
                 <button
                   type="button"

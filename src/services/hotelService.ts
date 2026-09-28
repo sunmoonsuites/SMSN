@@ -137,6 +137,7 @@ export const DEFAULT_LANDMARKS_LIST: LandmarkItem[] = [
 ];
 
 export const DEFAULT_BANQUET_CONFIG: BanquetConfig = {
+  is_enabled: true,
   title: 'Our Banquet Hall',
   subtitle: 'Events & Gatherings',
   description:

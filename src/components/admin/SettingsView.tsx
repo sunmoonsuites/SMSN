@@ -6,6 +6,7 @@ import {
   LandmarkItem,
   FAQItem,
   SocialLinks,
+  BanquetConfig,
 } from '../../types';
 import {
   updateHotel,
@@ -15,6 +16,7 @@ import {
   DEFAULT_HERO_CONFIG,
   DEFAULT_AMENITIES_LIST,
   DEFAULT_LANDMARKS_LIST,
+  DEFAULT_BANQUET_CONFIG,
   DEFAULT_FAQ_ITEMS,
   DEFAULT_SOCIAL_LINKS,
 } from '../../services/hotelService';
@@ -28,6 +30,7 @@ import {
   Settings,
   Building,
   Sparkles,
+  PartyPopper,
   MapPin,
   ShieldCheck,
   Share2,
@@ -62,6 +65,7 @@ type SettingsTab =
   | 'general'
   | 'hero'
   | 'amenities'
+  | 'banquet'
   | 'location'
   | 'policies'
   | 'social'
@@ -124,6 +128,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newAmenityTitle, setNewAmenityTitle] = useState('');
   const [newAmenityDesc, setNewAmenityDesc] = useState('');
   const [newAmenityIcon, setNewAmenityIcon] = useState('wifi');
+
+  // Banquet Hall State (Show/Hide on Website)
+  const initialBanquet = hotel?.banquet_config || DEFAULT_BANQUET_CONFIG;
+  const [banquetEnabled, setBanquetEnabled] = useState(initialBanquet.is_enabled !== false);
+  const [banquetTitle, setBanquetTitle] = useState(initialBanquet.title || 'Our Banquet Hall');
+  const [banquetSubtitle, setBanquetSubtitle] = useState(initialBanquet.subtitle || 'Events & Gatherings');
+  const [banquetDesc, setBanquetDesc] = useState(initialBanquet.description || '');
+  const [banquetCapacity, setBanquetCapacity] = useState(initialBanquet.capacity || 'Up to 50 Guests');
+  const [banquetEvents, setBanquetEvents] = useState(initialBanquet.events || 'Kitty Parties, Birthdays, Conferences');
+  const [banquetAmbiance, setBanquetAmbiance] = useState(initialBanquet.ambiance || 'Elegant & Versatile');
+  const [banquetService, setBanquetService] = useState(initialBanquet.service || 'Tailored Catering');
 
   // Location & Landmarks State
   const [googleMapsUrl, setGoogleMapsUrl] = useState(
@@ -206,6 +221,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       if (hotel.amenities_list && hotel.amenities_list.length > 0) {
         setAmenitiesList(hotel.amenities_list);
       }
+      if (hotel.banquet_config) {
+        setBanquetEnabled(hotel.banquet_config.is_enabled !== false);
+        setBanquetTitle(hotel.banquet_config.title || 'Our Banquet Hall');
+        setBanquetSubtitle(hotel.banquet_config.subtitle || 'Events & Gatherings');
+        setBanquetDesc(hotel.banquet_config.description || '');
+        setBanquetCapacity(hotel.banquet_config.capacity || 'Up to 50 Guests');
+        setBanquetEvents(hotel.banquet_config.events || 'Kitty Parties, Birthdays, Conferences');
+        setBanquetAmbiance(hotel.banquet_config.ambiance || 'Elegant & Versatile');
+        setBanquetService(hotel.banquet_config.service || 'Tailored Catering');
+      }
       if (hotel.landmarks_list && hotel.landmarks_list.length > 0) {
         setLandmarksList(hotel.landmarks_list);
       }
@@ -276,6 +301,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         highlight3: heroHighlight3.trim(),
       },
       amenities_list: amenitiesList,
+      banquet_config: {
+        is_enabled: banquetEnabled,
+        title: banquetTitle.trim(),
+        subtitle: banquetSubtitle.trim(),
+        description: banquetDesc.trim(),
+        capacity: banquetCapacity.trim(),
+        events: banquetEvents.trim(),
+        ambiance: banquetAmbiance.trim(),
+        service: banquetService.trim(),
+      },
       landmarks_list: landmarksList,
       cancellation_policy: cancellationPolicy.trim(),
       terms_and_conditions: termsAndConditions.trim(),
@@ -607,6 +642,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         >
           <Sparkles className="w-4 h-4" />
           Amenities Manager ({amenitiesList.filter((a) => a.is_active !== false).length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('banquet')}
+          className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'banquet'
+              ? 'bg-white text-stone-900 shadow-2xs font-bold'
+              : 'text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <PartyPopper className="w-4 h-4" />
+          <span>Banquet Hall</span>
+          <span
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              banquetEnabled
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-rose-100 text-rose-800'
+            }`}
+          >
+            {banquetEnabled ? 'Visible' : 'Hidden'}
+          </span>
         </button>
 
         <button
@@ -1259,7 +1316,191 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* TAB 4: LOCATION & LANDMARKS */}
+      {/* TAB 4: BANQUET HALL VISIBILITY & CONTENT */}
+      {activeTab === 'banquet' && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-2xs space-y-6">
+          <div className="border-b border-stone-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="font-serif font-bold text-lg text-stone-900">
+                Banquet Hall Website Visibility &amp; Details
+              </h4>
+              <p className="text-xs text-stone-500">
+                Easily show or hide the Banquet Hall from public website visitors when not operational.
+              </p>
+            </div>
+            <span
+              className={`px-3 py-1 rounded-lg text-xs font-bold ${
+                banquetEnabled
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-rose-100 text-rose-800 border border-rose-300'
+              }`}
+            >
+              {banquetEnabled ? '● Currently Visible on Website' : '○ Currently Hidden on Website'}
+            </span>
+          </div>
+
+          <form onSubmit={handleSaveAll} className="space-y-5 text-xs">
+            {/* Prominent Visibility Toggle Card */}
+            <div
+              className={`p-5 rounded-2xl border transition-all ${
+                banquetEnabled
+                  ? 'bg-emerald-50/60 border-emerald-300'
+                  : 'bg-rose-50/60 border-rose-300'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-serif font-bold text-base text-stone-900">
+                      Show Banquet Section on Website
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        banquetEnabled
+                          ? 'bg-emerald-200 text-emerald-900'
+                          : 'bg-rose-200 text-rose-900'
+                      }`}
+                    >
+                      {banquetEnabled ? 'Operational (Visible)' : 'Not Operational (Hidden)'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-600 max-w-xl">
+                    {banquetEnabled
+                      ? 'The Banquet section and "Banquet Hall" link in the top navigation bar and footer are currently VISIBLE to all guests.'
+                      : 'The Banquet section, navigation link, and enquiry form are completely HIDDEN from the website. Guests cannot see or inquire about the banquet hall while it is not operational.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setBanquetEnabled(!banquetEnabled)}
+                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      banquetEnabled ? 'bg-emerald-600' : 'bg-stone-300'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        banquetEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <span className="font-bold text-xs text-stone-800">
+                    {banquetEnabled ? 'Visible' : 'Hidden'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                  Section Subtitle / Category
+                </label>
+                <input
+                  type="text"
+                  value={banquetSubtitle}
+                  onChange={(e) => setBanquetSubtitle(e.target.value)}
+                  placeholder="Events & Gatherings"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                  Section Title
+                </label>
+                <input
+                  type="text"
+                  value={banquetTitle}
+                  onChange={(e) => setBanquetTitle(e.target.value)}
+                  placeholder="Our Banquet Hall"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm font-serif font-bold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                Description Text
+              </label>
+              <textarea
+                rows={3}
+                value={banquetDesc}
+                onChange={(e) => setBanquetDesc(e.target.value)}
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                  Guest Capacity
+                </label>
+                <input
+                  type="text"
+                  value={banquetCapacity}
+                  onChange={(e) => setBanquetCapacity(e.target.value)}
+                  placeholder="Up to 50 Guests"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                  Suitable Events
+                </label>
+                <input
+                  type="text"
+                  value={banquetEvents}
+                  onChange={(e) => setBanquetEvents(e.target.value)}
+                  placeholder="Kitty Parties, Birthdays, Conferences"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                  Ambiance Highlight
+                </label>
+                <input
+                  type="text"
+                  value={banquetAmbiance}
+                  onChange={(e) => setBanquetAmbiance(e.target.value)}
+                  placeholder="Elegant & Versatile"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                  Catering Service
+                </label>
+                <input
+                  type="text"
+                  value={banquetService}
+                  onChange={(e) => setBanquetService(e.target.value)}
+                  placeholder="Tailored Catering"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-stone-200 flex justify-end">
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer shadow-xs flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {isSaving ? 'Saving...' : 'Save Banquet Settings'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* TAB 5: LOCATION & LANDMARKS */}
       {activeTab === 'location' && (
         <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-2xs space-y-6">
           <div className="border-b border-stone-200 pb-4">

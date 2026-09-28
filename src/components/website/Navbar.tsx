@@ -19,10 +19,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   const phone = getCleanHotelPhone(hotel?.phone);
   const whatsappNumber = getCleanHotelWhatsApp(hotel?.whatsapp);
   const hotelName = hotel?.name || 'Sun Moon Suites';
+  const isBanquetEnabled = hotel?.banquet_config?.is_enabled !== false;
 
   const navLinks = [
     { label: 'Rooms', id: 'rooms' },
-    { label: 'Banquet Hall', id: 'banquet' },
+    ...(isBanquetEnabled ? [{ label: 'Banquet Hall', id: 'banquet' }] : []),
     { label: 'Amenities', id: 'amenities' },
     { label: 'Offers', id: 'offers' },
     { label: 'Gallery', id: 'gallery' },

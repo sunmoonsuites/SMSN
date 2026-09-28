@@ -29,6 +29,7 @@ export const BanquetManagementView: React.FC<BanquetManagementViewProps> = ({ ho
 
   // Banquet Hall settings form state
   const currentBanquet = hotel?.banquet_config || DEFAULT_BANQUET_CONFIG;
+  const [isEnabled, setIsEnabled] = useState(currentBanquet.is_enabled !== false);
   const [title, setTitle] = useState(currentBanquet.title || 'Our Banquet Hall');
   const [subtitle, setSubtitle] = useState(currentBanquet.subtitle || 'Events & Gatherings');
   const [description, setDescription] = useState(
@@ -51,6 +52,7 @@ export const BanquetManagementView: React.FC<BanquetManagementViewProps> = ({ ho
 
   useEffect(() => {
     if (hotel?.banquet_config) {
+      setIsEnabled(hotel.banquet_config.is_enabled !== false);
       setTitle(hotel.banquet_config.title || 'Our Banquet Hall');
       setSubtitle(hotel.banquet_config.subtitle || 'Events & Gatherings');
       setDescription(hotel.banquet_config.description || '');
@@ -80,6 +82,7 @@ export const BanquetManagementView: React.FC<BanquetManagementViewProps> = ({ ho
     if (!hotel?.id) return;
     setIsSaving(true);
     const newConfig: BanquetConfig = {
+      is_enabled: isEnabled,
       title,
       subtitle,
       description,
@@ -99,10 +102,21 @@ export const BanquetManagementView: React.FC<BanquetManagementViewProps> = ({ ho
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-serif font-bold text-2xl text-stone-900 flex items-center gap-2">
-            <PartyPopper className="w-6 h-6 text-amber-800" />
-            Banquet Hall &amp; Events
-          </h3>
+          <div className="flex items-center gap-2.5">
+            <h3 className="font-serif font-bold text-2xl text-stone-900 flex items-center gap-2">
+              <PartyPopper className="w-6 h-6 text-amber-800" />
+              Banquet Hall &amp; Events
+            </h3>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                isEnabled
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  : 'bg-rose-100 text-rose-800 border border-rose-200'
+              }`}
+            >
+              {isEnabled ? '● Visible on Website' : '○ Hidden from Website (Non-Operational)'}
+            </span>
+          </div>
           <p className="text-xs text-stone-500">
             Manage incoming banquet enquiries, event bookings, and customize website hall details
           </p>
@@ -136,6 +150,19 @@ export const BanquetManagementView: React.FC<BanquetManagementViewProps> = ({ ho
           </button>
         </div>
       </div>
+
+      {/* Non-operational Banner */}
+      {!isEnabled && (
+        <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
+          <PartyPopper className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-bold">Banquet Hall is Currently Hidden on the Website:</span>
+            <p className="text-[11px] text-amber-800">
+              The banquet section, navigation menu item, and enquiry forms are hidden from visitors because the banquet is currently non-operational. You can re-enable it anytime under <strong>Website Hall Details</strong> or <strong>Website Settings</strong>.
+            </p>
+          </div>
+        </div>
+      )}
 
       {activeSubTab === 'enquiries' && (
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-2xs">
@@ -261,16 +288,64 @@ export const BanquetManagementView: React.FC<BanquetManagementViewProps> = ({ ho
 
       {activeSubTab === 'settings' && (
         <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-2xs space-y-6">
-          <div>
-            <h4 className="font-serif font-bold text-base text-stone-900">
-              Banquet Hall Website Content
-            </h4>
-            <p className="text-xs text-stone-500">
-              Customize the titles, capacity, descriptions, and highlights displayed on the public website Banquet section.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200 pb-4">
+            <div>
+              <h4 className="font-serif font-bold text-base text-stone-900">
+                Banquet Hall Website Visibility &amp; Details
+              </h4>
+              <p className="text-xs text-stone-500">
+                Show or hide the Banquet Hall from website visitors, or customize capacity and descriptions.
+              </p>
+            </div>
           </div>
 
-          <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
+          <form onSubmit={handleSaveSettings} className="space-y-5 text-xs">
+            {/* Website Visibility Toggle Card */}
+            <div className={`p-4 rounded-xl border transition-all ${
+              isEnabled
+                ? 'bg-emerald-50/50 border-emerald-300'
+                : 'bg-rose-50/50 border-rose-300'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-stone-900">
+                      Show Banquet Section on Website (Operational Status)
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      isEnabled ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-200 text-rose-900'
+                    }`}>
+                      {isEnabled ? 'Operational (Visible)' : 'Non-Operational (Hidden)'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-600">
+                    {isEnabled
+                      ? 'The Banquet Hall section and "Banquet Hall" link in the navigation bar are currently VISIBLE on the website.'
+                      : 'The Banquet Hall is currently HIDDEN from the public website (no section, no navbar link, no enquiry form). Perfect while banquet is not operational.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsEnabled(!isEnabled)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isEnabled ? 'bg-emerald-600' : 'bg-stone-300'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        isEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <span className="font-bold text-xs text-stone-800">
+                    {isEnabled ? 'Show on Website' : 'Hide from Website'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">

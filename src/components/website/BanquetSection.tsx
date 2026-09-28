@@ -11,6 +11,10 @@ interface BanquetSectionProps {
 export const BanquetSection: React.FC<BanquetSectionProps> = ({ hotel }) => {
   const banquet = hotel?.banquet_config || DEFAULT_BANQUET_CONFIG;
 
+  if (banquet.is_enabled === false) {
+    return null;
+  }
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
