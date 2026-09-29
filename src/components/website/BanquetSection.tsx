@@ -42,9 +42,9 @@ export const BanquetSection: React.FC<BanquetSectionProps> = ({ hotel }) => {
           <span className="text-xs uppercase tracking-widest text-amber-800 font-bold">
             {banquet.subtitle || 'Events & Gatherings'}
           </span>
-          <h3 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
             {banquet.title || 'Our Banquet Hall'}
-          </h3>
+          </h2>
           <p className="text-sm text-stone-600 leading-relaxed">
             {banquet.description ||
               'Host your special occasions in our elegant banquet hall, designed for comfort and versatility. Perfect for gatherings up to 50 guests, including kitty parties, birthdays, corporate conferences, and intimate celebrations.'}
@@ -61,8 +61,8 @@ export const BanquetSection: React.FC<BanquetSectionProps> = ({ hotel }) => {
               { title: 'Service', value: banquet.service || 'Tailored Catering', icon: Utensils },
             ].map((item, idx) => (
               <div key={idx} className="p-6 bg-white rounded-xl border border-stone-200 shadow-2xs space-y-3">
-                <item.icon className="w-6 h-6 text-amber-800" />
-                <h4 className="font-serif font-bold text-stone-900">{item.title}</h4>
+                <item.icon className="w-6 h-6 text-amber-800" aria-hidden="true" />
+                <h3 className="font-serif font-bold text-stone-900">{item.title}</h3>
                 <p className="text-xs text-stone-600">{item.value}</p>
               </div>
             ))}
@@ -70,7 +70,7 @@ export const BanquetSection: React.FC<BanquetSectionProps> = ({ hotel }) => {
 
           {/* Booking Form */}
           <div className="bg-white p-8 rounded-xl border border-stone-200 shadow-xl">
-            <h4 className="font-serif text-2xl font-bold text-stone-900 mb-6">Book Banquet Hall</h4>
+            <h3 className="font-serif text-2xl font-bold text-stone-900 mb-6">Book Banquet Hall</h3>
             {submitted ? (
               <div className="text-center py-10 space-y-3">
                 <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto text-xl">✓</div>

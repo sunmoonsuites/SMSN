@@ -74,7 +74,7 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                   {cat.images && cat.images.length > 0 ? (
                     <img
                       src={cat.images[0]}
-                      alt={`${cat.name} at Sun Moon Suites Sector 117 Noida`}
+                      alt={`${cat.name} with ${cat.bed_type || 'comfortable bedding'} at ${hotel?.name || 'Sun Moon Suites'} hotel in Sector 117 Noida`}
                       width={600}
                       height={400}
                       loading="lazy"
@@ -84,7 +84,7 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                     />
                   ) : (
                     <div className="text-center p-6">
-                      <Bed className="w-10 h-10 text-stone-300 mx-auto mb-2" />
+                      <Bed className="w-10 h-10 text-stone-300 mx-auto mb-2" aria-hidden="true" />
                       <span className="text-xs text-stone-400 font-medium">{cat.name}</span>
                     </div>
                   )}

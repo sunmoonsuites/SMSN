@@ -78,7 +78,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             : undefined
         }
         sizes="100vw"
-        alt={`${hotel?.name || 'Sun Moon Suites'} - Boutique Hotel in Sector 117 Noida`}
+        alt={`${hotel?.name || 'Sun Moon Suites'} hotel reception and guest lounge in Sector 117 Noida`}
         width={1080}
         height={720}
         fetchPriority="high"

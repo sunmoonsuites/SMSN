@@ -47,12 +47,12 @@ export const OffersSection: React.FC<OffersSectionProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
           <span className="text-xs uppercase tracking-widest text-amber-800 font-bold flex items-center justify-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
             Special Promotions
           </span>
-          <h3 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
             Direct Booking Privileges
-          </h3>
+          </h2>
           <p className="text-sm text-stone-600 leading-relaxed">
             Apply these limited-time promotional codes during checkout for guaranteed savings on your stay.
           </p>
@@ -71,7 +71,7 @@ export const OffersSection: React.FC<OffersSectionProps> = ({
                     : `₹${offer.discount_value} FLAT OFF`}
                 </div>
 
-                <h4 className="font-serif text-xl font-bold text-stone-900">{offer.title}</h4>
+                <h3 className="font-serif text-xl font-bold text-stone-900">{offer.title}</h3>
                 {offer.description && (
                   <p className="text-xs text-stone-600 leading-relaxed">{offer.description}</p>
                 )}

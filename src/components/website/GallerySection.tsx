@@ -8,6 +8,19 @@ interface GallerySectionProps {
   hotel: Hotel | null;
 }
 
+function buildGalleryImageAlt(item: GalleryItem, index: number, hotelName: string): string {
+  const cleanCaption = item.caption?.trim();
+  const cleanCategory = item.category?.trim() || 'Hotel Room';
+  if (cleanCaption) {
+    const lower = cleanCaption.toLowerCase();
+    if (lower.includes('sector 117') || lower.includes('sun moon')) {
+      return cleanCaption;
+    }
+    return `${cleanCaption} at ${hotelName} in Sector 117 Noida`;
+  }
+  return `${cleanCategory} interior view ${index + 1} at ${hotelName} hotel in Sector 117 Noida`;
+}
+
 export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
   const [items, setItems] = useState<GalleryItem[]>(DEFAULT_GALLERY_ITEMS);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,18 +93,14 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filtered.map((item) => (
+            {filtered.map((item, idx) => (
               <div
                 key={item.id}
                 className="group relative rounded-xl overflow-hidden bg-stone-100 border border-stone-200 shadow-2xs aspect-4/3"
               >
                 <img
                   src={item.image_url}
-                  alt={
-                    item.caption
-                      ? `${item.caption} at Sun Moon Suites Sector 117 Noida`
-                      : `Hotel ${item.category} at Sun Moon Suites Noida`
-                  }
+                  alt={buildGalleryImageAlt(item, idx, hotel?.name || 'Sun Moon Suites')}
                   width={600}
                   height={450}
                   loading="lazy"
