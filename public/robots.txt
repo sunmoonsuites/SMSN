@@ -1,33 +1,4 @@
 User-agent: *
 Allow: /
-Disallow: /PMS
-Disallow: /pms
-Disallow: /admin
-
-# Explicitly Allow AI Search & Generative Answer Engines
-User-agent: OAI-SearchBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: GPTBot
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Google-Extended
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: Applebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
 
 Sitemap: https://www.sunmoonhotels.com/sitemap.xml
-Sitemap: https://sunmoonhotels.com/sitemap.xml
