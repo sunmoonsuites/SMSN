@@ -6,16 +6,16 @@ import { getHotel, getInitialHotelSync } from './services/hotelService';
 // Website Components
 import { Navbar } from './components/website/Navbar';
 import { HeroSection } from './components/website/HeroSection';
-import { FeaturedRooms } from './components/website/FeaturedRooms';
-import { AmenitiesSection } from './components/website/AmenitiesSection';
-import { BanquetSection } from './components/website/BanquetSection';
-import { OffersSection } from './components/website/OffersSection';
-import { GallerySection } from './components/website/GallerySection';
-import { LocationSection } from './components/website/LocationSection';
-import { ContactSection } from './components/website/ContactSection';
-import { Footer } from './components/website/Footer';
 import { MobileStickyBar } from './components/website/MobileStickyBar';
 import { FloatingWhatsAppButton } from './components/website/FloatingWhatsAppButton';
+const FeaturedRooms = lazy(() => import('./components/website/FeaturedRooms').then((m) => ({ default: m.FeaturedRooms })));
+const AmenitiesSection = lazy(() => import('./components/website/AmenitiesSection').then((m) => ({ default: m.AmenitiesSection })));
+const BanquetSection = lazy(() => import('./components/website/BanquetSection').then((m) => ({ default: m.BanquetSection })));
+const OffersSection = lazy(() => import('./components/website/OffersSection').then((m) => ({ default: m.OffersSection })));
+const GallerySection = lazy(() => import('./components/website/GallerySection').then((m) => ({ default: m.GallerySection })));
+const LocationSection = lazy(() => import('./components/website/LocationSection').then((m) => ({ default: m.LocationSection })));
+const ContactSection = lazy(() => import('./components/website/ContactSection').then((m) => ({ default: m.ContactSection })));
+const Footer = lazy(() => import('./components/website/Footer').then((m) => ({ default: m.Footer })));
 const BookingFlowModal = lazy(() => import('./components/website/BookingFlowModal').then((m) => ({ default: m.BookingFlowModal })));
 const PolicyModal = lazy(() => import('./components/website/PolicyModal').then((m) => ({ default: m.PolicyModal })));
 
@@ -42,8 +42,9 @@ const AuditTrailView = lazy(() => import('./components/admin/AuditTrailView').th
 const SettingsView = lazy(() => import('./components/admin/SettingsView').then((m) => ({ default: m.SettingsView })));
 
 // Common Modals
-import { SupabaseConfigModal } from './components/common/SupabaseConfigModal';
-import { AuthModal, PMSLoginScreen } from './components/auth/AuthModal';
+const SupabaseConfigModal = lazy(() => import('./components/common/SupabaseConfigModal').then((m) => ({ default: m.SupabaseConfigModal })));
+const AuthModal = lazy(() => import('./components/auth/AuthModal').then((m) => ({ default: m.AuthModal })));
+const PMSLoginScreen = lazy(() => import('./components/auth/AuthModal').then((m) => ({ default: m.PMSLoginScreen })));
 import { signOut } from './services/staffService';
 import { getSupabase } from './lib/supabase';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
@@ -330,103 +331,69 @@ export function MainApp() {
       </AdminLayout>
     </Suspense>
   ) : (
-    <PMSLoginScreen
-      hotel={hotel}
-      onAuthenticated={handleAuthenticated}
-      onReturnToWebsite={() => navigate('/')}
-    />
+    <Suspense fallback={null}>
+      <PMSLoginScreen
+        hotel={hotel}
+        onAuthenticated={handleAuthenticated}
+        onReturnToWebsite={() => navigate('/')}
+      />
+    </Suspense>
+  );
+
+  const publicWebsiteContent = (
+    <>
+      <Navbar
+        hotel={hotel}
+        onOpenBooking={() => {
+          setBookingInitialSearch(undefined);
+          setShowBookingModal(true);
+        }}
+        onNavigateSection={handleNavigateSection}
+      />
+
+      <main className="flex-1">
+        <HeroSection hotel={hotel} onSearchAvailability={handleSearchAvailability} />
+        <Suspense fallback={null}>
+          <FeaturedRooms hotel={hotel} onSelectCategoryForBooking={handleSelectCategoryForBooking} />
+          <AmenitiesSection hotel={hotel} />
+          <BanquetSection hotel={hotel} />
+          <OffersSection hotel={hotel} onSelectOfferCode={handleSelectOfferCode} />
+          <GallerySection hotel={hotel} />
+          <LocationSection hotel={hotel} />
+          <ContactSection hotel={hotel} />
+        </Suspense>
+      </main>
+
+      <Suspense fallback={null}>
+        <Footer
+          hotel={hotel}
+          onOpenPolicy={(policy) => setActivePolicy(policy)}
+          onNavigateSection={handleNavigateSection}
+        />
+      </Suspense>
+
+      <MobileStickyBar
+        hotel={hotel}
+        onOpenBooking={() => {
+          setBookingInitialSearch(undefined);
+          setShowBookingModal(true);
+        }}
+      />
+    </>
   );
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col selection:bg-amber-100 selection:text-amber-900">
       <Routes>
         {/* PUBLIC HOTEL GUEST WEBSITE */}
-        <Route
-          path="/"
-          element={
-            <>
-              <Navbar
-                hotel={hotel}
-                onOpenBooking={() => {
-                  setBookingInitialSearch(undefined);
-                  setShowBookingModal(true);
-                }}
-                onNavigateSection={handleNavigateSection}
-              />
-
-              <main className="flex-1">
-                <HeroSection hotel={hotel} onSearchAvailability={handleSearchAvailability} />
-                <FeaturedRooms hotel={hotel} onSelectCategoryForBooking={handleSelectCategoryForBooking} />
-                <AmenitiesSection hotel={hotel} />
-                <BanquetSection hotel={hotel} />
-                <OffersSection hotel={hotel} onSelectOfferCode={handleSelectOfferCode} />
-                <GallerySection hotel={hotel} />
-                <LocationSection hotel={hotel} />
-                <ContactSection hotel={hotel} />
-              </main>
-
-              <Footer
-                hotel={hotel}
-                onOpenPolicy={(policy) => setActivePolicy(policy)}
-                onNavigateSection={handleNavigateSection}
-              />
-
-              <MobileStickyBar
-                hotel={hotel}
-                onOpenBooking={() => {
-                  setBookingInitialSearch(undefined);
-                  setShowBookingModal(true);
-                }}
-              />
-            </>
-          }
-        />
+        <Route path="/" element={publicWebsiteContent} />
 
         {/* DEDICATED STAFF PMS PORTAL ROUTES (/PMS, /pms, /admin) */}
         <Route path="/pms/*" element={pmsPortalElement} />
         <Route path="/admin/*" element={pmsPortalElement} />
 
         {/* FALLBACK ROUTE: Render Public Website for any other path */}
-        <Route
-          path="*"
-          element={
-            <>
-              <Navbar
-                hotel={hotel}
-                onOpenBooking={() => {
-                  setBookingInitialSearch(undefined);
-                  setShowBookingModal(true);
-                }}
-                onNavigateSection={handleNavigateSection}
-              />
-
-              <main className="flex-1">
-                <HeroSection hotel={hotel} onSearchAvailability={handleSearchAvailability} />
-                <FeaturedRooms hotel={hotel} onSelectCategoryForBooking={handleSelectCategoryForBooking} />
-                <AmenitiesSection hotel={hotel} />
-                <BanquetSection hotel={hotel} />
-                <OffersSection hotel={hotel} onSelectOfferCode={handleSelectOfferCode} />
-                <GallerySection hotel={hotel} />
-                <LocationSection hotel={hotel} />
-                <ContactSection hotel={hotel} />
-              </main>
-
-              <Footer
-                hotel={hotel}
-                onOpenPolicy={(policy) => setActivePolicy(policy)}
-                onNavigateSection={handleNavigateSection}
-              />
-
-              <MobileStickyBar
-                hotel={hotel}
-                onOpenBooking={() => {
-                  setBookingInitialSearch(undefined);
-                  setShowBookingModal(true);
-                }}
-              />
-            </>
-          }
-        />
+        <Route path="*" element={publicWebsiteContent} />
       </Routes>
 
       {/* Booking Flow Modal */}
@@ -445,27 +412,35 @@ export function MainApp() {
       )}
 
       {/* Staff Authentication Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        hotelId={hotel?.id || 'default-hotel-id'}
-        onAuthenticated={(user) => {
-          handleAuthenticated(user);
-          navigate('/PMS');
-        }}
-      />
+      {showAuthModal && (
+        <Suspense fallback={null}>
+          <AuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            hotelId={hotel?.id || 'default-hotel-id'}
+            onAuthenticated={(user) => {
+              handleAuthenticated(user);
+              navigate('/PMS');
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Floating WhatsApp Button (Public Website Only) */}
       {location.pathname === '/' && <FloatingWhatsAppButton hotel={hotel} />}
 
       {/* Supabase Database Connection Modal */}
-      <SupabaseConfigModal
-        isOpen={showSupabaseModal}
-        onClose={() => setShowSupabaseModal(false)}
-        onConnected={() => {
-          loadHotelData();
-        }}
-      />
+      {showSupabaseModal && (
+        <Suspense fallback={null}>
+          <SupabaseConfigModal
+            isOpen={showSupabaseModal}
+            onClose={() => setShowSupabaseModal(false)}
+            onConnected={() => {
+              loadHotelData();
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Policy & Terms Modal */}
       {activePolicy && (
