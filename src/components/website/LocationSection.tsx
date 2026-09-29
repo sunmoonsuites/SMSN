@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Hotel, LandmarkItem } from '../../types';
 import { DEFAULT_LANDMARKS_LIST } from '../../services/hotelService';
 import { MapPin, Navigation, Train, Building, Plane, Car, ShoppingBag } from 'lucide-react';
@@ -10,24 +10,45 @@ interface LocationSectionProps {
 const getLandmarkIcon = (type?: string) => {
   switch (type?.toLowerCase()) {
     case 'hospital':
-      return <Building className="w-4 h-4 text-amber-700" />;
+      return <Building className="w-4 h-4 text-amber-700" aria-hidden="true" />;
     case 'metro':
     case 'train':
-      return <Train className="w-4 h-4 text-amber-700" />;
+      return <Train className="w-4 h-4 text-amber-700" aria-hidden="true" />;
     case 'mall':
     case 'shopping':
-      return <ShoppingBag className="w-4 h-4 text-amber-700" />;
+      return <ShoppingBag className="w-4 h-4 text-amber-700" aria-hidden="true" />;
     case 'airport':
-      return <Plane className="w-4 h-4 text-amber-700" />;
+      return <Plane className="w-4 h-4 text-amber-700" aria-hidden="true" />;
     case 'transit':
     case 'car':
-      return <Car className="w-4 h-4 text-amber-700" />;
+      return <Car className="w-4 h-4 text-amber-700" aria-hidden="true" />;
     default:
-      return <Building className="w-4 h-4 text-amber-700" />;
+      return <Building className="w-4 h-4 text-amber-700" aria-hidden="true" />;
   }
 };
 
 export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
+  const [shouldLoadMap, setShouldLoadMap] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = mapContainerRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setShouldLoadMap(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '250px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const address = hotel?.address || 'GT-20, Sector 117';
   const city = hotel?.city || 'Noida';
   const state = hotel?.state || 'Uttar Pradesh';
@@ -57,9 +78,9 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
           <span className="text-xs uppercase tracking-widest text-amber-800 font-bold">
             Prime {city} Location
           </span>
-          <h3 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
             How to Reach Us
-          </h3>
+          </h2>
           <p className="text-sm text-stone-600 leading-relaxed">
             Situated in {address}, {city}, offering peaceful surroundings while staying minutes from key transit routes, healthcare, and commercial centers.
           </p>
@@ -71,13 +92,13 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
             <div className="p-6 bg-stone-50 rounded-2xl border border-stone-200 space-y-4">
               <div className="flex items-start gap-3">
                 <div className="p-2.5 bg-amber-100 rounded-lg text-amber-800 shrink-0 mt-0.5">
-                  <MapPin className="w-5 h-5" />
+                  <MapPin className="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div>
-                  <h4 className="font-serif font-bold text-stone-900 text-lg">Hotel Address</h4>
+                  <h3 className="font-serif font-bold text-stone-900 text-lg">Hotel Address</h3>
                   <p className="text-sm text-stone-600 leading-relaxed mt-1">
                     {address}, {city}, {state} — {pincode}, India<br />
-                    {plusCode && <span className="text-stone-500 font-mono text-xs">Plus Code: {plusCode}</span>}
+                    {plusCode && <span className="text-stone-600 font-mono text-xs">Plus Code: {plusCode}</span>}
                   </p>
                 </div>
               </div>
@@ -89,7 +110,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
                   rel="noopener noreferrer"
                   className="w-full py-2.5 px-4 bg-stone-900 hover:bg-amber-800 text-white text-xs uppercase tracking-wider font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                 >
-                  <Navigation className="w-3.5 h-3.5" />
+                  <Navigation className="w-3.5 h-3.5" aria-hidden="true" />
                   Open in Google Maps
                 </a>
               </div>
@@ -97,9 +118,9 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
 
             {/* Distance Highlights */}
             <div className="space-y-3">
-              <h4 className="text-xs uppercase font-bold tracking-wider text-stone-700">
+              <h3 className="text-xs uppercase font-bold tracking-wider text-stone-700">
                 Key Transit &amp; Landmarks
-              </h4>
+              </h3>
               <div className="space-y-2">
                 {connectivity.map((item) => (
                   <div
@@ -110,10 +131,10 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
                       <div className="mt-0.5">{getLandmarkIcon(item.iconType)}</div>
                       <div>
                         <span className="font-semibold text-stone-900">{item.title}</span>
-                        <p className="text-[11px] text-stone-500 mt-0.5">{item.desc}</p>
+                        <p className="text-[11px] text-stone-600 mt-0.5">{item.desc}</p>
                       </div>
                     </div>
-                    <span className="font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded shrink-0">
+                    <span className="font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded shrink-0">
                       {item.time}
                     </span>
                   </div>
@@ -122,26 +143,45 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
             </div>
           </div>
 
-          {/* Map Frame */}
-          <div className="lg:col-span-7 rounded-2xl overflow-hidden border border-stone-200 shadow-sm h-96 sm:h-[450px] relative bg-stone-100">
-            <iframe
-              title={`Hotel Location Map ${city}`}
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              loading="lazy"
-              allowFullScreen
-              referrerPolicy="no-referrer-when-downgrade"
-              src={embedUrl}
-            />
+          {/* Deferred Map Frame (Eliminates 600KB third-party JS blocking during initial mobile load) */}
+          <div
+            ref={mapContainerRef}
+            className="lg:col-span-7 rounded-2xl overflow-hidden border border-stone-200 shadow-sm h-96 sm:h-[450px] relative bg-stone-100 flex items-center justify-center"
+          >
+            {shouldLoadMap ? (
+              <iframe
+                title={`Hotel Location Map ${city}`}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                src={embedUrl}
+              />
+            ) : (
+              <div className="text-center p-6 space-y-3">
+                <MapPin className="w-8 h-8 text-amber-800 mx-auto" aria-hidden="true" />
+                <p className="font-serif font-bold text-stone-900 text-base">
+                  {hotelName} — {address}, {city}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShouldLoadMap(true)}
+                  className="px-4 py-2 bg-amber-800 text-white text-xs font-semibold rounded-lg"
+                >
+                  Load Interactive Map
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Local SEO Neighbourhood & Proximity Coverage Block */}
         <div className="mt-10 p-6 bg-stone-50 rounded-2xl border border-stone-200/90 space-y-3">
-          <h4 className="font-serif font-bold text-sm text-stone-900">
+          <h3 className="font-serif font-bold text-sm text-stone-900">
             Preferred Boutique Hotel Near Central Noida Sectors, Hospitals &amp; Wedding Venues
-          </h4>
+          </h3>
           <p className="text-xs text-stone-600 leading-relaxed">
             Conveniently located at <strong>{address}, {city} ({pincode})</strong>, <strong>{hotelName}</strong> is the closest boutique hotel for guests searching for a stay near{' '}
             <strong>Medanta Hospital Noida</strong>, <strong>Tivoli Lotus Court Banquet Sector 117</strong>,{' '}

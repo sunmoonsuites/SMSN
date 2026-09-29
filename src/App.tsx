@@ -15,9 +15,9 @@ import { LocationSection } from './components/website/LocationSection';
 import { ContactSection } from './components/website/ContactSection';
 import { Footer } from './components/website/Footer';
 import { MobileStickyBar } from './components/website/MobileStickyBar';
-import { BookingFlowModal } from './components/website/BookingFlowModal';
-import { PolicyModal } from './components/website/PolicyModal';
 import { FloatingWhatsAppButton } from './components/website/FloatingWhatsAppButton';
+const BookingFlowModal = lazy(() => import('./components/website/BookingFlowModal').then((m) => ({ default: m.BookingFlowModal })));
+const PolicyModal = lazy(() => import('./components/website/PolicyModal').then((m) => ({ default: m.PolicyModal })));
 
 // Admin Components (Lazy-loaded so public website mobile bundle is ultra-fast)
 import type { AdminTab } from './components/admin/AdminLayout';
@@ -430,15 +430,19 @@ export function MainApp() {
       </Routes>
 
       {/* Booking Flow Modal */}
-      <BookingFlowModal
-        isOpen={showBookingModal}
-        onClose={() => setShowBookingModal(false)}
-        hotel={hotel}
-        initialSearch={bookingInitialSearch}
-        onBookingSuccess={() => {
-          // Booking confirmed
-        }}
-      />
+      {showBookingModal && (
+        <Suspense fallback={null}>
+          <BookingFlowModal
+            isOpen={showBookingModal}
+            onClose={() => setShowBookingModal(false)}
+            hotel={hotel}
+            initialSearch={bookingInitialSearch}
+            onBookingSuccess={() => {
+              // Booking confirmed
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Staff Authentication Modal */}
       <AuthModal
@@ -465,12 +469,14 @@ export function MainApp() {
 
       {/* Policy & Terms Modal */}
       {activePolicy && (
-        <PolicyModal
-          isOpen={Boolean(activePolicy)}
-          onClose={() => setActivePolicy(null)}
-          type={activePolicy}
-          hotel={hotel}
-        />
+        <Suspense fallback={null}>
+          <PolicyModal
+            isOpen={Boolean(activePolicy)}
+            onClose={() => setActivePolicy(null)}
+            type={activePolicy}
+            hotel={hotel}
+          />
+        </Suspense>
       )}
     </div>
   );

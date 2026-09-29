@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import HeroImage from '../../assets/images/hero_hotel_image_1790078637116.jpg';
 import { Hotel } from '../../types';
 import { Calendar, Users, ArrowRight, Shield, Award, MapPin } from 'lucide-react';
 
@@ -11,6 +10,14 @@ interface HeroSectionProps {
     adults: number;
     children: number;
   }) => void;
+}
+
+function optimizeHeroImageUrl(url?: string): string {
+  if (!url || url.trim() === '') return '/assets/hero-hotel.webp';
+  if (url.includes('images.unsplash.com') && !url.includes('w=')) {
+    return `${url}${url.includes('?') ? '&' : '?'}auto=format&fit=crop&w=960&q=70`;
+  }
+  return url;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
@@ -33,7 +40,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     onSearchAvailability({ checkIn, checkOut, adults, children });
   };
 
-  const heroImg = hotel?.hero_config?.image_url || HeroImage;
+  const customUrl = hotel?.hero_config?.image_url?.trim();
+  const isDefaultHero = !customUrl;
+  const heroImg = optimizeHeroImageUrl(customUrl);
+
   const badge =
     hotel?.hero_config?.badge ||
     `${hotel?.city || 'Sector 117, Noida'} • ${hotel?.total_rooms || 30} Boutique Rooms`;
@@ -48,26 +58,27 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const highlight3 = hotel?.hero_config?.highlight3 || 'Zero Booking Fees';
 
   return (
-    <section id="hero" aria-label="Hotel Overview and Room Search" className="relative text-white overflow-hidden">
+    <section
+      id="hero"
+      aria-label="Hotel Overview and Room Search"
+      className="relative bg-stone-900 text-white overflow-hidden"
+    >
       <img
-        src={heroImg}
+        src={isDefaultHero ? '/assets/hero-hotel-mobile.webp' : heroImg}
+        srcSet={
+          isDefaultHero
+            ? '/assets/hero-hotel-mobile.webp 720w, /assets/hero-hotel.webp 1080w'
+            : undefined
+        }
+        sizes="100vw"
         alt={`${hotel?.name || 'Sun Moon Suites'} - Boutique Hotel in Sector 117 Noida`}
-        width={1200}
-        height={800}
+        width={1080}
+        height={720}
         fetchPriority="high"
-        decoding="async"
+        decoding="sync"
         className="absolute inset-0 w-full h-full object-cover z-0"
       />
       <div className="absolute inset-0 bg-stone-950/65 z-0" />
-
-      {/* Decorative subtle texture */}
-      <div
-        className="absolute inset-0 opacity-10 mix-blend-overlay pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
-          backgroundSize: '32px 32px',
-        }}
-      />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-28 sm:pt-28 sm:pb-36">
         <div className="max-w-3xl space-y-6 text-center sm:text-left">
@@ -76,9 +87,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <span>{badge}</span>
           </div>
 
-          <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight">
+          <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight">
             {heading}
-          </h2>
+          </h1>
 
           <p className="text-base sm:text-lg text-stone-200 font-normal leading-relaxed max-w-2xl">
             {description}
@@ -104,8 +115,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           className="mt-12 bg-white text-stone-900 rounded-2xl shadow-2xl p-4 sm:p-6 border border-stone-200"
         >
           <form
+            action="/"
+            method="get"
             onSubmit={handleSearch}
             aria-label="Room Availability Search Form"
+            data-agent-action="search-hotel-availability"
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end"
           >
             {/* Check-In */}
