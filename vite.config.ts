@@ -3,15 +3,17 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
   return {
     plugins: [react(), tailwindcss()],
-    esbuild: {
-      legalComments: 'none',
-    },
+    define:
+      command === 'build'
+        ? {
+            'process.env.NODE_ENV': JSON.stringify('production'),
+          }
+        : undefined,
     build: {
-      target: 'es2015',
-      minify: 'esbuild',
+      minify: true,
       cssMinify: true,
     },
     resolve: {

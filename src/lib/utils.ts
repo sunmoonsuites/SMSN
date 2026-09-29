@@ -104,3 +104,43 @@ export function getCleanHotelWhatsApp(rawWhatsApp?: string | null): string {
   }
   return digits.length === 10 ? `91${digits}` : digits;
 }
+
+export function getInitialHotelFast(): any {
+  let localConfig: Record<string, any> = {};
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('sunmoon_hotel_cms_config_v1') : null;
+    if (raw) localConfig = JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return {
+    id: localConfig.id || 'ca8ca4c4-d493-490f-8d30-774e8fca42b6',
+    name: localConfig.name || 'Sun Moon Suites',
+    tagline: localConfig.tagline || 'Modern Hospitality & Comfort in Noida',
+    description:
+      localConfig.description ||
+      'Experience attentive hospitality at our 30-room hotel in Sector 117, Noida. Featuring well-appointed rooms across three floors, dedicated dining, and premier connectivity to the Noida Expressway.',
+    address: localConfig.address || 'GT-20, Sector 117, Noida, Uttar Pradesh 201316',
+    city: localConfig.city || 'Noida',
+    state: localConfig.state || 'Uttar Pradesh',
+    country: localConfig.country || 'India',
+    pincode: localConfig.pincode || '201316',
+    phone: getCleanHotelPhone(localConfig.phone),
+    email: localConfig.email || 'sunmoonsuites@gmail.com',
+    whatsapp: getCleanHotelWhatsApp(localConfig.whatsapp),
+    gstin: localConfig.gstin || '09AAACH7409R1ZZ',
+    total_rooms: localConfig.total_rooms || 30,
+    latitude: localConfig.latitude ?? 28.5724,
+    longitude: localConfig.longitude ?? 77.3892,
+    google_maps_url:
+      localConfig.google_maps_url ||
+      'https://www.google.com/maps/search/?api=1&query=Sun+Moon+Suites+GT-20+Sector+117+Noida+Uttar+Pradesh+201316',
+    plus_code: localConfig.plus_code || 'H9FW+8F',
+    check_in_time: localConfig.check_in_time || '14:00',
+    check_out_time: localConfig.check_out_time || '11:00',
+    currency: 'INR',
+    currency_symbol: '₹',
+    ...localConfig,
+  };
+}
+

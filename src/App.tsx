@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Hotel, StaffUser } from './types';
-import { getHotel, getInitialHotelSync } from './services/hotelService';
+import { getInitialHotelFast } from './lib/utils';
 
 // Website Components
 import { Navbar } from './components/website/Navbar';
@@ -45,8 +45,6 @@ const SettingsView = lazy(() => import('./components/admin/SettingsView').then((
 const SupabaseConfigModal = lazy(() => import('./components/common/SupabaseConfigModal').then((m) => ({ default: m.SupabaseConfigModal })));
 const AuthModal = lazy(() => import('./components/auth/AuthModal').then((m) => ({ default: m.AuthModal })));
 const PMSLoginScreen = lazy(() => import('./components/auth/AuthModal').then((m) => ({ default: m.PMSLoginScreen })));
-import { signOut } from './services/staffService';
-import { getSupabase } from './lib/supabase';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { applyPMSThemeToDocument, getPMSTheme } from './services/themeService';
 
@@ -54,7 +52,7 @@ export function MainApp() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [hotel, setHotel] = useState<Hotel | null>(() => getInitialHotelSync());
+  const [hotel, setHotel] = useState<Hotel | null>(() => getInitialHotelFast());
   const [isLoadingHotel, setIsLoadingHotel] = useState(false);
 
   // Authentication State — never auto-login; require explicit staff login
@@ -80,7 +78,9 @@ export function MainApp() {
   useEffect(() => {
     // Clear any legacy auto-login token from localStorage
     localStorage.removeItem('pms_staff_user');
-    loadHotelData();
+    const timer = setTimeout(() => {
+      loadHotelData();
+    }, 1200);
 
     const handleDataUpdated = () => {
       loadHotelData();
@@ -90,6 +90,7 @@ export function MainApp() {
     window.addEventListener('storage', handleDataUpdated);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('hotel_data_updated', handleDataUpdated);
       window.removeEventListener('storage', handleDataUpdated);
     };
@@ -122,44 +123,53 @@ export function MainApp() {
   }, [location.hash, location.search, location.pathname, navigate]);
 
   useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) return;
+    let cleanupFn: (() => void) | undefined;
+    const timer = setTimeout(async () => {
+      const { getSupabase } = await import('./lib/supabase');
+      const supabase = getSupabase();
+      if (!supabase) return;
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        const emailParam = session?.user?.email
-          ? `&email=${encodeURIComponent(session.user.email)}`
-          : '';
-        navigate(`/PMS?reset_password=true${emailParam}`, { replace: true });
-      }
-    });
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          const emailParam = session?.user?.email
+            ? `&email=${encodeURIComponent(session.user.email)}`
+            : '';
+          navigate(`/PMS?reset_password=true${emailParam}`, { replace: true });
+        }
+      });
 
-    // Realtime subscription for dynamic website settings in Supabase
-    const settingsChannel = supabase
-      .channel('public-website-settings-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'hotels' },
-        () => {
-          loadHotelData();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'hotel_settings' },
-        () => {
-          loadHotelData();
-        }
-      )
-      .subscribe();
+      const settingsChannel = supabase
+        .channel('public-website-settings-sync')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'hotels' },
+          () => {
+            loadHotelData();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'hotel_settings' },
+          () => {
+            loadHotelData();
+          }
+        )
+        .subscribe();
+
+      cleanupFn = () => {
+        authListener.subscription.unsubscribe();
+        supabase.removeChannel(settingsChannel);
+      };
+    }, 2500);
 
     return () => {
-      authListener.subscription.unsubscribe();
-      supabase.removeChannel(settingsChannel);
+      clearTimeout(timer);
+      if (cleanupFn) cleanupFn();
     };
   }, [navigate]);
 
   const loadHotelData = async () => {
+    const { getHotel } = await import('./services/hotelService');
     const data = await getHotel();
     if (data) {
       setHotel(data);
@@ -172,6 +182,7 @@ export function MainApp() {
   };
 
   const handleLogout = async () => {
+    const { signOut } = await import('./services/staffService');
     await signOut();
     setCurrentUser(null);
     navigate('/PMS');
