@@ -12,12 +12,19 @@ interface HeroSectionProps {
   }) => void;
 }
 
+function isBuiltInHeroImage(url?: string): boolean {
+  if (!url || url.trim() === '') return true;
+  if (url.includes('1790602862099-reception.jpeg')) return true;
+  if (url.includes('hero_hotel_image')) return true;
+  return false;
+}
+
 function optimizeHeroImageUrl(url?: string): string {
-  if (!url || url.trim() === '') return '/assets/hero-hotel.webp';
-  if (url.includes('images.unsplash.com') && !url.includes('w=')) {
-    return `${url}${url.includes('?') ? '&' : '?'}auto=format&fit=crop&w=960&q=70`;
+  if (isBuiltInHeroImage(url)) return '/assets/hero-hotel.webp';
+  if (url!.includes('images.unsplash.com') && !url!.includes('w=')) {
+    return `${url}${url!.includes('?') ? '&' : '?'}auto=format&fit=crop&w=960&q=70`;
   }
-  return url;
+  return url!;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
@@ -41,7 +48,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   };
 
   const customUrl = hotel?.hero_config?.image_url?.trim();
-  const isDefaultHero = !customUrl;
+  const useLocalWebp = isBuiltInHeroImage(customUrl);
   const heroImg = optimizeHeroImageUrl(customUrl);
 
   const badge =
@@ -64,9 +71,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       className="relative bg-stone-900 text-white overflow-hidden"
     >
       <img
-        src={isDefaultHero ? '/assets/hero-hotel-mobile.webp' : heroImg}
+        src={useLocalWebp ? '/assets/hero-hotel-mobile.webp' : heroImg}
         srcSet={
-          isDefaultHero
+          useLocalWebp
             ? '/assets/hero-hotel-mobile.webp 720w, /assets/hero-hotel.webp 1080w'
             : undefined
         }
