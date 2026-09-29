@@ -1,6 +1,6 @@
 {
   "name": "Hotel Website & Management System",
-  "description": "Book Sun Moon Suites, the best boutique hotel in Sector 117 Noida near Sector 76 Metro, Medanta Hospital & Tivoli Lotus Court. Free Wi-Fi & parking.",
+  "description": "Book your stay at Sun Moon Suites, a comfortable 30-room boutique hotel in Sector 117 Noida near Medanta Hospital, Tivoli Lotus Court & Sector 76 Metro.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

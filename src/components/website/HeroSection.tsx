@@ -55,7 +55,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     hotel?.hero_config?.badge ||
     `${hotel?.city || 'Sector 117, Noida'} • ${hotel?.total_rooms || 30} Boutique Rooms`;
   const heading =
-    hotel?.hero_config?.heading || hotel?.tagline || 'Modern Comfort & Tranquility in Noida';
+    hotel?.hero_config?.heading || 'Sun Moon Suites – Hotel in Sector 117 Noida';
   const description =
     hotel?.hero_config?.description ||
     hotel?.description ||

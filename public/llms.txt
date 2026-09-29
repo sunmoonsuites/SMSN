@@ -1,21 +1,26 @@
-# Sun Moon Suites – Boutique Hotel in Sector 117, Noida
+# Sun Moon Suites – Hotel in Sector 117, Noida
 
-> Sun Moon Suites is an upscale 30-room boutique hotel located at GT-20, Sector 117, Noida, Uttar Pradesh 201316, India. Just 2 minutes from Tivoli Lotus Court Banquet and 5 minutes from Medanta Hospital Noida and Sector 76 Metro Station, offering zero-commission direct room bookings, free high-speed Wi-Fi, 100% power backup, 24x7 front desk service, and free on-site parking.
+> Sun Moon Suites is a 30-room boutique hotel located at GT-20, Sector 117, Noida, Uttar Pradesh 201316, India. Just 2 minutes from Tivoli Lotus Court Banquet and 5 minutes from Medanta Hospital Noida, Sector 76 Metro Station, and Spectrum Metro Mall, offering zero-commission direct room bookings, elevator access across 3 floors, free high-speed Wi-Fi, 100% power backup, 24x7 front desk service, and free on-site parking.
 
-## Key Hotel Pages & Booking Resources
+## Primary Hotel & Local Noida Landing Pages
 
-- [Sun Moon Suites Official Website](https://sunmoonhotels.com/): Direct room availability search, best tariff guarantee, and instant reservation portal for Sector 117 Noida.
-- [Luxury Hotel Rooms & Suites](https://sunmoonhotels.com/rooms): Explore 30 air-conditioned Deluxe Rooms, Super Deluxe Rooms, Executive Suites, and Family Suites across 3 elevator-connected floors.
-- [24x7 Guest Amenities & Facilities](https://sunmoonhotels.com/amenities): High-speed fiber Wi-Fi, 100% DG power backup, smart LED TVs, tea/coffee makers, room service, and free parking.
+- [Sun Moon Suites – Hotel in Sector 117 Noida](https://sunmoonhotels.com/): Official homepage with real-time room availability search, direct tariff guarantee, and instant reservation portal.
+- [Best Hotel in Sector 117 Noida & Nearby Sectors Guide](https://sunmoonhotels.com/hotel-in-sector-117-noida): Accommodation guide for guests visiting Sector 117, Sector 115, Sector 116, Sector 118–122, and Sector 74–78 Noida.
+- [Hotel Near Medanta Hospital Noida](https://sunmoonhotels.com/hotel-near-medanta-hospital-noida): Peaceful family and patient-attendant stay near Medanta Hospital Noida with passenger lift, 24x7 front desk, and power backup.
+- [Hotel Near Tivoli Lotus Court Noida – Wedding Guest Rooms](https://sunmoonhotels.com/hotel-near-tivoli-lotus-court-noida): 30 air-conditioned rooms across 3 floors for wedding guests and group hotel bookings just 2 minutes from Tivoli Lotus Court.
+- [Hotel Near Sector 76 Metro Station & Spectrum Metro Mall Noida](https://sunmoonhotels.com/hotel-near-sector-76-metro-noida): Transit-friendly business and family hotel near Sector 76 Aqua Line Metro, Sector 51 Blue Line Metro, and Spectrum Metro Mall.
+
+## Rooms, Amenities & Reservation Links
+
+- [Hotel Rooms & Suites in Sector 117 Noida](https://sunmoonhotels.com/rooms): Explore Deluxe Rooms, Super Deluxe Rooms, Executive Rooms, and Family Suites.
+- [24x7 Guest Amenities & Facilities](https://sunmoonhotels.com/amenities): High-speed fiber Wi-Fi, 100% DG power backup, passenger lift, smart LED TVs, tea/coffee makers, and free parking.
 - [Direct Booking Offers & Tariffs](https://sunmoonhotels.com/offers): Special corporate, medical stay, and family packages with zero OTA commission fees.
 - [Property Photo Gallery](https://sunmoonhotels.com/gallery): Verified photos of guest rooms, reception lobby, dining area, and facade in Sector 117 Noida.
-- [Location & Noida Transit Guide](https://sunmoonhotels.com/location): Directions from Sector 76 Metro Station (Aqua Line), Sector 51 Metro Station (Blue Line), Medanta Hospital, and Tivoli Lotus Court.
-- [24x7 Front Desk Contact & Enquiry](https://sunmoonhotels.com/contact): Call +91 8586868442 or email sunmoonsuites@gmail.com for reservations and group bookings.
+- [Location & Noida Transit Guide](https://sunmoonhotels.com/location): Directions and travel times from nearby Noida landmarks.
+- [Contact Sun Moon Suites Reservation Desk](https://sunmoonhotels.com/contact): Call +91 8586868442 or email sunmoonsuites@gmail.com for reservations and group bookings.
 
 ## Machine-Readable Specifications & Sitemaps
 
 - [AI Agent Capability Catalog](https://sunmoonhotels.com/.well-known/ai-catalog.json): Agentic Resource Discovery (ARD 1.0) manifest for AI agents.
 - [OpenAPI Hotel Booking Specification](https://sunmoonhotels.com/openapi.json): Machine-readable API specification for checking room availability and tariffs.
 - [XML Sitemap](https://sunmoonhotels.com/sitemap.xml): Complete search engine sitemap for Sun Moon Suites Noida.
-- [Instant WhatsApp Reservation Desk](https://wa.me/918586868442): Direct 24x7 WhatsApp booking assistance with front desk reception.
-- [Google Maps Directions to Sun Moon Suites](https://www.google.com/maps/search/?api=1&query=Sun+Moon+Suites+GT-20+Sector+117+Noida+Uttar+Pradesh+201316): Verified GPS navigation to GT-20, Sector 117, Noida (Plus Code H9FW+8F).

@@ -82,9 +82,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => onNavigateSection('hero')}
             className="text-left group cursor-pointer"
           >
-            <h1 className="font-serif text-2xl sm:text-2xl font-bold tracking-tight text-stone-900 group-hover:text-amber-800 transition-colors">
+            <span className="block font-serif text-2xl sm:text-2xl font-bold tracking-tight text-stone-900 group-hover:text-amber-800 transition-colors">
               {hotelName}
-            </h1>
+            </span>
             <p className="text-[10px] uppercase tracking-widest text-stone-500 font-sans">
               {hotel?.city || 'Noida'} &bull; {hotel?.total_rooms || 30} Luxury Rooms
             </p>

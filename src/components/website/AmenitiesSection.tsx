@@ -73,9 +73,9 @@ export const AmenitiesSection: React.FC<AmenitiesSectionProps> = ({ hotel }) => 
           <span className="text-xs uppercase tracking-widest text-amber-800 font-bold">
             Hospitality Features
           </span>
-          <h3 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
             Designed for Modern Comfort
-          </h3>
+          </h2>
           <p className="text-sm text-stone-600 leading-relaxed">
             Everything you need for a restful business trip or relaxing holiday stay in {hotel?.city || 'Sector 117, Noida'}.
           </p>
@@ -91,7 +91,7 @@ export const AmenitiesSection: React.FC<AmenitiesSectionProps> = ({ hotel }) => 
                 {getAmenityIcon(item.iconName)}
               </div>
               <div className="space-y-1">
-                <h4 className="font-serif font-bold text-stone-900 text-base">{item.title}</h4>
+                <h3 className="font-serif font-bold text-stone-900 text-base">{item.title}</h3>
                 <p className="text-xs text-stone-600 leading-relaxed">{item.desc}</p>
               </div>
             </div>

@@ -38,9 +38,9 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
           <span className="text-xs uppercase tracking-widest text-amber-800 font-bold">
             Visual Tour
           </span>
-          <h3 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
             Hotel Photo Gallery
-          </h3>
+          </h2>
           <p className="text-sm text-stone-600 leading-relaxed">
             Take a look inside our rooms, ground floor reception, dining areas, and guest spaces in Sector 117 Noida.
           </p>
@@ -87,7 +87,15 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
               >
                 <img
                   src={item.image_url}
-                  alt={item.caption || item.category}
+                  alt={
+                    item.caption
+                      ? `${item.caption} at Sun Moon Suites Sector 117 Noida`
+                      : `Hotel ${item.category} at Sun Moon Suites Noida`
+                  }
+                  width={600}
+                  height={450}
+                  loading="lazy"
+                  decoding="async"
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />

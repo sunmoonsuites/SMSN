@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Hotel } from '../../types';
 import { Phone, Mail, MapPin } from 'lucide-react';
 import { getCleanHotelPhone } from '../../lib/utils';
@@ -22,57 +23,8 @@ export const Footer: React.FC<FooterProps> = ({
   const state = hotel?.state || 'Uttar Pradesh';
   const pincode = hotel?.pincode || '201316';
 
-  // Schema.org JSON-LD structured data for Google Local Hotel Pack SEO
-  const structuredData = {
-    '@context': 'https://schema.org',
-    '@type': 'Hotel',
-    name: hotelName,
-    url: 'https://sunmoonhotels.com/',
-    description:
-      hotel?.description ||
-      'Sun Moon Suites is a 30-room boutique hotel at GT-20, Sector 117, Noida, Uttar Pradesh 201316, near Medanta Hospital, Tivoli Lotus Court, and Sector 76 Metro Station.',
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: address,
-      addressLocality: city,
-      addressRegion: state,
-      postalCode: pincode,
-      addressCountry: 'IN',
-    },
-    geo: {
-      '@type': 'GeoCoordinates',
-      latitude: hotel?.latitude || 28.5677,
-      longitude: hotel?.longitude || 77.391,
-    },
-    hasMap:
-      hotel?.google_maps_url ||
-      'https://www.google.com/maps/search/?api=1&query=Sun+Moon+Suites+GT-20+Sector+117+Noida+Uttar+Pradesh+201316',
-    telephone: phone,
-    email: email,
-    numberOfRooms: hotel?.total_rooms || 30,
-    checkinTime: hotel?.check_in_time || '14:00',
-    checkoutTime: hotel?.check_out_time || '11:00',
-    priceRange: '₹1,800 - ₹4,500',
-    currenciesAccepted: 'INR',
-    paymentAccepted: 'Cash, Credit Card, Debit Card, UPI',
-    amenityFeature: [
-      { '@type': 'LocationFeatureSpecification', name: 'Free Wi-Fi', value: true },
-      ...(hotel?.banquet_config?.is_enabled !== false
-        ? [{ '@type': 'LocationFeatureSpecification', name: 'Banquet Hall', value: true }]
-        : []),
-      { '@type': 'LocationFeatureSpecification', name: '100% Power Backup', value: true },
-      { '@type': 'LocationFeatureSpecification', name: 'Free Parking', value: true },
-    ],
-  };
-
   return (
     <footer className="bg-stone-950 text-stone-300 pt-16 pb-24 sm:pb-12 border-t border-stone-800">
-      {/* JSON-LD Script for search engines */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-stone-800">
           {/* Brand & Introduction */}

@@ -39,9 +39,9 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
           <span className="text-xs uppercase tracking-widest text-amber-800 font-bold">
             Accommodations
           </span>
-          <h3 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
             Curated Rooms &amp; Suites
-          </h3>
+          </h2>
           <p className="text-sm text-stone-600 leading-relaxed">
             30 thoughtfully designed rooms spread across 3 floors. Each room features premium bedding, work desks, and climate control for business and leisure travelers in Noida.
           </p>
@@ -95,9 +95,9 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
 
                 <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
                   <div>
-                    <h4 className="font-serif text-xl font-bold text-stone-900 mb-1">
+                    <h3 className="font-serif text-xl font-bold text-stone-900 mb-1">
                       {cat.name}
-                    </h4>
+                    </h3>
                     {cat.description && (
                       <p className="text-xs text-stone-600 leading-relaxed line-clamp-2">
                         {cat.description}

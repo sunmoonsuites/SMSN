@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Hotel, LandmarkItem } from '../../types';
 import { DEFAULT_LANDMARKS_LIST } from '../../services/hotelService';
 import { MapPin, Navigation, Train, Building, Plane, Car, ShoppingBag } from 'lucide-react';
@@ -178,20 +179,59 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
         </div>
 
         {/* Local SEO Neighbourhood & Proximity Coverage Block */}
-        <div className="mt-10 p-6 bg-stone-50 rounded-2xl border border-stone-200/90 space-y-3">
+        <div className="mt-10 p-6 bg-stone-50 rounded-2xl border border-stone-200/90 space-y-4">
           <h3 className="font-serif font-bold text-sm text-stone-900">
             Preferred Boutique Hotel Near Central Noida Sectors, Hospitals &amp; Wedding Venues
           </h3>
           <p className="text-xs text-stone-600 leading-relaxed">
-            Conveniently located at <strong>{address}, {city} ({pincode})</strong>, <strong>{hotelName}</strong> is the closest boutique hotel for guests searching for a stay near{' '}
-            <strong>Medanta Hospital Noida</strong>, <strong>Tivoli Lotus Court Banquet Sector 117</strong>,{' '}
-            <strong>Spectrum Metro Mall Sector 75</strong>, and <strong>Sector 76 / Sector 51 Aqua &amp; Blue Line Metro Stations</strong>.
-            We welcome families, medical visitors, wedding guests, and corporate travelers visiting{' '}
+            Conveniently located at <strong>{address}, {city} ({pincode})</strong>, <strong>{hotelName}</strong> is a preferred boutique stay for guests searching for a{' '}
+            <Link to="/hotel-in-sector-117-noida" className="text-amber-900 underline hover:text-amber-700 font-semibold">
+              hotel in Sector 117 Noida
+            </Link>
+            , accommodation near{' '}
+            <Link to="/hotel-near-medanta-hospital-noida" className="text-amber-900 underline hover:text-amber-700 font-semibold">
+              Medanta Hospital Noida
+            </Link>
+            , wedding guest rooms near{' '}
+            <Link to="/hotel-near-tivoli-lotus-court-noida" className="text-amber-900 underline hover:text-amber-700 font-semibold">
+              Tivoli Lotus Court Banquet Sector 117
+            </Link>
+            , and rooms near{' '}
+            <Link to="/hotel-near-sector-76-metro-noida" className="text-amber-900 underline hover:text-amber-700 font-semibold">
+              Sector 76 Metro Station &amp; Spectrum Metro Mall Sector 75
+            </Link>
+            . We welcome families, patient attendants, wedding guests, and corporate travelers visiting{' '}
             <strong>
               Sector 117, Sector 116, Sector 115, Sector 118, Sector 119, Sector 120, Sector 121, Sector 122,
-              Sector 74, Sector 75, Sector 76, Sector 77, Sector 78, Sector 79, Sector 50, and Sector 51 in Noida
+              Sector 74, Sector 75, Sector 76, Sector 77, Sector 78, Sector 50, and Sector 51 in Noida
             </strong>.
           </p>
+          <div className="flex flex-wrap gap-2 pt-1 text-xs">
+            <Link
+              to="/hotel-in-sector-117-noida"
+              className="px-3 py-1.5 bg-white hover:bg-amber-50 border border-stone-200 rounded-lg text-stone-800 font-medium transition-colors"
+            >
+              Sector 117 Noida Hotel Guide
+            </Link>
+            <Link
+              to="/hotel-near-medanta-hospital-noida"
+              className="px-3 py-1.5 bg-white hover:bg-amber-50 border border-stone-200 rounded-lg text-stone-800 font-medium transition-colors"
+            >
+              Stay Near Medanta Hospital Noida
+            </Link>
+            <Link
+              to="/hotel-near-tivoli-lotus-court-noida"
+              className="px-3 py-1.5 bg-white hover:bg-amber-50 border border-stone-200 rounded-lg text-stone-800 font-medium transition-colors"
+            >
+              Rooms Near Tivoli Lotus Court
+            </Link>
+            <Link
+              to="/hotel-near-sector-76-metro-noida"
+              className="px-3 py-1.5 bg-white hover:bg-amber-50 border border-stone-200 rounded-lg text-stone-800 font-medium transition-colors"
+            >
+              Hotel Near Sector 76 Metro &amp; Spectrum Mall
+            </Link>
+          </div>
         </div>
       </div>
     </section>

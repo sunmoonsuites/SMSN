@@ -18,6 +18,8 @@ const ContactSection = lazy(() => import('./components/website/ContactSection').
 const Footer = lazy(() => import('./components/website/Footer').then((m) => ({ default: m.Footer })));
 const BookingFlowModal = lazy(() => import('./components/website/BookingFlowModal').then((m) => ({ default: m.BookingFlowModal })));
 const PolicyModal = lazy(() => import('./components/website/PolicyModal').then((m) => ({ default: m.PolicyModal })));
+const SeoLandingPage = lazy(() => import('./components/website/SeoLandingPage').then((m) => ({ default: m.SeoLandingPage })));
+import { applyRouteSeoToDocument, DEDICATED_LANDING_PAGES } from './lib/seoConfig';
 
 // Admin Components (Lazy-loaded so public website mobile bundle is ultra-fast)
 import type { AdminTab } from './components/admin/AdminLayout';
@@ -120,6 +122,24 @@ export function MainApp() {
       location.pathname.toLowerCase().startsWith('/pms') ||
       location.pathname.toLowerCase().startsWith('/admin');
     applyPMSThemeToDocument(getPMSTheme(), isPMSRoute);
+    if (!isPMSRoute) {
+      applyRouteSeoToDocument(location.pathname);
+      const sectionRoutes: Record<string, string> = {
+        '/rooms': 'rooms',
+        '/amenities': 'amenities',
+        '/offers': 'offers',
+        '/gallery': 'gallery',
+        '/location': 'location',
+        '/contact': 'contact',
+      };
+      const targetSection = sectionRoutes[location.pathname.toLowerCase()];
+      if (targetSection) {
+        setTimeout(() => {
+          const el = document.getElementById(targetSection);
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 250);
+      }
+    }
   }, [location.hash, location.search, location.pathname, navigate]);
 
   useEffect(() => {
@@ -399,6 +419,54 @@ export function MainApp() {
         {/* PUBLIC HOTEL GUEST WEBSITE */}
         <Route path="/" element={publicWebsiteContent} />
 
+        {/* DEDICATED LOCAL SEO LANDING PAGES */}
+        {Object.values(DEDICATED_LANDING_PAGES).map((pageConfig) => (
+          <Route
+            key={pageConfig.path}
+            path={pageConfig.path}
+            element={
+              <>
+                <Navbar
+                  hotel={hotel}
+                  onOpenBooking={() => {
+                    setBookingInitialSearch(undefined);
+                    setShowBookingModal(true);
+                  }}
+                  onNavigateSection={handleNavigateSection}
+                />
+                <main className="flex-1">
+                  <Suspense fallback={null}>
+                    <SeoLandingPage
+                      config={pageConfig}
+                      hotel={hotel}
+                      onOpenBooking={() => {
+                        setBookingInitialSearch(undefined);
+                        setShowBookingModal(true);
+                      }}
+                      onSelectCategoryForBooking={handleSelectCategoryForBooking}
+                      onNavigateSection={handleNavigateSection}
+                    />
+                  </Suspense>
+                </main>
+                <Suspense fallback={null}>
+                  <Footer
+                    hotel={hotel}
+                    onOpenPolicy={(policy) => setActivePolicy(policy)}
+                    onNavigateSection={handleNavigateSection}
+                  />
+                </Suspense>
+                <MobileStickyBar
+                  hotel={hotel}
+                  onOpenBooking={() => {
+                    setBookingInitialSearch(undefined);
+                    setShowBookingModal(true);
+                  }}
+                />
+              </>
+            }
+          />
+        ))}
+
         {/* DEDICATED STAFF PMS PORTAL ROUTES (/PMS, /pms, /admin) */}
         <Route path="/pms/*" element={pmsPortalElement} />
         <Route path="/admin/*" element={pmsPortalElement} />
@@ -438,7 +506,10 @@ export function MainApp() {
       )}
 
       {/* Floating WhatsApp Button (Public Website Only) */}
-      {location.pathname === '/' && <FloatingWhatsAppButton hotel={hotel} />}
+      {!location.pathname.toLowerCase().startsWith('/pms') &&
+        !location.pathname.toLowerCase().startsWith('/admin') && (
+          <FloatingWhatsAppButton hotel={hotel} />
+        )}
 
       {/* Supabase Database Connection Modal */}
       {showSupabaseModal && (
