@@ -187,28 +187,37 @@ export const Footer: React.FC<FooterProps> = ({
             </h5>
             <div className="space-y-2.5 text-xs text-stone-300">
               <a href={`tel:${phone.replace(/\s+/g, '')}`} className="flex items-center gap-2 hover:text-white">
-                <Phone className="w-3.5 h-3.5 text-amber-400" />
+                <Phone className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
                 <span>{phone}</span>
               </a>
               <a href={`mailto:${email}`} className="flex items-center gap-2 hover:text-white">
-                <Mail className="w-3.5 h-3.5 text-amber-400" />
+                <Mail className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
                 <span>{email}</span>
               </a>
               <div className="flex items-start gap-2 text-stone-400">
-                <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
                 <span>{address}, {city}, {state} {pincode}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Local SEO Proximity & Neighbourhood Directory */}
-        <div className="py-6 border-b border-stone-800/80 text-[11px] text-stone-500 space-y-1.5 leading-relaxed">
-          <p className="font-semibold text-stone-400">
+        {/* Local SEO Proximity & Neighbourhood Directory (Visually Hidden, Present in DOM for SEO) */}
+        <div className="sr-only">
+          <p>
             Nearby Noida Locations &amp; Landmarks Served by {hotelName} (sunmoonhotels.com):
           </p>
           <p>
-            Hotel in Sector 117 Noida &bull; Hotel near Medanta Hospital Noida &bull; Hotel near Tivoli Lotus Court Banquet &bull; Hotel near Sector 76 Metro Station &bull; Hotel near Spectrum Metro Mall Sector 75 &bull; Hotel near Sector 116, Sector 115, Sector 118, Sector 119, Sector 120, Sector 121, Sector 122, Sector 74, Sector 75, Sector 77, Sector 78, Sector 79, Sector 50 &amp; Sector 51 Noida.
+            <Link to="/hotel-in-sector-117-noida">Hotel in Sector 117 Noida</Link> &bull;{' '}
+            <Link to="/hotel-near-medanta-hospital-noida">Hotel near Medanta Hospital Noida</Link> &bull;{' '}
+            <Link to="/hotel-near-tivoli-lotus-court-noida">Hotel near Tivoli Lotus Court Banquet</Link> &bull;{' '}
+            <Link to="/hotel-near-sector-76-metro-noida">
+              Hotel near Sector 76 Metro Station &amp; Spectrum Metro Mall Sector 75
+            </Link>{' '}
+            &bull; <Link to="/rooms">Hotel Rooms in Noida</Link> &bull;{' '}
+            <Link to="/contact">Book Hotel in Sector 117 Noida</Link> &bull; Hotel near Sector 116,
+            Sector 115, Sector 118, Sector 119, Sector 120, Sector 121, Sector 122, Sector 74,
+            Sector 75, Sector 76, Sector 77, Sector 78, Sector 79, Sector 50 &amp; Sector 51 Noida.
           </p>
         </div>
 

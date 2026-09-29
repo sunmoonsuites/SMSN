@@ -178,8 +178,8 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
           </div>
         </div>
 
-        {/* Local SEO Neighbourhood & Proximity Coverage Block */}
-        <div className="mt-10 p-6 bg-stone-50 rounded-2xl border border-stone-200/90 space-y-4">
+        {/* Local SEO Neighbourhood & Proximity Coverage Block (Visually Hidden, Present in DOM for SEO) */}
+        <div className="sr-only">
           <h3 className="font-serif font-bold text-sm text-stone-900">
             Preferred Boutique Hotel Near Central Noida Sectors, Hospitals &amp; Wedding Venues
           </h3>
