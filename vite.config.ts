@@ -10,6 +10,7 @@ export default defineConfig(() => {
       legalComments: 'none',
     },
     build: {
+      target: 'es2015',
       minify: 'esbuild',
       cssMinify: true,
     },
