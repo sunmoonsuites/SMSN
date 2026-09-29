@@ -122,7 +122,23 @@
               { "@type": "LocationFeatureSpecification", "name": "24x7 Front Desk & Room Service", "value": true },
               { "@type": "LocationFeatureSpecification", "name": "100% Power Backup", "value": true },
               { "@type": "LocationFeatureSpecification", "name": "Free On-Site Parking", "value": true }
-            ]
+            ],
+            "potentialAction": {
+              "@type": "ReserveAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://sunmoonhotels.com/?checkIn={checkIn}&checkOut={checkOut}&adults={adults}",
+                "inLanguage": "en-IN",
+                "actionPlatform": [
+                  "http://schema.org/DesktopWebPlatform",
+                  "http://schema.org/MobileWebPlatform"
+                ]
+              },
+              "result": {
+                "@type": "LodgingReservation",
+                "name": "Hotel Room Reservation at Sun Moon Suites Noida"
+              }
+            }
           },
           {
             "@type": "WebSite",
@@ -131,6 +147,11 @@
             "name": "Sun Moon Suites - Best Hotel in Sector 117 Noida",
             "publisher": {
               "@id": "https://sunmoonhotels.com/#hotel"
+            },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://sunmoonhotels.com/?q={search_term_string}",
+              "query-input": "required name=search_term_string"
             }
           },
           {
@@ -162,9 +183,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap"
+    />
+    <link
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root">

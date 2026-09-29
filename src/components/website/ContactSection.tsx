@@ -211,15 +211,22 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} aria-label="WhatsApp Hotel Enquiry Form" className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    <label
+                      htmlFor="contact-guest-name"
+                      className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1"
+                    >
                       Your Name *
                     </label>
                     <input
+                      id="contact-guest-name"
+                      name="name"
                       type="text"
                       required
+                      autoComplete="name"
+                      aria-label="Your Full Name"
                       placeholder="e.g. Ananya Roy"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -228,12 +235,19 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    <label
+                      htmlFor="contact-guest-mobile"
+                      className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1"
+                    >
                       Mobile Number *
                     </label>
                     <input
+                      id="contact-guest-mobile"
+                      name="mobile"
                       type="tel"
                       required
+                      autoComplete="tel"
+                      aria-label="Your Mobile Number"
                       placeholder="+91 93135 01001"
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
@@ -243,11 +257,18 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
+                  <label
+                    htmlFor="contact-guest-email"
+                    className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1"
+                  >
                     Email Address (Optional)
                   </label>
                   <input
+                    id="contact-guest-email"
+                    name="email"
                     type="email"
+                    autoComplete="email"
+                    aria-label="Your Email Address"
                     placeholder="ananya@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -256,12 +277,18 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
+                  <label
+                    htmlFor="contact-guest-message"
+                    className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1"
+                  >
                     Message / Question *
                   </label>
                   <textarea
+                    id="contact-guest-message"
+                    name="message"
                     rows={4}
                     required
+                    aria-label="Your Message or Booking Question"
                     placeholder="Tell us about your requirements, dates, or questions..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}

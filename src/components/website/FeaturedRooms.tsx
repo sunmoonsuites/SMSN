@@ -74,7 +74,11 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                   {cat.images && cat.images.length > 0 ? (
                     <img
                       src={cat.images[0]}
-                      alt={cat.name}
+                      alt={`${cat.name} at Sun Moon Suites Sector 117 Noida`}
+                      width={600}
+                      height={400}
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                     />

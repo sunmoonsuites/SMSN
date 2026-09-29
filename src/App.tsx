@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Hotel, StaffUser } from './types';
 import { getHotel, getInitialHotelSync } from './services/hotelService';
@@ -19,26 +19,27 @@ import { BookingFlowModal } from './components/website/BookingFlowModal';
 import { PolicyModal } from './components/website/PolicyModal';
 import { FloatingWhatsAppButton } from './components/website/FloatingWhatsAppButton';
 
-// Admin Components
-import { AdminLayout, AdminTab } from './components/admin/AdminLayout';
-import { DashboardView } from './components/admin/DashboardView';
-import { FrontDeskView } from './components/admin/FrontDeskView';
-import { ReservationsView } from './components/admin/ReservationsView';
-import { CalendarView } from './components/admin/CalendarView';
-import { RoomsManagementView } from './components/admin/RoomsManagementView';
-import { HousekeepingView } from './components/admin/HousekeepingView';
-import { GuestsView } from './components/admin/GuestsView';
-import { BillingView } from './components/admin/BillingView';
-import { PaymentsView } from './components/admin/PaymentsView';
-import { ExpensesView } from './components/admin/ExpensesView';
-import { BanquetManagementView } from './components/admin/BanquetManagementView';
-import { OffersManagementView } from './components/admin/OffersManagementView';
-import { GalleryManagementView } from './components/admin/GalleryManagementView';
-import { EnquiriesView } from './components/admin/EnquiriesView';
-import { ReportsView } from './components/admin/ReportsView';
-import { StaffManagementView } from './components/admin/StaffManagementView';
-import { AuditTrailView } from './components/admin/AuditTrailView';
-import { SettingsView } from './components/admin/SettingsView';
+// Admin Components (Lazy-loaded so public website mobile bundle is ultra-fast)
+import type { AdminTab } from './components/admin/AdminLayout';
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
+const DashboardView = lazy(() => import('./components/admin/DashboardView').then((m) => ({ default: m.DashboardView })));
+const FrontDeskView = lazy(() => import('./components/admin/FrontDeskView').then((m) => ({ default: m.FrontDeskView })));
+const ReservationsView = lazy(() => import('./components/admin/ReservationsView').then((m) => ({ default: m.ReservationsView })));
+const CalendarView = lazy(() => import('./components/admin/CalendarView').then((m) => ({ default: m.CalendarView })));
+const RoomsManagementView = lazy(() => import('./components/admin/RoomsManagementView').then((m) => ({ default: m.RoomsManagementView })));
+const HousekeepingView = lazy(() => import('./components/admin/HousekeepingView').then((m) => ({ default: m.HousekeepingView })));
+const GuestsView = lazy(() => import('./components/admin/GuestsView').then((m) => ({ default: m.GuestsView })));
+const BillingView = lazy(() => import('./components/admin/BillingView').then((m) => ({ default: m.BillingView })));
+const PaymentsView = lazy(() => import('./components/admin/PaymentsView').then((m) => ({ default: m.PaymentsView })));
+const ExpensesView = lazy(() => import('./components/admin/ExpensesView').then((m) => ({ default: m.ExpensesView })));
+const BanquetManagementView = lazy(() => import('./components/admin/BanquetManagementView').then((m) => ({ default: m.BanquetManagementView })));
+const OffersManagementView = lazy(() => import('./components/admin/OffersManagementView').then((m) => ({ default: m.OffersManagementView })));
+const GalleryManagementView = lazy(() => import('./components/admin/GalleryManagementView').then((m) => ({ default: m.GalleryManagementView })));
+const EnquiriesView = lazy(() => import('./components/admin/EnquiriesView').then((m) => ({ default: m.EnquiriesView })));
+const ReportsView = lazy(() => import('./components/admin/ReportsView').then((m) => ({ default: m.ReportsView })));
+const StaffManagementView = lazy(() => import('./components/admin/StaffManagementView').then((m) => ({ default: m.StaffManagementView })));
+const AuditTrailView = lazy(() => import('./components/admin/AuditTrailView').then((m) => ({ default: m.AuditTrailView })));
+const SettingsView = lazy(() => import('./components/admin/SettingsView').then((m) => ({ default: m.SettingsView })));
 
 // Common Modals
 import { SupabaseConfigModal } from './components/common/SupabaseConfigModal';
@@ -238,88 +239,96 @@ export function MainApp() {
   }
 
   const pmsPortalElement = currentUser ? (
-    <AdminLayout
-      currentUser={currentUser}
-      hotel={hotel}
-      activeTab={adminTab}
-      onSelectTab={(tab) => setAdminTab(tab)}
-      onOpenNewBooking={() => {
-        setBookingInitialSearch(undefined);
-        setShowBookingModal(true);
-      }}
-      onLogout={handleLogout}
-      onViewWebsite={() => navigate('/')}
-      onOpenSupabaseConfig={() => setShowSupabaseModal(true)}
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-stone-50">
+          <LoadingSpinner message="Loading PMS Module..." />
+        </div>
+      }
     >
-      {adminTab === 'dashboard' && (
-        <DashboardView
-          hotel={hotel}
-          onNavigateTab={(tab) => setAdminTab(tab)}
-          onOpenNewBooking={() => {
-            setBookingInitialSearch(undefined);
-            setShowBookingModal(true);
-          }}
-        />
-      )}
+      <AdminLayout
+        currentUser={currentUser}
+        hotel={hotel}
+        activeTab={adminTab}
+        onSelectTab={(tab) => setAdminTab(tab)}
+        onOpenNewBooking={() => {
+          setBookingInitialSearch(undefined);
+          setShowBookingModal(true);
+        }}
+        onLogout={handleLogout}
+        onViewWebsite={() => navigate('/')}
+        onOpenSupabaseConfig={() => setShowSupabaseModal(true)}
+      >
+        {adminTab === 'dashboard' && (
+          <DashboardView
+            hotel={hotel}
+            onNavigateTab={(tab) => setAdminTab(tab)}
+            onOpenNewBooking={() => {
+              setBookingInitialSearch(undefined);
+              setShowBookingModal(true);
+            }}
+          />
+        )}
 
-      {adminTab === 'frontdesk' && (
-        <FrontDeskView
-          hotel={hotel}
-          onOpenNewBooking={() => {
-            setBookingInitialSearch(undefined);
-            setShowBookingModal(true);
-          }}
-        />
-      )}
+        {adminTab === 'frontdesk' && (
+          <FrontDeskView
+            hotel={hotel}
+            onOpenNewBooking={() => {
+              setBookingInitialSearch(undefined);
+              setShowBookingModal(true);
+            }}
+          />
+        )}
 
-      {adminTab === 'reservations' && (
-        <ReservationsView
-          hotel={hotel}
-          onOpenNewBooking={() => {
-            setBookingInitialSearch(undefined);
-            setShowBookingModal(true);
-          }}
-        />
-      )}
+        {adminTab === 'reservations' && (
+          <ReservationsView
+            hotel={hotel}
+            onOpenNewBooking={() => {
+              setBookingInitialSearch(undefined);
+              setShowBookingModal(true);
+            }}
+          />
+        )}
 
-      {adminTab === 'calendar' && <CalendarView hotel={hotel} />}
+        {adminTab === 'calendar' && <CalendarView hotel={hotel} />}
 
-      {adminTab === 'rooms' && <RoomsManagementView hotel={hotel} />}
+        {adminTab === 'rooms' && <RoomsManagementView hotel={hotel} />}
 
-      {adminTab === 'housekeeping' && <HousekeepingView hotel={hotel} />}
+        {adminTab === 'housekeeping' && <HousekeepingView hotel={hotel} />}
 
-      {adminTab === 'guests' && <GuestsView hotel={hotel} />}
+        {adminTab === 'guests' && <GuestsView hotel={hotel} />}
 
-      {adminTab === 'billing' && <BillingView hotel={hotel} />}
+        {adminTab === 'billing' && <BillingView hotel={hotel} />}
 
-      {adminTab === 'payments' && <PaymentsView hotel={hotel} />}
+        {adminTab === 'payments' && <PaymentsView hotel={hotel} />}
 
-      {adminTab === 'expenses' && <ExpensesView hotel={hotel} />}
+        {adminTab === 'expenses' && <ExpensesView hotel={hotel} />}
 
-      {adminTab === 'banquet' && <BanquetManagementView hotel={hotel} />}
+        {adminTab === 'banquet' && <BanquetManagementView hotel={hotel} />}
 
-      {adminTab === 'offers' && <OffersManagementView hotel={hotel} />}
+        {adminTab === 'offers' && <OffersManagementView hotel={hotel} />}
 
-      {adminTab === 'gallery' && <GalleryManagementView hotel={hotel} />}
+        {adminTab === 'gallery' && <GalleryManagementView hotel={hotel} />}
 
-      {adminTab === 'enquiries' && <EnquiriesView hotel={hotel} />}
+        {adminTab === 'enquiries' && <EnquiriesView hotel={hotel} />}
 
-      {adminTab === 'reports' && <ReportsView hotel={hotel} />}
+        {adminTab === 'reports' && <ReportsView hotel={hotel} />}
 
-      {adminTab === 'staff' && (
-        <StaffManagementView hotel={hotel} currentUser={currentUser} />
-      )}
+        {adminTab === 'staff' && (
+          <StaffManagementView hotel={hotel} currentUser={currentUser} />
+        )}
 
-      {adminTab === 'audit' && <AuditTrailView hotel={hotel} />}
+        {adminTab === 'audit' && <AuditTrailView hotel={hotel} />}
 
-      {adminTab === 'settings' && (
-        <SettingsView
-          hotel={hotel}
-          onOpenSupabaseConfig={() => setShowSupabaseModal(true)}
-          onHotelUpdated={loadHotelData}
-        />
-      )}
-    </AdminLayout>
+        {adminTab === 'settings' && (
+          <SettingsView
+            hotel={hotel}
+            onOpenSupabaseConfig={() => setShowSupabaseModal(true)}
+            onHotelUpdated={loadHotelData}
+          />
+        )}
+      </AdminLayout>
+    </Suspense>
   ) : (
     <PMSLoginScreen
       hotel={hotel}
