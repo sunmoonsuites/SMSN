@@ -1,6 +1,6 @@
 {
   "name": "Hotel Website & Management System",
-  "description": "Production-grade hotel website and full property management system (PMS) for a 30-room hotel in Sector 117 Noida, featuring reservations, front desk, billing, housekeeping, and Supabase integration.",
+  "description": "Book direct at Sun Moon Suites (sunmoonhotels.com), a 30-room boutique hotel in GT-20, Sector 117, Noida. Minutes from Medanta Hospital, Tivoli Lotus Court & Sector 76 Metro Station.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

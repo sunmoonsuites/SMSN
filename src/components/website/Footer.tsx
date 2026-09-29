@@ -16,20 +16,21 @@ export const Footer: React.FC<FooterProps> = ({
 }) => {
   const hotelName = hotel?.name || 'Sun Moon Suites';
   const phone = getCleanHotelPhone(hotel?.phone);
-  const email = hotel?.email || 'reservations@sunmoonsuites.com';
-  const address = hotel?.address || 'Plot No. 12, Sector 117';
+  const email = hotel?.email || 'sunmoonsuites@gmail.com';
+  const address = hotel?.address || 'GT-20, Sector 117';
   const city = hotel?.city || 'Noida';
   const state = hotel?.state || 'Uttar Pradesh';
-  const pincode = hotel?.pincode || '201301';
+  const pincode = hotel?.pincode || '201316';
 
-  // Schema.org JSON-LD structured data for Google SEO
+  // Schema.org JSON-LD structured data for Google Local Hotel Pack SEO
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Hotel',
     name: hotelName,
+    url: 'https://sunmoonhotels.com/',
     description:
       hotel?.description ||
-      'Boutique hotel with 30 rooms across 3 floors in Sector 117, Noida, Uttar Pradesh.',
+      'Sun Moon Suites is a 30-room boutique hotel at GT-20, Sector 117, Noida, Uttar Pradesh 201316, near Medanta Hospital, Tivoli Lotus Court, and Sector 76 Metro Station.',
     address: {
       '@type': 'PostalAddress',
       streetAddress: address,
@@ -38,14 +39,22 @@ export const Footer: React.FC<FooterProps> = ({
       postalCode: pincode,
       addressCountry: 'IN',
     },
+    geo: {
+      '@type': 'GeoCoordinates',
+      latitude: hotel?.latitude || 28.5677,
+      longitude: hotel?.longitude || 77.391,
+    },
+    hasMap:
+      hotel?.google_maps_url ||
+      'https://www.google.com/maps/search/?api=1&query=Sun+Moon+Suites+GT-20+Sector+117+Noida+Uttar+Pradesh+201316',
     telephone: phone,
     email: email,
-    numberOfRooms: 30,
+    numberOfRooms: hotel?.total_rooms || 30,
     checkinTime: hotel?.check_in_time || '14:00',
     checkoutTime: hotel?.check_out_time || '11:00',
-    priceRange: '₹₹',
+    priceRange: '₹1,800 - ₹4,500',
     currenciesAccepted: 'INR',
-    paymentAccepted: 'Cash, Credit Card, UPI',
+    paymentAccepted: 'Cash, Credit Card, Debit Card, UPI',
     amenityFeature: [
       { '@type': 'LocationFeatureSpecification', name: 'Free Wi-Fi', value: true },
       ...(hotel?.banquet_config?.is_enabled !== false
@@ -239,6 +248,16 @@ export const Footer: React.FC<FooterProps> = ({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Local SEO Proximity & Neighbourhood Directory */}
+        <div className="py-6 border-b border-stone-800/80 text-[11px] text-stone-500 space-y-1.5 leading-relaxed">
+          <p className="font-semibold text-stone-400">
+            Nearby Noida Locations &amp; Landmarks Served by {hotelName} (sunmoonhotels.com):
+          </p>
+          <p>
+            Hotel in Sector 117 Noida &bull; Hotel near Medanta Hospital Noida &bull; Hotel near Tivoli Lotus Court Banquet &bull; Hotel near Sector 76 Metro Station &bull; Hotel near Spectrum Metro Mall Sector 75 &bull; Hotel near Sector 116, Sector 115, Sector 118, Sector 119, Sector 120, Sector 121, Sector 122, Sector 74, Sector 75, Sector 77, Sector 78, Sector 79, Sector 50 &amp; Sector 51 Noida.
+          </p>
         </div>
 
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-stone-500">

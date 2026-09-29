@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /PMS
+Disallow: /pms
+Disallow: /admin
+
+Sitemap: https://sunmoonhotels.com/sitemap.xml

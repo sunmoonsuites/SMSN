@@ -136,6 +136,23 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ hotel }) => {
             />
           </div>
         </div>
+
+        {/* Local SEO Neighbourhood & Proximity Coverage Block */}
+        <div className="mt-10 p-6 bg-stone-50 rounded-2xl border border-stone-200/90 space-y-3">
+          <h4 className="font-serif font-bold text-sm text-stone-900">
+            Preferred Boutique Hotel Near Central Noida Sectors, Hospitals &amp; Wedding Venues
+          </h4>
+          <p className="text-xs text-stone-600 leading-relaxed">
+            Conveniently located at <strong>{address}, {city} ({pincode})</strong>, <strong>{hotelName}</strong> is the closest boutique hotel for guests searching for a stay near{' '}
+            <strong>Medanta Hospital Noida</strong>, <strong>Tivoli Lotus Court Banquet Sector 117</strong>,{' '}
+            <strong>Spectrum Metro Mall Sector 75</strong>, and <strong>Sector 76 / Sector 51 Aqua &amp; Blue Line Metro Stations</strong>.
+            We welcome families, medical visitors, wedding guests, and corporate travelers visiting{' '}
+            <strong>
+              Sector 117, Sector 116, Sector 115, Sector 118, Sector 119, Sector 120, Sector 121, Sector 122,
+              Sector 74, Sector 75, Sector 76, Sector 77, Sector 78, Sector 79, Sector 50, and Sector 51 in Noida
+            </strong>.
+          </p>
+        </div>
       </div>
     </section>
   );
