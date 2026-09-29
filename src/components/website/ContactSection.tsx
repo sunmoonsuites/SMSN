@@ -211,7 +211,16 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} aria-label="WhatsApp Hotel Enquiry Form" className="space-y-4">
+              <form
+                onSubmit={handleSubmit}
+                aria-label="WhatsApp Hotel Enquiry Form"
+                {...({
+                  toolname: 'send_hotel_enquiry',
+                  tooldescription:
+                    'Send a direct booking or stay enquiry to Sun Moon Suites front desk reception in Sector 117, Noida.',
+                } as any)}
+                className="space-y-4"
+              >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label
@@ -227,6 +236,9 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                       required
                       autoComplete="name"
                       aria-label="Your Full Name"
+                      {...({
+                        toolparamdescription: 'Full name of the guest making the hotel enquiry',
+                      } as any)}
                       placeholder="e.g. Ananya Roy"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -248,6 +260,9 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                       required
                       autoComplete="tel"
                       aria-label="Your Mobile Number"
+                      {...({
+                        toolparamdescription: 'Mobile phone number of the guest with country code',
+                      } as any)}
                       placeholder="+91 93135 01001"
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
@@ -269,6 +284,9 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                     type="email"
                     autoComplete="email"
                     aria-label="Your Email Address"
+                    {...({
+                      toolparamdescription: 'Optional email address of the guest',
+                    } as any)}
                     placeholder="ananya@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -289,6 +307,10 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                     rows={4}
                     required
                     aria-label="Your Message or Booking Question"
+                    {...({
+                      toolparamdescription:
+                        'Details of the booking enquiry, preferred dates, room category, or special requests',
+                    } as any)}
                     placeholder="Tell us about your requirements, dates, or questions..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}

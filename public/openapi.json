@@ -1,0 +1,56 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sun Moon Suites Sector 117 Noida Reservation API",
+    "version": "1.0.0",
+    "description": "Official room availability search and direct booking endpoints for Sun Moon Suites (GT-20, Sector 117, Noida, Uttar Pradesh 201316)."
+  },
+  "servers": [
+    {
+      "url": "https://sunmoonhotels.com"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "searchRoomAvailability",
+        "summary": "Search hotel room availability and tariffs at Sun Moon Suites Noida",
+        "parameters": [
+          {
+            "name": "checkIn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" },
+            "description": "Check-in date in YYYY-MM-DD format"
+          },
+          {
+            "name": "checkOut",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" },
+            "description": "Check-out date in YYYY-MM-DD format"
+          },
+          {
+            "name": "adults",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 2 },
+            "description": "Number of adult guests (12+ years)"
+          },
+          {
+            "name": "children",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0 },
+            "description": "Number of child guests (0-11 years)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room availability search results page"
+          }
+        }
+      }
+    }
+  }
+}

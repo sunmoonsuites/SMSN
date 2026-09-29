@@ -1,0 +1,23 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "Sun Moon Suites Sector 117 Noida",
+    "identifier": "did:web:sunmoonhotels.com",
+    "documentationUrl": "https://sunmoonhotels.com/llms.txt",
+    "logoUrl": "https://sunmoonhotels.com/assets/hotel-banner.svg"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:sunmoonhotels.com:api:hotel-reservations",
+      "displayName": "Sun Moon Suites Hotel Room Availability & Reservation API",
+      "description": "Search real-time room availability, direct tariffs, and book rooms at Sun Moon Suites in Sector 117, Noida.",
+      "type": "application/openapi+json",
+      "url": "https://sunmoonhotels.com/openapi.json",
+      "representativeQueries": [
+        "Book a hotel room in Sector 117 Noida",
+        "Check room availability at Sun Moon Suites near Medanta Hospital Noida",
+        "Best hotel near Tivoli Lotus Court and Sector 76 Metro Station Noida"
+      ]
+    }
+  ]
+}

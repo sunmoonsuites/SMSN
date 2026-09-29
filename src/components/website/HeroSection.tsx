@@ -127,6 +127,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             onSubmit={handleSearch}
             aria-label="Room Availability Search Form"
             data-agent-action="search-hotel-availability"
+            {...({
+              toolname: 'search_hotel_availability',
+              tooldescription:
+                'Search real-time room availability and direct tariffs at Sun Moon Suites in Sector 117, Noida by check-in date, check-out date, adults, and children.',
+            } as any)}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end"
           >
             {/* Check-In */}
@@ -144,6 +149,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 type="date"
                 required
                 aria-label="Check-in Date"
+                {...({
+                  toolparamdescription: 'Check-in date in YYYY-MM-DD format for hotel stay',
+                } as any)}
                 min={new Date().toISOString().split('T')[0]}
                 value={checkIn}
                 onChange={(e) => setCheckIn(e.target.value)}
@@ -166,6 +174,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 type="date"
                 required
                 aria-label="Check-out Date"
+                {...({
+                  toolparamdescription: 'Check-out date in YYYY-MM-DD format for hotel stay',
+                } as any)}
                 min={checkIn}
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
@@ -186,6 +197,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 id="hero-adults-select"
                 name="adults"
                 aria-label="Number of Adults"
+                {...({
+                  toolparamdescription: 'Number of adult guests aged 12 years and above (1 to 6)',
+                } as any)}
                 value={adults}
                 onChange={(e) => setAdults(Number(e.target.value))}
                 className="w-full px-3 py-2.5 text-sm bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 focus:bg-white transition-all font-medium"
@@ -211,6 +225,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 id="hero-children-select"
                 name="children"
                 aria-label="Number of Children"
+                {...({
+                  toolparamdescription: 'Number of child guests aged 0 to 11 years (0 to 3)',
+                } as any)}
                 value={children}
                 onChange={(e) => setChildren(Number(e.target.value))}
                 className="w-full px-3 py-2.5 text-sm bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 focus:bg-white transition-all font-medium"
