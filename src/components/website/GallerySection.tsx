@@ -30,6 +30,11 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
     if (hotel?.id) {
       loadGallery();
     }
+    const handleRefresh = () => {
+      if (hotel?.id) loadGallery();
+    };
+    window.addEventListener('hotel_data_updated', handleRefresh);
+    return () => window.removeEventListener('hotel_data_updated', handleRefresh);
   }, [hotel?.id]);
 
   const loadGallery = async () => {

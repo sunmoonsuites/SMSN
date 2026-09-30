@@ -108,6 +108,20 @@ export const ROUTE_SEO_META: Record<
     primaryKeyword: 'Sun Moon Suites Noida',
     secondaryKeywords: ['Sun Moon Suites Sector 117 Noida', 'Hotel Rooms in Noida'],
   },
+  '/insights': {
+    title: 'Noida Travel Insights, Local Events & Stay Guides | Sun Moon Suites',
+    description:
+      'Read local Noida travel tips, upcoming event guides, metro transit routes, and hospitality updates from Sun Moon Suites in Sector 117 Noida.',
+    canonical: `${BASE_SITE_URL}/insights`,
+    h1: 'Noida Travel Insights, Local Events & Hotel News',
+    primaryKeyword: 'Noida Travel Tips & Local Events',
+    secondaryKeywords: [
+      'Hotel in Sector 117 Noida',
+      'Medanta Hospital Noida Stay Guide',
+      'Tivoli Lotus Court Wedding Guest Rooms',
+      'Sector 76 Metro Station Noida Guide',
+    ],
+  },
   '/location': {
     title: 'Location & Directions to Sun Moon Suites | Sector 117 Noida',
     description:
@@ -499,6 +513,11 @@ export const DEDICATED_LANDING_PAGES: Record<string, SeoPageConfig> = {
 export function applyRouteSeoToDocument(pathname: string): void {
   if (typeof document === 'undefined') return;
   const normalized = pathname === '/' ? '/' : pathname.replace(/\/+$/, '').toLowerCase();
+
+  // Dynamic article pages (/insights/:slug) manage their own title, description, and canonical tag
+  if (normalized.startsWith('/insights/') && normalized !== '/insights') {
+    return;
+  }
 
   const landing = DEDICATED_LANDING_PAGES[normalized];
   const meta = landing

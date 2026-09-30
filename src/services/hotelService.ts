@@ -6,6 +6,7 @@ import {
   AmenityItem,
   LandmarkItem,
   BanquetConfig,
+  InsightsConfig,
   SocialLinks,
   FAQItem,
 } from '../types';
@@ -148,6 +149,14 @@ export const DEFAULT_BANQUET_CONFIG: BanquetConfig = {
   service: 'Tailored Catering',
 };
 
+export const DEFAULT_INSIGHTS_CONFIG: InsightsConfig = {
+  is_enabled: true,
+  title: 'Local Insights, Events & Travel Tips',
+  subtitle: 'Noida Travel & Hospitality Guide',
+  description:
+    'Explore helpful guides on local events in Noida, metro connectivity, medical stay tips, and hospitality updates from Sun Moon Suites in Sector 117.',
+};
+
 export const DEFAULT_SOCIAL_LINKS: SocialLinks = {
   instagram: 'https://instagram.com/sunmoonsuites',
   facebook: 'https://facebook.com/sunmoonsuites',
@@ -211,6 +220,7 @@ export const DEFAULT_HOTEL_INFO: Partial<Hotel> = {
   amenities_list: DEFAULT_AMENITIES_LIST,
   landmarks_list: DEFAULT_LANDMARKS_LIST,
   banquet_config: DEFAULT_BANQUET_CONFIG,
+  insights_config: DEFAULT_INSIGHTS_CONFIG,
   cancellation_policy:
     'Free cancellation up to 24 hours prior to standard check-in time (14:00 hotel local time). Cancellations made within 24 hours of arrival will incur a 1-night tariff fee. No-shows are charged the full reservation amount.',
   terms_and_conditions:
@@ -308,6 +318,7 @@ function encodeCmsPayloadForHotelsTable(config: Partial<Hotel>): string {
         ? config.landmarks_list
         : DEFAULT_LANDMARKS_LIST,
     banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
+    insights_config: config.insights_config || DEFAULT_INSIGHTS_CONFIG,
     cancellation_policy:
       config.cancellation_policy || DEFAULT_HOTEL_INFO.cancellation_policy || '',
     terms_and_conditions:
@@ -496,6 +507,7 @@ async function persistFullHotelConfigToSupabase(
           amenities_list: config.amenities_list || DEFAULT_AMENITIES_LIST,
           landmarks_list: config.landmarks_list || DEFAULT_LANDMARKS_LIST,
           banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
+          insights_config: config.insights_config || DEFAULT_INSIGHTS_CONFIG,
         },
       };
 
@@ -571,6 +583,10 @@ export async function getHotel(): Promise<Hotel | null> {
             rawSettingsSocial.banquet_config ||
             localConfig.banquet_config ||
             DEFAULT_BANQUET_CONFIG,
+          insights_config:
+            rawSettingsSocial.insights_config ||
+            localConfig.insights_config ||
+            DEFAULT_INSIGHTS_CONFIG,
           plus_code:
             rawSettingsSocial.plus_code ||
             localConfig.plus_code ||
@@ -630,6 +646,10 @@ export async function getHotel(): Promise<Hotel | null> {
         banquet_config: {
           ...DEFAULT_BANQUET_CONFIG,
           ...(cmsFromHotelsTable.banquet_config || rawSettingsSocial.banquet_config || {}),
+        },
+        insights_config: {
+          ...DEFAULT_INSIGHTS_CONFIG,
+          ...(cmsFromHotelsTable.insights_config || rawSettingsSocial.insights_config || {}),
         },
         social_links: {
           ...DEFAULT_SOCIAL_LINKS,

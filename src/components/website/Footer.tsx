@@ -114,6 +114,17 @@ export const Footer: React.FC<FooterProps> = ({
                   Hotel Amenities
                 </button>
               </li>
+              {hotel?.insights_config?.is_enabled !== false && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateSection('insights')}
+                    className="hover:text-white transition-colors"
+                  >
+                    Noida Insights &amp; Local Guides
+                  </button>
+                </li>
+              )}
               <li>
                 <button
                   type="button"
@@ -213,6 +224,18 @@ export const Footer: React.FC<FooterProps> = ({
             <Link to="/hotel-near-tivoli-lotus-court-noida">Hotel near Tivoli Lotus Court Banquet</Link> &bull;{' '}
             <Link to="/hotel-near-sector-76-metro-noida">
               Hotel near Sector 76 Metro Station &amp; Spectrum Metro Mall Sector 75
+            </Link>{' '}
+            &bull;{' '}
+            <Link to="/insights/visiting-medanta-hospital-noida-family-stay-guide">
+              Medanta Hospital Noida Family &amp; Attendant Stay Guide
+            </Link>{' '}
+            &bull;{' '}
+            <Link to="/insights/wedding-guest-accommodation-tivoli-lotus-court-sector-117-noida">
+              Tivoli Lotus Court Noida Wedding Guest Rooms Guide
+            </Link>{' '}
+            &bull;{' '}
+            <Link to="/insights/noida-metro-sector-76-aqua-blue-line-business-traveler-guide">
+              Sector 76 Aqua Line Metro Business Travel Guide
             </Link>{' '}
             &bull; <Link to="/rooms">Hotel Rooms in Noida</Link> &bull;{' '}
             <Link to="/contact">Book Hotel in Sector 117 Noida</Link> &bull; Hotel near Sector 116,

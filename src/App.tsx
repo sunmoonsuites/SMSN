@@ -3,50 +3,71 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-ro
 import { Hotel, StaffUser } from './types';
 import { getInitialHotelFast } from './lib/utils';
 
-// Website Components
+// Website Components (Imported directly to prevent dynamic chunk fetch errors and layout shift)
 import { Navbar } from './components/website/Navbar';
 import { HeroSection } from './components/website/HeroSection';
 import { MobileStickyBar } from './components/website/MobileStickyBar';
 import { FloatingWhatsAppButton } from './components/website/FloatingWhatsAppButton';
-const FeaturedRooms = lazy(() => import('./components/website/FeaturedRooms').then((m) => ({ default: m.FeaturedRooms })));
-const AmenitiesSection = lazy(() => import('./components/website/AmenitiesSection').then((m) => ({ default: m.AmenitiesSection })));
-const BanquetSection = lazy(() => import('./components/website/BanquetSection').then((m) => ({ default: m.BanquetSection })));
-const OffersSection = lazy(() => import('./components/website/OffersSection').then((m) => ({ default: m.OffersSection })));
-const GallerySection = lazy(() => import('./components/website/GallerySection').then((m) => ({ default: m.GallerySection })));
-const LocationSection = lazy(() => import('./components/website/LocationSection').then((m) => ({ default: m.LocationSection })));
-const ContactSection = lazy(() => import('./components/website/ContactSection').then((m) => ({ default: m.ContactSection })));
-const Footer = lazy(() => import('./components/website/Footer').then((m) => ({ default: m.Footer })));
-const BookingFlowModal = lazy(() => import('./components/website/BookingFlowModal').then((m) => ({ default: m.BookingFlowModal })));
-const PolicyModal = lazy(() => import('./components/website/PolicyModal').then((m) => ({ default: m.PolicyModal })));
-const SeoLandingPage = lazy(() => import('./components/website/SeoLandingPage').then((m) => ({ default: m.SeoLandingPage })));
+import { FeaturedRooms } from './components/website/FeaturedRooms';
+import { AmenitiesSection } from './components/website/AmenitiesSection';
+import { BanquetSection } from './components/website/BanquetSection';
+import { OffersSection } from './components/website/OffersSection';
+import { GallerySection } from './components/website/GallerySection';
+import { InsightsSection } from './components/website/InsightsSection';
+import { InsightArticlePage } from './components/website/InsightArticlePage';
+import { LocationSection } from './components/website/LocationSection';
+import { ContactSection } from './components/website/ContactSection';
+import { Footer } from './components/website/Footer';
+import { BookingFlowModal } from './components/website/BookingFlowModal';
+import { PolicyModal } from './components/website/PolicyModal';
+import { SeoLandingPage } from './components/website/SeoLandingPage';
 import { applyRouteSeoToDocument, DEDICATED_LANDING_PAGES } from './lib/seoConfig';
+
+// Resilient dynamic import helper with automatic retry for Admin PMS modules
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+): React.LazyExoticComponent<T> {
+  return lazy(async () => {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await factory();
+      } catch (err) {
+        lastError = err;
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      }
+    }
+    throw lastError;
+  });
+}
 
 // Admin Components (Lazy-loaded so public website mobile bundle is ultra-fast)
 import type { AdminTab } from './components/admin/AdminLayout';
-const AdminLayout = lazy(() => import('./components/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
-const DashboardView = lazy(() => import('./components/admin/DashboardView').then((m) => ({ default: m.DashboardView })));
-const FrontDeskView = lazy(() => import('./components/admin/FrontDeskView').then((m) => ({ default: m.FrontDeskView })));
-const ReservationsView = lazy(() => import('./components/admin/ReservationsView').then((m) => ({ default: m.ReservationsView })));
-const CalendarView = lazy(() => import('./components/admin/CalendarView').then((m) => ({ default: m.CalendarView })));
-const RoomsManagementView = lazy(() => import('./components/admin/RoomsManagementView').then((m) => ({ default: m.RoomsManagementView })));
-const HousekeepingView = lazy(() => import('./components/admin/HousekeepingView').then((m) => ({ default: m.HousekeepingView })));
-const GuestsView = lazy(() => import('./components/admin/GuestsView').then((m) => ({ default: m.GuestsView })));
-const BillingView = lazy(() => import('./components/admin/BillingView').then((m) => ({ default: m.BillingView })));
-const PaymentsView = lazy(() => import('./components/admin/PaymentsView').then((m) => ({ default: m.PaymentsView })));
-const ExpensesView = lazy(() => import('./components/admin/ExpensesView').then((m) => ({ default: m.ExpensesView })));
-const BanquetManagementView = lazy(() => import('./components/admin/BanquetManagementView').then((m) => ({ default: m.BanquetManagementView })));
-const OffersManagementView = lazy(() => import('./components/admin/OffersManagementView').then((m) => ({ default: m.OffersManagementView })));
-const GalleryManagementView = lazy(() => import('./components/admin/GalleryManagementView').then((m) => ({ default: m.GalleryManagementView })));
-const EnquiriesView = lazy(() => import('./components/admin/EnquiriesView').then((m) => ({ default: m.EnquiriesView })));
-const ReportsView = lazy(() => import('./components/admin/ReportsView').then((m) => ({ default: m.ReportsView })));
-const StaffManagementView = lazy(() => import('./components/admin/StaffManagementView').then((m) => ({ default: m.StaffManagementView })));
-const AuditTrailView = lazy(() => import('./components/admin/AuditTrailView').then((m) => ({ default: m.AuditTrailView })));
-const SettingsView = lazy(() => import('./components/admin/SettingsView').then((m) => ({ default: m.SettingsView })));
+const AdminLayout = lazyWithRetry(() => import('./components/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
+const DashboardView = lazyWithRetry(() => import('./components/admin/DashboardView').then((m) => ({ default: m.DashboardView })));
+const FrontDeskView = lazyWithRetry(() => import('./components/admin/FrontDeskView').then((m) => ({ default: m.FrontDeskView })));
+const ReservationsView = lazyWithRetry(() => import('./components/admin/ReservationsView').then((m) => ({ default: m.ReservationsView })));
+const CalendarView = lazyWithRetry(() => import('./components/admin/CalendarView').then((m) => ({ default: m.CalendarView })));
+const RoomsManagementView = lazyWithRetry(() => import('./components/admin/RoomsManagementView').then((m) => ({ default: m.RoomsManagementView })));
+const HousekeepingView = lazyWithRetry(() => import('./components/admin/HousekeepingView').then((m) => ({ default: m.HousekeepingView })));
+const GuestsView = lazyWithRetry(() => import('./components/admin/GuestsView').then((m) => ({ default: m.GuestsView })));
+const BillingView = lazyWithRetry(() => import('./components/admin/BillingView').then((m) => ({ default: m.BillingView })));
+const PaymentsView = lazyWithRetry(() => import('./components/admin/PaymentsView').then((m) => ({ default: m.PaymentsView })));
+const ExpensesView = lazyWithRetry(() => import('./components/admin/ExpensesView').then((m) => ({ default: m.ExpensesView })));
+const BanquetManagementView = lazyWithRetry(() => import('./components/admin/BanquetManagementView').then((m) => ({ default: m.BanquetManagementView })));
+const OffersManagementView = lazyWithRetry(() => import('./components/admin/OffersManagementView').then((m) => ({ default: m.OffersManagementView })));
+const GalleryManagementView = lazyWithRetry(() => import('./components/admin/GalleryManagementView').then((m) => ({ default: m.GalleryManagementView })));
+const InsightsManagementView = lazyWithRetry(() => import('./components/admin/InsightsManagementView').then((m) => ({ default: m.InsightsManagementView })));
+const EnquiriesView = lazyWithRetry(() => import('./components/admin/EnquiriesView').then((m) => ({ default: m.EnquiriesView })));
+const ReportsView = lazyWithRetry(() => import('./components/admin/ReportsView').then((m) => ({ default: m.ReportsView })));
+const StaffManagementView = lazyWithRetry(() => import('./components/admin/StaffManagementView').then((m) => ({ default: m.StaffManagementView })));
+const AuditTrailView = lazyWithRetry(() => import('./components/admin/AuditTrailView').then((m) => ({ default: m.AuditTrailView })));
+const SettingsView = lazyWithRetry(() => import('./components/admin/SettingsView').then((m) => ({ default: m.SettingsView })));
 
 // Common Modals
-const SupabaseConfigModal = lazy(() => import('./components/common/SupabaseConfigModal').then((m) => ({ default: m.SupabaseConfigModal })));
-const AuthModal = lazy(() => import('./components/auth/AuthModal').then((m) => ({ default: m.AuthModal })));
-const PMSLoginScreen = lazy(() => import('./components/auth/AuthModal').then((m) => ({ default: m.PMSLoginScreen })));
+const SupabaseConfigModal = lazyWithRetry(() => import('./components/common/SupabaseConfigModal').then((m) => ({ default: m.SupabaseConfigModal })));
+const AuthModal = lazyWithRetry(() => import('./components/auth/AuthModal').then((m) => ({ default: m.AuthModal })));
+const PMSLoginScreen = lazyWithRetry(() => import('./components/auth/AuthModal').then((m) => ({ default: m.PMSLoginScreen })));
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { applyPMSThemeToDocument, getPMSTheme } from './services/themeService';
 
@@ -129,6 +150,7 @@ export function MainApp() {
         '/amenities': 'amenities',
         '/offers': 'offers',
         '/gallery': 'gallery',
+        '/insights': 'insights',
         '/location': 'location',
         '/contact': 'contact',
       };
@@ -170,6 +192,13 @@ export function MainApp() {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'hotel_settings' },
+          () => {
+            loadHotelData();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'insights' },
           () => {
             loadHotelData();
           }
@@ -342,6 +371,8 @@ export function MainApp() {
 
         {adminTab === 'gallery' && <GalleryManagementView hotel={hotel} />}
 
+        {adminTab === 'insights' && <InsightsManagementView hotel={hotel} />}
+
         {adminTab === 'enquiries' && <EnquiriesView hotel={hotel} />}
 
         {adminTab === 'reports' && <ReportsView hotel={hotel} />}
@@ -390,6 +421,7 @@ export function MainApp() {
           <BanquetSection hotel={hotel} />
           <OffersSection hotel={hotel} onSelectOfferCode={handleSelectOfferCode} />
           <GallerySection hotel={hotel} />
+          <InsightsSection hotel={hotel} />
           <LocationSection hotel={hotel} />
           <ContactSection hotel={hotel} />
         </Suspense>
@@ -420,6 +452,46 @@ export function MainApp() {
         <Route path="/" element={publicWebsiteContent} />
 
         {/* DEDICATED LOCAL SEO LANDING PAGES */}
+        <Route
+          path="/insights/:slug"
+          element={
+            <>
+              <Navbar
+                hotel={hotel}
+                onOpenBooking={() => {
+                  setBookingInitialSearch(undefined);
+                  setShowBookingModal(true);
+                }}
+                onNavigateSection={handleNavigateSection}
+              />
+              <main className="flex-1">
+                <Suspense fallback={null}>
+                  <InsightArticlePage
+                    hotel={hotel}
+                    onOpenBooking={() => {
+                      setBookingInitialSearch(undefined);
+                      setShowBookingModal(true);
+                    }}
+                  />
+                </Suspense>
+              </main>
+              <Suspense fallback={null}>
+                <Footer
+                  hotel={hotel}
+                  onOpenPolicy={(policy) => setActivePolicy(policy)}
+                  onNavigateSection={handleNavigateSection}
+                />
+              </Suspense>
+              <MobileStickyBar
+                hotel={hotel}
+                onOpenBooking={() => {
+                  setBookingInitialSearch(undefined);
+                  setShowBookingModal(true);
+                }}
+              />
+            </>
+          }
+        />
         {Object.values(DEDICATED_LANDING_PAGES).map((pageConfig) => (
           <Route
             key={pageConfig.path}

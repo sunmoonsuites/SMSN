@@ -38,6 +38,7 @@ import {
   ArrowRight,
   Sun,
   Moon,
+  BookOpen,
 } from 'lucide-react';
 import { usePMSTheme } from '../../services/themeService';
 import {
@@ -66,6 +67,7 @@ export type AdminTab =
   | 'banquet'
   | 'offers'
   | 'gallery'
+  | 'insights'
   | 'enquiries'
   | 'reports'
   | 'staff'
@@ -219,6 +221,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       id: 'gallery',
       label: 'Photo Gallery',
       icon: <Image className="w-4 h-4" />,
+      allowedRoles: ['SUPER ADMIN', 'ADMIN'],
+    },
+    {
+      id: 'insights',
+      label: 'Noida Insights & Blog',
+      icon: <BookOpen className="w-4 h-4" />,
       allowedRoles: ['SUPER ADMIN', 'ADMIN'],
     },
     {

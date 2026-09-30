@@ -5,6 +5,9 @@ import {
   addGalleryItem,
   addMultipleGalleryItems,
   deleteGalleryItem,
+  aiOptimizeAllGalleryCaptions,
+  updateGalleryItemCaption,
+  generateSmartSeoGalleryCaption,
 } from '../../services/galleryService';
 import { uploadMultipleImagesToSupabase } from '../../services/storageService';
 import { LoadingSpinner } from '../common/LoadingSpinner';
@@ -18,6 +21,9 @@ import {
   CheckCircle2,
   Images,
   X,
+  Sparkles,
+  Edit3,
+  Check,
 } from 'lucide-react';
 
 interface GalleryManagementViewProps {
@@ -53,6 +59,12 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
+  // AI SEO Optimization & Inline Edit State
+  const [isAiOptimizing, setIsAiOptimizing] = useState(false);
+  const [editingImageId, setEditingImageId] = useState<string | null>(null);
+  const [editingCaptionValue, setEditingCaptionValue] = useState('');
+  const [editingCategoryValue, setEditingCategoryValue] = useState('Rooms');
+
   useEffect(() => {
     if (hotel?.id) {
       loadGallery();
@@ -73,6 +85,63 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
     if (res.success) {
       setImages((prev) => prev.filter((img) => img.id !== id));
     }
+  };
+
+  // 1-Click AI SEO Optimization for All Gallery Photos
+  const handleAiOptimizeAllGallery = async () => {
+    if (!hotel?.id || images.length === 0 || isAiOptimizing) return;
+    setIsAiOptimizing(true);
+    setStatusBanner('');
+
+    const res = await aiOptimizeAllGalleryCaptions(
+      hotel.id,
+      hotel.name || 'Sun Moon Suites',
+      hotel.address || 'GT-20, Sector 117',
+      hotel.city || 'Noida'
+    );
+
+    if (res.success && res.items.length > 0) {
+      setImages(res.items);
+      window.dispatchEvent(new Event('hotel_data_updated'));
+      setStatusBanner(
+        `✨ AI automatically updated SEO-friendly Names & Captions for all ${res.updatedCount} Gallery photos and saved to Supabase!`
+      );
+      setTimeout(() => setStatusBanner(''), 6000);
+    }
+    setIsAiOptimizing(false);
+  };
+
+  const handleSaveInlineEdit = async (id: string) => {
+    if (!hotel?.id || !editingCaptionValue.trim()) {
+      setEditingImageId(null);
+      return;
+    }
+    const cleanCap = editingCaptionValue.trim();
+    await updateGalleryItemCaption(id, hotel.id, cleanCap, editingCategoryValue);
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === id ? { ...img, caption: cleanCap, category: editingCategoryValue } : img
+      )
+    );
+    setEditingImageId(null);
+    setStatusBanner('Photo name & caption saved to Supabase!');
+    setTimeout(() => setStatusBanner(''), 3500);
+  };
+
+  const handleAiOptimizePendingUploads = () => {
+    const hotelName = hotel?.name || 'Sun Moon Suites';
+    const catCounters: Record<string, number> = {};
+    setPendingUploads((prev) =>
+      prev.map((item) => {
+        const c = item.category || category || 'Rooms';
+        const idx = catCounters[c] || 0;
+        catCounters[c] = idx + 1;
+        return {
+          ...item,
+          caption: generateSmartSeoGalleryCaption(c, item.caption, idx, hotelName),
+        };
+      })
+    );
   };
 
   // Multi-file upload inside Modal (stages all uploaded files in pendingUploads list)
@@ -102,7 +171,12 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
         newPending.push({
           id: `pending-${Date.now()}-${idx}`,
           image_url: res.publicUrl,
-          caption: res.fileName || `${category} Photo`,
+          caption: generateSmartSeoGalleryCaption(
+            category,
+            res.fileName || '',
+            pendingUploads.length + idx,
+            hotel?.name || 'Sun Moon Suites'
+          ),
           category,
         });
       } else if (res.error) {
@@ -143,7 +217,12 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
       .filter((r) => r.success && r.publicUrl)
       .map((r, idx) => ({
         hotel_id: hotel.id,
-        caption: r.fileName || `${targetCategory} Photo`,
+        caption: generateSmartSeoGalleryCaption(
+          targetCategory,
+          r.fileName || '',
+          images.length + idx,
+          hotel.name || 'Sun Moon Suites'
+        ),
         image_url: r.publicUrl!,
         category: targetCategory,
         sort_order: images.length + idx + 1,
@@ -277,6 +356,22 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* 1-Click AI Auto-Optimize SEO Names & Captions Button */}
+          <button
+            type="button"
+            onClick={handleAiOptimizeAllGallery}
+            disabled={isAiOptimizing || images.length === 0}
+            className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-800 hover:from-amber-700 hover:to-amber-900 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            title="Automatically generate Google SEO-friendly names & ALT captions for all photos in the gallery"
+          >
+            <Sparkles className={`w-4 h-4 ${isAiOptimizing ? 'animate-spin' : ''}`} />
+            <span>
+              {isAiOptimizing
+                ? 'AI Optimizing SEO Names...'
+                : 'AI Auto-SEO Names & Captions'}
+            </span>
+          </button>
+
           {/* Quick 1-Step Multi-File Upload Button */}
           <label className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer">
             <Upload className="w-4 h-4" />
@@ -414,18 +509,79 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
                 </span>
               </div>
 
-              <div className="flex items-center justify-between px-1">
-                <span className="font-semibold text-xs text-stone-900 truncate">
-                  {img.caption || img.category}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(img.id)}
-                  className="p-1 text-stone-400 hover:text-rose-600 rounded cursor-pointer"
-                  title="Delete Photo"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+              <div className="px-1 space-y-1.5">
+                {editingImageId === img.id ? (
+                  <div className="space-y-1.5 pt-1">
+                    <input
+                      type="text"
+                      value={editingCaptionValue}
+                      onChange={(e) => setEditingCaptionValue(e.target.value)}
+                      className="w-full px-2 py-1 text-xs border border-amber-400 rounded font-medium focus:outline-none"
+                      placeholder="SEO Photo Name / Caption..."
+                    />
+                    <div className="flex items-center justify-between gap-1.5">
+                      <select
+                        value={editingCategoryValue}
+                        onChange={(e) => setEditingCategoryValue(e.target.value)}
+                        className="px-2 py-1 text-[10px] border border-stone-200 rounded bg-stone-50 text-stone-700 font-semibold"
+                      >
+                        {categories.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSaveInlineEdit(img.id)}
+                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>Save</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingImageId(null)}
+                          className="p-1 text-stone-400 hover:text-stone-700 rounded cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between gap-1.5">
+                    <span
+                      className="font-semibold text-xs text-stone-900 line-clamp-2 leading-snug"
+                      title={img.caption || img.category}
+                    >
+                      {img.caption || img.category}
+                    </span>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingImageId(img.id);
+                          setEditingCaptionValue(img.caption || img.category);
+                          setEditingCategoryValue(img.category || 'Rooms');
+                        }}
+                        className="p-1 text-stone-400 hover:text-amber-700 rounded cursor-pointer"
+                        title="Edit Photo Name & Caption"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(img.id)}
+                        className="p-1 text-stone-400 hover:text-rose-600 rounded cursor-pointer"
+                        title="Delete Photo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -498,20 +654,30 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
           {/* Staged Multi-Photo Preview Grid */}
           {pendingUploads.length > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-bold">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>
                     {pendingUploads.length} Photo{pendingUploads.length > 1 ? 's' : ''} Uploaded &amp; Ready to Save
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPendingUploads([])}
-                  className="text-[11px] text-rose-600 hover:underline font-semibold cursor-pointer"
-                >
-                  Clear All
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleAiOptimizePendingUploads}
+                    className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-700" />
+                    <span>AI SEO Captions</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingUploads([])}
+                    className="text-[11px] text-rose-600 hover:underline font-semibold cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto p-1 border border-stone-200 rounded-xl bg-stone-50">

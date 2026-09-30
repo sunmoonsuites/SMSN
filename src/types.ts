@@ -44,6 +44,13 @@ export interface BanquetConfig {
   service?: string;
 }
 
+export interface InsightsConfig {
+  is_enabled?: boolean;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+}
+
 export interface HeroConfig {
   badge?: string;
   heading?: string;
@@ -85,6 +92,7 @@ export interface Hotel {
   amenities_list?: AmenityItem[];
   landmarks_list?: LandmarkItem[];
   banquet_config?: BanquetConfig;
+  insights_config?: InsightsConfig;
   cancellation_policy?: string;
   terms_and_conditions?: string;
   privacy_policy?: string;
@@ -391,6 +399,28 @@ export interface GalleryItem {
   sort_order: number;
   is_featured: boolean;
   created_at: string;
+}
+
+export type InsightCategory = 'Local Events' | 'Travel Tips' | 'Hotel News' | 'Noida Guide';
+
+export interface InsightArticle {
+  id: string;
+  hotel_id: string;
+  title: string;
+  slug: string;
+  category: InsightCategory;
+  excerpt: string;
+  content: string;
+  cover_image: string;
+  image_alt: string;
+  author: string;
+  read_time: string;
+  tags: string[];
+  is_published: boolean;
+  is_featured: boolean;
+  published_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface BanquetEnquiry {

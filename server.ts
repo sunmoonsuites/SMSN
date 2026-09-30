@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
+import { GoogleGenAI, Type } from '@google/genai';
 
 async function startServer() {
   const app = express();
@@ -112,6 +113,76 @@ async function startServer() {
       return res.status(404).send('-- RLS fix migration file not found on server.');
     } catch (err: any) {
       return res.status(500).send(`-- Error reading RLS fix migration file: ${err.message}`);
+    }
+  });
+
+  // 5b. AI SEO Photo Name & Caption Optimizer for Hotel Gallery
+  app.post('/api/gallery/ai-seo-optimize', async (req, res) => {
+    try {
+      const { hotelName, address, city, items } = req.body || {};
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'No gallery items provided for optimization.' });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({
+          error: 'GEMINI_API_KEY not configured on server; using built-in Local SEO engine.',
+          useLocalFallback: true,
+        });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
+
+      const prompt = `You are a Local Hotel SEO Expert optimizing photo names & captions (ALT text) for "${
+        hotelName || 'Sun Moon Suites'
+      }", a 30-room boutique hotel located at "${address || 'GT-20, Sector 117'}", "${
+        city || 'Noida'
+      }" (near Medanta Hospital Noida, Tivoli Lotus Court Banquet, and Sector 76 Metro Station).
+
+Generate a unique, natural, high-ranking SEO caption (55 to 95 characters) for each gallery photo below based on its category, current caption/filename, and sequence index.
+Rules:
+1. Every caption MUST be unique—never repeat the exact same caption twice.
+2. Naturally incorporate "Sun Moon Suites" or "Sector 117 Noida" (and where relevant to variety: Deluxe Room, Super Deluxe Room, Executive Room, Family Suite, Reception Lobby, Banquet Hall, In-House Dining, or Hotel Exterior in Sector 117 Noida).
+3. Replace raw filenames like "IMG_...", "WhatsApp Image...", or generic 1-word labels with descriptive hospitality SEO captions.
+4. Do NOT keyword-stuff or make false claims. Keep it clean, elegant, and guest-friendly.
+
+Photos to optimize:
+${JSON.stringify(items, null, 2)}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                seoCaption: { type: Type.STRING },
+              },
+              required: ['id', 'seoCaption'],
+            },
+          },
+        },
+      });
+
+      const parsed = JSON.parse(response.text || '[]');
+      return res.json({ optimized: parsed });
+    } catch (err: any) {
+      return res.status(500).json({
+        error: err.message || 'AI SEO optimization failed',
+        useLocalFallback: true,
+      });
     }
   });
 

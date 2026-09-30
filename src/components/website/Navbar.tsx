@@ -20,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const whatsappNumber = getCleanHotelWhatsApp(hotel?.whatsapp);
   const hotelName = hotel?.name || 'Sun Moon Suites';
   const isBanquetEnabled = hotel?.banquet_config?.is_enabled !== false;
+  const isInsightsEnabled = hotel?.insights_config?.is_enabled !== false;
 
   const navLinks = [
     { label: 'Rooms', id: 'rooms' },
@@ -27,6 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Amenities', id: 'amenities' },
     { label: 'Offers', id: 'offers' },
     { label: 'Gallery', id: 'gallery' },
+    ...(isInsightsEnabled ? [{ label: 'Insights', id: 'insights' }] : []),
     { label: 'Location', id: 'location' },
     { label: 'Contact', id: 'contact' },
   ];

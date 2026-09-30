@@ -19,6 +19,13 @@
 - [Location & Noida Transit Guide](https://sunmoonhotels.com/location): Directions and travel times from nearby Noida landmarks.
 - [Contact Sun Moon Suites Reservation Desk](https://sunmoonhotels.com/contact): Call +91 8586868442 or email sunmoonsuites@gmail.com for reservations and group bookings.
 
+## Noida Travel Insights, Local Events & Guides
+
+- [Noida Insights & Hospitality Hub](https://sunmoonhotels.com/insights): Curated articles on local events in Noida, travel tips, and hotel updates.
+- [Complete Family & Attendant Stay Guide When Visiting Medanta Hospital Noida](https://sunmoonhotels.com/insights/visiting-medanta-hospital-noida-family-stay-guide): Practical guide on peaceful, elevator-accessible accommodation in Sector 117 near Medanta Hospital Noida.
+- [Planning Wedding Guest Accommodation Near Tivoli Lotus Court in Sector 117 Noida](https://sunmoonhotels.com/insights/wedding-guest-accommodation-tivoli-lotus-court-sector-117-noida): How to coordinate 30-room group bookings across 3 floors for weddings at Tivoli Lotus Court.
+- [Noida Metro Guide for Business Travelers: Sector 76 Aqua Line & Sector 51 Blue Line](https://sunmoonhotels.com/insights/noida-metro-sector-76-aqua-blue-line-business-traveler-guide): Transit guide connecting Sector 117 Noida with corporate parks, Spectrum Metro Mall, and Greater Noida Expo Mart.
+
 ## Machine-Readable Specifications & Sitemaps
 
 - [AI Agent Capability Catalog](https://sunmoonhotels.com/.well-known/ai-catalog.json): Agentic Resource Discovery (ARD 1.0) manifest for AI agents.
