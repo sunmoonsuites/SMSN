@@ -1,18 +1,37 @@
 import { getSupabase } from '../lib/supabase';
-import { GalleryItem } from '../types';
+import { GalleryItem, RoomCategory } from '../types';
 import { logAction } from './auditService';
 import { isValidUuid, resolveSupabaseHotelId } from './hotelService';
 
 const LOCAL_STORAGE_GALLERY_KEY = 'pms_custom_gallery';
 
+export const ROOM_GALLERY_CATEGORIES = [
+  'Standard Room',
+  'Deluxe Room',
+  'Super Deluxe Room',
+  'Suite Room',
+] as const;
+
+export const ALL_GALLERY_CATEGORIES = [
+  'Standard Room',
+  'Deluxe Room',
+  'Super Deluxe Room',
+  'Suite Room',
+  'Rooms',
+  'Banquet Hall',
+  'Hotel & Lobby',
+  'Dining',
+  'Exterior & Facade',
+] as const;
+
 export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
   {
     id: 'gal-1',
     hotel_id: 'default-hotel-id',
-    category: 'Rooms',
+    category: 'Standard Room',
     image_url:
       'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
-    caption: 'Executive Deluxe Suite with King Bed',
+    caption: 'Standard AC Room with Queen Bed at Sun Moon Suites in Sector 117 Noida',
     sort_order: 1,
     is_featured: true,
     created_at: new Date().toISOString(),
@@ -20,10 +39,10 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
   {
     id: 'gal-2',
     hotel_id: 'default-hotel-id',
-    category: 'Hotel & Lobby',
+    category: 'Deluxe Room',
     image_url:
-      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
-    caption: 'Grand Reception & Guest Lounge',
+      'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Deluxe Room with King Bed & Work Desk at Sun Moon Suites Sector 117 Noida',
     sort_order: 2,
     is_featured: true,
     created_at: new Date().toISOString(),
@@ -31,10 +50,10 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
   {
     id: 'gal-3',
     hotel_id: 'default-hotel-id',
-    category: 'Banquet Hall',
+    category: 'Super Deluxe Room',
     image_url:
-      'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1200&q=80',
-    caption: 'Ground Floor Banquet Hall for Events',
+      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Super Deluxe Room Interior & Seating Area at Sun Moon Suites Sector 117 Noida',
     sort_order: 3,
     is_featured: true,
     created_at: new Date().toISOString(),
@@ -42,10 +61,10 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
   {
     id: 'gal-4',
     hotel_id: 'default-hotel-id',
-    category: 'Dining',
+    category: 'Suite Room',
     image_url:
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
-    caption: 'Multi-Cuisine In-House Restaurant',
+      'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Spacious Suite Room with Living Area at Sun Moon Suites in Sector 117 Noida',
     sort_order: 4,
     is_featured: true,
     created_at: new Date().toISOString(),
@@ -53,12 +72,12 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
   {
     id: 'gal-5',
     hotel_id: 'default-hotel-id',
-    category: 'Rooms',
+    category: 'Banquet Hall',
     image_url:
-      'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80',
-    caption: 'Spacious Super Deluxe Room',
+      'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Ground Floor Banquet Hall for Events at Sun Moon Suites Sector 117 Noida',
     sort_order: 5,
-    is_featured: false,
+    is_featured: true,
     created_at: new Date().toISOString(),
   },
   {
@@ -67,7 +86,7 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
     category: 'Hotel & Lobby',
     image_url:
       'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
-    caption: 'Hotel Exterior & Secure Parking',
+    caption: 'Sun Moon Suites Hotel Exterior & Secure Parking in Sector 117 Noida',
     sort_order: 6,
     is_featured: false,
     created_at: new Date().toISOString(),
@@ -276,50 +295,76 @@ export async function deleteGalleryItem(
 }
 
 const CATEGORY_SEO_TEMPLATES: Record<string, string[]> = {
+  'Standard Room': [
+    'Standard AC Room with Queen Bed — Cozy & Well-Equipped Guest Room at {hotel} Sector 117 Noida',
+    'Standard Room Interior & Wi-Fi — Comfortable Stay near Sector 76 Metro at {hotel} Noida',
+    'Standard Room Guest Bedroom — Clean Air-Conditioned Room at {hotel} in Sector 117 Noida',
+    'Standard Room Accommodation — Affordable Boutique Stay near Medanta Hospital at {hotel} Noida',
+    'Standard Room with Smart LED TV — Modern Amenities at {hotel} Sector 117 Noida',
+  ],
+  'Deluxe Room': [
+    'Deluxe AC Room with King Bed — Spacious Bedroom & Modern Decor at {hotel} Sector 117 Noida',
+    'Deluxe Room Interior & Work Desk — Business & Family Stay at {hotel} Sector 117 Noida',
+    'Deluxe Room with Tufted Headboard — Comfortable Stay near Medanta Hospital at {hotel} Noida',
+    'Deluxe Guest Room & Curtains — Premium Bedding & High-Speed Wi-Fi at {hotel} Sector 117 Noida',
+    'Boutique Deluxe Room — Elegant Guest Accommodation at {hotel} Sector 117 Noida',
+  ],
+  'Super Deluxe Room': [
+    'Super Deluxe Room & Seating Area — King Bed & Luxury Interiors at {hotel} Sector 117 Noida',
+    'Super Deluxe Room Interior — Premium Stay near Tivoli Lotus Court at {hotel} Noida',
+    'Spacious Super Deluxe Room — Ideal for Families & Corporate Guests at {hotel} Sector 117 Noida',
+    'Super Deluxe Bedroom & Wardrobe — Elegant Decor & LED TV at {hotel} Sector 117 Noida',
+    'Super Deluxe AC Guest Room — Near Sector 76 Metro Station at {hotel} Sector 117 Noida',
+  ],
+  'Suite Room': [
+    'Luxury Suite Room & Lounge — Super King Bed & Living Space at {hotel} Sector 117 Noida',
+    'Executive & Family Suite Room — Spacious Multi-Guest Stay at {hotel} in Sector 117 Noida',
+    'Premium Suite Room Interior — Ideal for Wedding Guests near Tivoli Lotus Court at {hotel} Noida',
+    'Suite Room Master Bedroom — Plush Seating & Modern Furnishings at {hotel} Sector 117 Noida',
+    'Boutique Suite Accommodation — Luxury Stay at {hotel} Hotel Sector 117 Noida',
+  ],
   Rooms: [
-    'Deluxe AC Room with King Bed at {hotel} in Sector 117 Noida',
-    'Super Deluxe Room Interior & Work Desk at {hotel} Sector 117 Noida',
-    'Executive Suite Bedroom & Modern Decor at {hotel} Noida',
-    'Spacious Family Room Stay near Medanta Hospital at {hotel} Sector 117 Noida',
-    'Boutique Hotel Room with LED TV & Wi-Fi at {hotel} Sector 117 Noida',
-    'Comfortable Guest Room Interior near Sector 76 Metro at {hotel} Noida',
-    'Premium Air-Conditioned Room for Wedding Guests at {hotel} Sector 117 Noida',
-    'Clean & Hygienic Attached Bathroom at {hotel} Hotel in Sector 117 Noida',
-    'Twin & Double Bed Guest Accommodation at {hotel} Sector 117 Noida',
-    'Cozy Boutique Suite near Tivoli Lotus Court at {hotel} Noida',
+    'Deluxe AC Room with King Bed — Comfortable Guest Bedroom at {hotel} in Sector 117 Noida',
+    'Super Deluxe Room Interior — King Bed & Work Desk at {hotel} Sector 117 Noida',
+    'Suite Room Master Bedroom — Modern Decor & Plush Bedding at {hotel} Sector 117 Noida',
+    'Standard AC Room Stay — Cozy Guest Room near Medanta Hospital at {hotel} Sector 117 Noida',
+    'Boutique Hotel Bedroom — LED TV, Wi-Fi & Air Conditioning at {hotel} Sector 117 Noida',
+    'Comfortable Guest Room Interior — Near Sector 76 Metro at {hotel} Sector 117 Noida',
+    'Premium Air-Conditioned Guest Room — Ideal for Wedding Guests at {hotel} Sector 117 Noida',
+    'Twin & Double Bed Guest Room — Spacious Stay at {hotel} Hotel in Sector 117 Noida',
   ],
   'Banquet Hall': [
-    'Ground Floor AC Banquet Hall for Weddings & Events at {hotel} Sector 117 Noida',
-    'Celebration & Ring Ceremony Venue Setup at {hotel} in Sector 117 Noida',
-    'Corporate Conference & Party Hall near Sector 76 Metro at {hotel} Noida',
-    'Intimate Wedding & Reception Hall at {hotel} Boutique Hotel Noida',
-    'Decorated Event & Gathering Space at {hotel} in Sector 117 Noida',
+    'Ground Floor AC Banquet Hall — Wedding & Event Venue at {hotel} Sector 117 Noida',
+    'Celebration & Ring Ceremony Hall — Decorated Event Space at {hotel} in Sector 117 Noida',
+    'Corporate Conference & Party Hall — Near Sector 76 Metro at {hotel} Sector 117 Noida',
+    'Intimate Wedding & Reception Venue — Ground Floor Hall at {hotel} Boutique Hotel Noida',
+    'Indoor Event & Gathering Space — Custom Catering & Decor at {hotel} Sector 117 Noida',
   ],
   'Hotel & Lobby': [
-    '24x7 Reception Desk & Grand Guest Lobby at {hotel} in Sector 117 Noida',
-    'Elevator-Connected Guest Lounge & Waiting Area at {hotel} Sector 117 Noida',
-    'Welcoming Boutique Hotel Entrance & Concierge Desk at {hotel} Noida',
-    'Spacious Ground Floor Lobby near Medanta Hospital at {hotel} Sector 117 Noida',
-    'Modern Corridor & Passenger Lift Access at {hotel} Hotel in Noida',
+    '24x7 Reception Desk & Front Lobby — Welcoming Guest Check-In at {hotel} Sector 117 Noida',
+    'Lobby Guest Waiting Sofa Lounge — Comfortable Seating Area at {hotel} Sector 117 Noida',
+    'Hotel Entrance & Concierge Desk — Ground Floor Reception at {hotel} in Sector 117 Noida',
+    'Reception Lobby & Staircase Interior — Modern Boutique Design at {hotel} Sector 117 Noida',
+    'Guest Floor Corridor & Elevator Access — Clean Well-Lit Hallway at {hotel} Sector 117 Noida',
   ],
   Dining: [
-    'In-House Multi-Cuisine Dining & Breakfast Area at {hotel} Sector 117 Noida',
-    'Freshly Prepared Hygienic Meals & Room Service at {hotel} in Sector 117 Noida',
-    'Comfortable Family Dining Space at {hotel} Boutique Hotel Noida',
-    'Buffet & Catering Setup for Guests at {hotel} in Sector 117 Noida',
+    'In-House Multi-Cuisine Dining — Freshly Prepared Meals at {hotel} Sector 117 Noida',
+    'Hygienic Dining & Breakfast Area — Room Service & Catering at {hotel} in Sector 117 Noida',
+    'Comfortable Family Dining Space — Delicious Hospitality at {hotel} Boutique Hotel Noida',
+    'Buffet & Event Catering Setup — Fresh Food Service at {hotel} Sector 117 Noida',
   ],
   'Exterior & Facade': [
-    '{hotel} Boutique Hotel Exterior & On-Site Parking in Sector 117 Noida',
-    'Front Facade of {hotel} at GT-20 Sector 117 Noida near Tivoli Lotus Court',
-    'Evening Illuminated View & Secure Parking at {hotel} Hotel in Sector 117 Noida',
-    'Accessible Main Entrance & Guest Parking at {hotel} Sector 117 Noida',
+    'Hotel Front Facade & Exterior — {hotel} Building at GT-20 Sector 117 Noida',
+    'Main Entrance & On-Site Parking — {hotel} Boutique Hotel in Sector 117 Noida',
+    'Exterior Building View & Gate — {hotel} near Tivoli Lotus Court Sector 117 Noida',
+    'Accessible Entrance Ramp & Facade — {hotel} Hotel in Sector 117 Noida',
   ],
 };
 
 function isRawOrNonSeoCaption(caption: string): boolean {
   const trimmed = (caption || '').trim();
   if (!trimmed) return true;
-  if (/^(img|dsc|pxl|whatsapp|screenshot|image|photo|pic|untitl|file|scan|camera)[_\-\s0-9]/i.test(trimmed)) {
+  if (/^(img|dsc|pxl|whatsapp|screenshot|image|photo|pic|untitl|file|scan|camera|r\d|w\d)[_\-\s0-9]/i.test(trimmed)) {
     return true;
   }
   if (/^[0-9a-f]{8,}/i.test(trimmed) || /\.(jpg|jpeg|png|webp|heic|avif)$/i.test(trimmed)) {
@@ -328,27 +373,87 @@ function isRawOrNonSeoCaption(caption: string): boolean {
   return false;
 }
 
+/**
+ * Inspects the filename/URL when offline or before Vision completes so obvious
+ * washroom (`w1.jpg`), gate (`main-gate`), reception (`reception`), or room (`r1.jpg`)
+ * filenames never get mismatched categories or captions.
+ */
+export function inferCategoryAndHintFromUrl(
+  imageUrl: string,
+  fallbackCategory: string = 'Rooms'
+): { category: string; specificTemplate?: string } {
+  const filePart = ((imageUrl || '').split('/').pop() || '').toLowerCase();
+
+  if (/(main[-_]?gate|facade|exterior|building|front[-_]?view|parking)/i.test(filePart)) {
+    return {
+      category: 'Exterior & Facade',
+      specificTemplate:
+        'Hotel Front Facade & Main Entrance — {hotel} Building in Sector 117 Noida',
+    };
+  }
+  if (/(reception|lobby|lounge|corridor|hallway|passage|stairs|lift|elevator)/i.test(filePart)) {
+    return {
+      category: 'Hotel & Lobby',
+      specificTemplate:
+        '24x7 Reception Desk & Guest Lobby — Welcoming Interior at {hotel} Sector 117 Noida',
+    };
+  }
+  if (/(banquet|event|party|wedding|conference)/i.test(filePart)) {
+    return {
+      category: 'Banquet Hall',
+      specificTemplate:
+        'Ground Floor AC Banquet & Event Hall — Celebration Venue at {hotel} Sector 117 Noida',
+    };
+  }
+  if (/(dining|restaurant|food|breakfast|kitchen|buffet)/i.test(filePart)) {
+    return {
+      category: 'Dining',
+      specificTemplate:
+        'In-House Dining & Breakfast Area — Fresh Hygienic Meals at {hotel} Sector 117 Noida',
+    };
+  }
+  if (/(?:^|[-_])w\d+(?:[-_.]|$)|washroom|bathroom|toilet|bath/i.test(filePart)) {
+    const cat =
+      fallbackCategory && fallbackCategory !== 'Rooms' ? fallbackCategory : 'Deluxe Room';
+    return {
+      category: cat,
+      specificTemplate:
+        'Attached Modern Bathroom & Washroom — Clean Hygienic Fittings at {hotel} Sector 117 Noida',
+    };
+  }
+  return { category: fallbackCategory || 'Rooms' };
+}
+
 export function generateSmartSeoGalleryCaption(
   category: string,
   currentCaption: string,
   categoryIndex: number,
-  hotelName: string = 'Sun Moon Suites'
+  hotelName: string = 'Sun Moon Suites',
+  imageUrl: string = ''
 ): string {
   const cleanHotel = hotelName.trim() || 'Sun Moon Suites';
+  const inferred = inferCategoryAndHintFromUrl(imageUrl || currentCaption, category);
+  const effectiveCategory = inferred.category || category || 'Rooms';
+
+  if (inferred.specificTemplate) {
+    const base = inferred.specificTemplate.replace(/\{hotel\}/g, cleanHotel);
+    return categoryIndex > 0 ? `${base} (View ${categoryIndex + 1})` : base;
+  }
+
   const cleanCurrent = (currentCaption || '')
     .replace(/\.(jpg|jpeg|png|webp|heic|avif)$/i, '')
     .replace(/[_-]+/g, ' ')
     .trim();
 
-  const templates = CATEGORY_SEO_TEMPLATES[category] || CATEGORY_SEO_TEMPLATES['Rooms'];
+  const templates =
+    CATEGORY_SEO_TEMPLATES[effectiveCategory] || CATEGORY_SEO_TEMPLATES['Rooms'];
   const template = templates[categoryIndex % templates.length].replace(/\{hotel\}/g, cleanHotel);
 
-  // If the current caption is a raw filename or very generic ("Rooms Photo"), use the rich template directly
   if (
     isRawOrNonSeoCaption(currentCaption) ||
     cleanCurrent.length < 10 ||
-    cleanCurrent.toLowerCase() === `${category.toLowerCase()} photo` ||
-    cleanCurrent.toLowerCase() === category.toLowerCase()
+    cleanCurrent.toLowerCase() === `${effectiveCategory.toLowerCase()} photo` ||
+    cleanCurrent.toLowerCase() === effectiveCategory.toLowerCase()
   ) {
     if (categoryIndex >= templates.length) {
       return `${template} (View ${categoryIndex + 1})`;
@@ -356,8 +461,6 @@ export function generateSmartSeoGalleryCaption(
     return template;
   }
 
-  // If the user already wrote a custom descriptive phrase (e.g., "Executive Deluxe Suite with King Bed")
-  // enhance it with location & brand SEO if not already present
   const lower = cleanCurrent.toLowerCase();
   const hasHotel = lower.includes('sun moon');
   const hasSector = lower.includes('sector 117') || lower.includes('noida');
@@ -391,7 +494,7 @@ export async function updateGalleryItemCaption(
   const targetItem = current.find((item) => item.id === id);
 
   const updatedList = current.map((item) =>
-    item.id === id
+    item.id === id || (targetItem?.image_url && item.image_url === targetItem.image_url)
       ? {
           ...item,
           caption: cleanCaption,
@@ -410,6 +513,13 @@ export async function updateGalleryItemCaption(
 
       if (isValidUuid(id)) {
         await supabase.from('gallery').update(updatePayload).eq('id', id);
+      }
+      if (targetItem?.image_url) {
+        // Also keep any duplicate rows for the same image_url in sync
+        await supabase
+          .from('gallery')
+          .update(updatePayload)
+          .eq('image_url', targetItem.image_url);
       } else if (resolvedHotelId && targetItem?.image_url) {
         await supabase
           .from('gallery')
@@ -429,7 +539,8 @@ export async function aiOptimizeAllGalleryCaptions(
   hotelId: string,
   hotelName: string = 'Sun Moon Suites',
   address: string = 'GT-20, Sector 117',
-  city: string = 'Noida'
+  city: string = 'Noida',
+  onProgress?: (completed: number, total: number) => void
 ): Promise<{
   success: boolean;
   updatedCount: number;
@@ -441,55 +552,79 @@ export async function aiOptimizeAllGalleryCaptions(
     return { success: true, updatedCount: 0, items: [], usedGemini: false };
   }
 
-  let aiMap = new Map<string, string>();
+  const aiMap = new Map<string, { category: string; seoCaption: string }>();
   let usedGemini = false;
 
-  // 1. Try Server-Side Gemini AI Optimizer first
-  try {
-    const response = await fetch('/api/gallery/ai-seo-optimize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        hotelName,
-        address,
-        city,
-        items: current.map((item, idx) => ({
-          id: item.id,
-          category: item.category || 'Rooms',
-          currentCaption: item.caption || '',
-          index: idx + 1,
-        })),
-      }),
-    });
+  // 1. Send photos in batches of 4 to Server-Side Gemini Vision Optimizer (/api/gallery/ai-seo-optimize)
+  const BATCH_SIZE = 4;
+  const total = current.length;
+  if (onProgress) onProgress(0, total);
 
-    if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data?.optimized) && data.optimized.length > 0) {
-        usedGemini = true;
-        for (const entry of data.optimized) {
-          if (entry?.id && typeof entry?.seoCaption === 'string' && entry.seoCaption.trim()) {
-            aiMap.set(entry.id, entry.seoCaption.trim());
+  for (let i = 0; i < current.length; i += BATCH_SIZE) {
+    const slice = current.slice(i, i + BATCH_SIZE);
+    try {
+      const response = await fetch('/api/gallery/ai-seo-optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotelName,
+          address,
+          city,
+          items: slice.map((item, idx) => ({
+            id: item.id,
+            image_url: item.image_url,
+            category: item.category || 'Rooms',
+            currentCaption: item.caption || '',
+            index: i + idx + 1,
+          })),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data?.optimized) && data.optimized.length > 0) {
+          usedGemini = true;
+          for (const entry of data.optimized) {
+            if (entry?.id && typeof entry?.seoCaption === 'string' && entry.seoCaption.trim()) {
+              aiMap.set(entry.id, {
+                category: (entry.category || '').trim(),
+                seoCaption: entry.seoCaption.trim(),
+              });
+            }
           }
         }
       }
+    } catch {
+      // Continue to next batch / fallback if offline
     }
-  } catch {
-    // Fallback to built-in Local SEO engine if server route is unreachable (e.g. static hosting)
+    if (onProgress) {
+      onProgress(Math.min(i + slice.length, total), total);
+    }
   }
 
-  // 2. Build final SEO captions for every photo (using Gemini result or smart category-aware SEO generator)
+  // 2. Build final Category & SEO Caption for every photo
   const categoryCounters: Record<string, number> = {};
   const optimizedItems: GalleryItem[] = current.map((item) => {
-    const cat = item.category || 'Rooms';
-    const catIdx = categoryCounters[cat] || 0;
-    categoryCounters[cat] = catIdx + 1;
-
     const fromGemini = aiMap.get(item.id);
+    const inferred = inferCategoryAndHintFromUrl(item.image_url, item.category || 'Rooms');
+    const finalCategory = fromGemini?.category || inferred.category || item.category || 'Rooms';
+
+    const catIdx = categoryCounters[finalCategory] || 0;
+    categoryCounters[finalCategory] = catIdx + 1;
+
     const finalCaption =
-      fromGemini || generateSmartSeoGalleryCaption(cat, item.caption || '', catIdx, hotelName);
+      fromGemini?.seoCaption ||
+      generateSmartSeoGalleryCaption(
+        finalCategory,
+        '',
+        catIdx,
+        hotelName,
+        item.image_url
+      );
 
     return {
       ...item,
+      category: finalCategory,
       caption: finalCaption,
     };
   });
@@ -497,22 +632,29 @@ export async function aiOptimizeAllGalleryCaptions(
   // 3. Save locally immediately
   saveStoredGallery(optimizedItems);
 
-  // 4. Persist all updated captions to Supabase public.gallery table
+  // 4. Persist all updated categories AND captions to Supabase public.gallery table
   const supabase = getSupabase();
   if (supabase) {
     try {
       const resolvedHotelId = await resolveSupabaseHotelId(hotelId);
       await Promise.all(
         optimizedItems.map(async (item) => {
+          const updatePayload = {
+            caption: item.caption,
+            category: item.category,
+          };
           if (isValidUuid(item.id)) {
+            await supabase.from('gallery').update(updatePayload).eq('id', item.id);
+          }
+          if (item.image_url) {
             await supabase
               .from('gallery')
-              .update({ caption: item.caption })
-              .eq('id', item.id);
+              .update(updatePayload)
+              .eq('image_url', item.image_url);
           } else if (resolvedHotelId && item.image_url) {
             await supabase
               .from('gallery')
-              .update({ caption: item.caption })
+              .update(updatePayload)
               .eq('hotel_id', resolvedHotelId)
               .eq('image_url', item.image_url);
           }
@@ -522,7 +664,7 @@ export async function aiOptimizeAllGalleryCaptions(
       if (resolvedHotelId) {
         await logAction(
           resolvedHotelId,
-          `AI Optimized SEO Captions for ${optimizedItems.length} Gallery Photos`,
+          `AI Vision Optimized Categories & SEO Captions for ${optimizedItems.length} Gallery Photos`,
           'Gallery',
           resolvedHotelId
         );
@@ -539,4 +681,62 @@ export async function aiOptimizeAllGalleryCaptions(
     usedGemini,
   };
 }
+
+/**
+ * Returns all photos belonging ONLY to a specific Room Category:
+ * 1. Photos explicitly assigned in `cat.images`
+ * 2. Plus any photos in `galleryItems` whose `category` matches `cat.name`
+ *    (e.g. "Standard Room", "Deluxe Room", "Super Deluxe Room", "Suite Room")
+ */
+export function getPhotosForRoomCategory(
+  cat: RoomCategory,
+  galleryItems: GalleryItem[],
+  hotelName: string = 'Sun Moon Suites'
+): { url: string; caption: string }[] {
+  const seenUrls = new Set<string>();
+  const result: { url: string; caption: string }[] = [];
+
+  const normCatName = (cat.name || '').trim().toLowerCase();
+
+  // Map gallery image URLs to their SEO captions
+  const galleryCaptionMap = new Map<string, string>();
+  for (const g of galleryItems) {
+    if (g.image_url && g.caption) {
+      galleryCaptionMap.set(g.image_url, g.caption);
+    }
+  }
+
+  // 1. Add photos explicitly saved on the RoomCategory (`cat.images`)
+  if (Array.isArray(cat.images)) {
+    cat.images.forEach((url, idx) => {
+      const cleanUrl = (url || '').trim();
+      if (cleanUrl && !seenUrls.has(cleanUrl)) {
+        seenUrls.add(cleanUrl);
+        result.push({
+          url: cleanUrl,
+          caption:
+            galleryCaptionMap.get(cleanUrl) ||
+            generateSmartSeoGalleryCaption(cat.name, '', idx, hotelName),
+        });
+      }
+    });
+  }
+
+  // 2. Add any photos from Website Gallery whose category matches this room category name
+  galleryItems.forEach((g, idx) => {
+    const gCat = (g.category || '').trim().toLowerCase();
+    if (g.image_url && gCat === normCatName && !seenUrls.has(g.image_url)) {
+      seenUrls.add(g.image_url);
+      result.push({
+        url: g.image_url,
+        caption:
+          g.caption ||
+          generateSmartSeoGalleryCaption(cat.name, '', result.length + idx, hotelName),
+      });
+    }
+  });
+
+  return result;
+}
+
 

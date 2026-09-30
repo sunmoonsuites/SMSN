@@ -116,7 +116,7 @@ async function startServer() {
     }
   });
 
-  // 5b. AI SEO Photo Name & Caption Optimizer for Hotel Gallery
+  // 5b. AI Vision SEO Photo Category, Name & Caption Optimizer for Hotel Gallery
   app.post('/api/gallery/ai-seo-optimize', async (req, res) => {
     try {
       const { hotelName, address, city, items } = req.body || {};
@@ -141,43 +141,188 @@ async function startServer() {
         },
       });
 
-      const prompt = `You are a Local Hotel SEO Expert optimizing photo names & captions (ALT text) for "${
-        hotelName || 'Sun Moon Suites'
-      }", a 30-room boutique hotel located at "${address || 'GT-20, Sector 117'}", "${
-        city || 'Noida'
-      }" (near Medanta Hospital Noida, Tivoli Lotus Court Banquet, and Sector 76 Metro Station).
+      const cleanHotel = (hotelName || 'Sun Moon Suites').trim();
+      const cleanAddress = (address || 'GT-20, Sector 117').trim();
+      const cleanCity = (city || 'Noida').trim();
 
-Generate a unique, natural, high-ranking SEO caption (55 to 95 characters) for each gallery photo below based on its category, current caption/filename, and sequence index.
-Rules:
-1. Every caption MUST be unique—never repeat the exact same caption twice.
-2. Naturally incorporate "Sun Moon Suites" or "Sector 117 Noida" (and where relevant to variety: Deluxe Room, Super Deluxe Room, Executive Room, Family Suite, Reception Lobby, Banquet Hall, In-House Dining, or Hotel Exterior in Sector 117 Noida).
-3. Replace raw filenames like "IMG_...", "WhatsApp Image...", or generic 1-word labels with descriptive hospitality SEO captions.
-4. Do NOT keyword-stuff or make false claims. Keep it clean, elegant, and guest-friendly.
+      const ALLOWED_CATEGORIES = new Set([
+        'Standard Room',
+        'Deluxe Room',
+        'Super Deluxe Room',
+        'Suite Room',
+        'Rooms',
+        'Banquet Hall',
+        'Hotel & Lobby',
+        'Dining',
+        'Exterior & Facade',
+      ]);
 
-Photos to optimize:
-${JSON.stringify(items, null, 2)}`;
+      const SPECIFIC_ROOM_CATS = new Set([
+        'Standard Room',
+        'Deluxe Room',
+        'Super Deluxe Room',
+        'Suite Room',
+      ]);
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                seoCaption: { type: Type.STRING },
-              },
-              required: ['id', 'seoCaption'],
-            },
+      // Helper to fetch image bytes as base64 from image_url or data URI
+      const fetchImageInlineData = async (
+        imageUrl?: string,
+        imageBase64?: string,
+        mimeType?: string
+      ): Promise<{ mimeType: string; data: string } | null> => {
+        if (imageBase64 && typeof imageBase64 === 'string') {
+          return {
+            mimeType: mimeType || 'image/jpeg',
+            data: imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, ''),
+          };
+        }
+        if (!imageUrl || typeof imageUrl !== 'string') return null;
+
+        if (imageUrl.startsWith('data:image/')) {
+          const match = imageUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+          if (match) {
+            return { mimeType: match[1], data: match[2] };
+          }
+          return null;
+        }
+
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          try {
+            const resp = await fetch(imageUrl, { signal: controller.signal });
+            clearTimeout(timeout);
+            if (!resp.ok) return null;
+            const contentType = resp.headers.get('content-type') || 'image/jpeg';
+            const buf = await resp.arrayBuffer();
+            return {
+              mimeType: contentType.split(';')[0].trim() || 'image/jpeg',
+              data: Buffer.from(buf).toString('base64'),
+            };
+          } catch {
+            clearTimeout(timeout);
+            return null;
+          }
+        }
+        return null;
+      };
+
+      const modelsToTry = [
+        'gemini-3.1-flash-lite',
+        'gemini-3-flash-preview',
+        'gemini-3.8-flash',
+        'gemini-flash-latest',
+      ];
+
+      const analyzeBatchChunk = async (chunk: any[], startIndex: number) => {
+        const fetched = await Promise.all(
+          chunk.map(async (item, idx) => ({
+            item,
+            seq: item?.index || startIndex + idx + 1,
+            inlineData: await fetchImageInlineData(
+              item?.image_url,
+              item?.imageBase64,
+              item?.mimeType
+            ),
+          }))
+        );
+
+        const parts: any[] = [
+          {
+            text: `You are a Hospitality Visual Inspector & Local Hotel SEO Expert for "${cleanHotel}", a boutique hotel at "${cleanAddress}, ${cleanCity}" (Sector 117 Noida).
+Below are ${fetched.length} hotel photographs. Look carefully at EACH photograph and identify what is ACTUALLY visible inside that specific image.
+
+For each photo, return an object with:
+1. "id": The exact Photo ID provided before the image.
+2. "category": Classify into EXACTLY ONE of these values based strictly on what is visible in that image:
+   - "Exterior & Facade": Hotel building outside, front facade, exterior architecture, entrance ramp/gate from outside, balcony exterior, or parking area.
+   - "Hotel & Lobby": Reception desk, front desk, hotel logo backdrop, lobby sofa/waiting lounge, glass entrance door, indoor staircase, elevator/lift, or guest floor corridor/hallway with room doors.
+   - "Banquet Hall": Event hall, banquet space, party/wedding hall, stage, or conference room.
+   - "Dining": Dining room, restaurant tables, breakfast buffet, kitchen, or food service area.
+   - "Standard Room", "Deluxe Room", "Super Deluxe Room", or "Suite Room": Guest bedroom (bed, headboard, curtains, wardrobe, TV, work desk) OR attached guest bathroom/washroom (sink, mirror, shower, toilet, tiles).
+3. "photoName": A short, accurate 3 to 6 word title describing the exact visual subject of that photo (e.g., "Hotel Front Facade & Exterior", "24x7 Reception Desk & Lobby", "Lobby Guest Waiting Sofa Lounge", "Reception & Wooden Staircase", "Guest Floor Corridor & Hallway", "Deluxe Room with Tufted Headboard", "Attached Modern Bathroom & Washroom").
+4. "seoCaption": Format as "<photoName> — <specific visual details from the photo> at ${cleanHotel} Sector 117 Noida" (total 65 to 105 characters).
+   - CRITICAL: Describe ONLY what is visually present in that exact photo.
+   - NEVER call a building exterior, reception desk, sofa lounge, staircase, or corridor a "Room" or "Bed".
+   - NEVER call a bedroom with a bed a "Bathroom", and NEVER call a bathroom with tiles/shower a "King Bed".`,
           },
-        },
-      });
+        ];
 
-      const parsed = JSON.parse(response.text || '[]');
-      return res.json({ optimized: parsed });
+        for (const entry of fetched) {
+          const existingCat = (entry.item?.category || 'Rooms').trim();
+          const preserveHint = SPECIFIC_ROOM_CATS.has(existingCat)
+            ? ` (User assigned room type: "${existingCat}")`
+            : '';
+          parts.push({
+            text: `\n--- PHOTO ID: "${entry.item.id}" (Photo #${entry.seq})${preserveHint} ---`,
+          });
+          if (entry.inlineData) {
+            parts.push({ inlineData: entry.inlineData });
+          }
+        }
+
+        for (const modelName of modelsToTry) {
+          try {
+            const response = await ai.models.generateContent({
+              model: modelName,
+              contents: { parts },
+              config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      id: { type: Type.STRING },
+                      category: { type: Type.STRING },
+                      photoName: { type: Type.STRING },
+                      seoCaption: { type: Type.STRING },
+                    },
+                    required: ['id', 'category', 'photoName', 'seoCaption'],
+                  },
+                },
+              },
+            });
+
+            const parsed = JSON.parse(response.text || '[]');
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              return parsed.map((p: any) => {
+                const detectedCat = ALLOWED_CATEGORIES.has(p.category) ? p.category : 'Rooms';
+                const cleanName = (p.photoName || '').trim();
+                const rawCaption = (p.seoCaption || '').trim();
+                const fullCaption =
+                  cleanName && !rawCaption.toLowerCase().startsWith(cleanName.toLowerCase())
+                    ? `${cleanName} — ${rawCaption}`
+                    : rawCaption;
+                return {
+                  id: p.id,
+                  category: detectedCat,
+                  photoName: cleanName,
+                  seoCaption: fullCaption,
+                };
+              });
+            }
+          } catch {
+            // Try next model in fallback chain
+          }
+        }
+        return [];
+      };
+
+      const results: Array<{
+        id: string;
+        category: string;
+        photoName?: string;
+        seoCaption: string;
+      }> = [];
+      const CHUNK_SIZE = 4;
+      for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+        const chunk = items.slice(i, i + CHUNK_SIZE);
+        const chunkRes = await analyzeBatchChunk(chunk, i);
+        results.push(...chunkRes);
+      }
+
+      return res.json({ optimized: results });
     } catch (err: any) {
       return res.status(500).json({
         error: err.message || 'AI SEO optimization failed',

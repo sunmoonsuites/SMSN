@@ -14,7 +14,26 @@ interface GalleryPickerModalProps {
   title?: string;
 }
 
-const CATEGORIES = ['ALL', 'Rooms', 'Banquet Hall', 'Hotel & Lobby', 'Dining', 'Exterior & Facade'];
+const CATEGORIES = [
+  'ALL',
+  'Standard Room',
+  'Deluxe Room',
+  'Super Deluxe Room',
+  'Suite Room',
+  'Rooms',
+  'Banquet Hall',
+  'Hotel & Lobby',
+  'Dining',
+  'Exterior & Facade',
+];
+
+const ROOM_SUB_CATEGORIES = new Set([
+  'Rooms',
+  'Standard Room',
+  'Deluxe Room',
+  'Super Deluxe Room',
+  'Suite Room',
+]);
 
 export const GalleryPickerModal: React.FC<GalleryPickerModalProps> = ({
   isOpen,
@@ -45,7 +64,13 @@ export const GalleryPickerModal: React.FC<GalleryPickerModalProps> = ({
   };
 
   const filteredImages = images.filter((img) => {
-    if (categoryFilter !== 'ALL' && img.category !== categoryFilter) return false;
+    if (categoryFilter !== 'ALL') {
+      if (categoryFilter === 'Rooms') {
+        if (!ROOM_SUB_CATEGORIES.has(img.category)) return false;
+      } else if (img.category !== categoryFilter) {
+        return false;
+      }
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchCaption = (img.caption || '').toLowerCase().includes(q);

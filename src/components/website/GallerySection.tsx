@@ -46,8 +46,45 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
     setIsLoading(false);
   };
 
-  const categories = ['All', ...Array.from(new Set(items.map((i) => i.category)))];
-  const filtered = selectedCategory === 'All' ? items : items.filter((i) => i.category === selectedCategory);
+  const roomSubCategories = new Set([
+    'Rooms',
+    'Standard Room',
+    'Deluxe Room',
+    'Super Deluxe Room',
+    'Suite Room',
+  ]);
+
+  const orderedCategories = [
+    'All',
+    'Standard Room',
+    'Deluxe Room',
+    'Super Deluxe Room',
+    'Suite Room',
+    'Rooms',
+    'Banquet Hall',
+    'Hotel & Lobby',
+    'Dining',
+    'Exterior & Facade',
+  ];
+
+  const existingCategories = new Set(items.map((i) => i.category));
+  const hasAnyRoomPhoto = items.some((i) => roomSubCategories.has(i.category));
+
+  const categories = [
+    ...orderedCategories.filter((cat) => {
+      if (cat === 'All') return true;
+      if (cat === 'Rooms') return hasAnyRoomPhoto && existingCategories.has('Rooms');
+      return existingCategories.has(cat);
+    }),
+    ...Array.from(existingCategories).filter((c) => !orderedCategories.includes(c)),
+  ];
+
+  const filtered =
+    selectedCategory === 'All'
+      ? items
+      : selectedCategory === 'Rooms'
+      ? items.filter((i) => roomSubCategories.has(i.category))
+      : items.filter((i) => i.category === selectedCategory);
 
   return (
     <section id="gallery" className="py-20 bg-stone-50 border-b border-stone-200">

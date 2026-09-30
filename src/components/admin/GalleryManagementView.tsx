@@ -61,6 +61,10 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
 
   // AI SEO Optimization & Inline Edit State
   const [isAiOptimizing, setIsAiOptimizing] = useState(false);
+  const [aiProgress, setAiProgress] = useState<{ completed: number; total: number }>({
+    completed: 0,
+    total: 0,
+  });
   const [editingImageId, setEditingImageId] = useState<string | null>(null);
   const [editingCaptionValue, setEditingCaptionValue] = useState('');
   const [editingCategoryValue, setEditingCategoryValue] = useState('Rooms');
@@ -87,26 +91,30 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
     }
   };
 
-  // 1-Click AI SEO Optimization for All Gallery Photos
+  // 1-Click AI Vision SEO Optimization for All Gallery Photos
   const handleAiOptimizeAllGallery = async () => {
     if (!hotel?.id || images.length === 0 || isAiOptimizing) return;
     setIsAiOptimizing(true);
+    setAiProgress({ completed: 0, total: images.length });
     setStatusBanner('');
 
     const res = await aiOptimizeAllGalleryCaptions(
       hotel.id,
       hotel.name || 'Sun Moon Suites',
       hotel.address || 'GT-20, Sector 117',
-      hotel.city || 'Noida'
+      hotel.city || 'Noida',
+      (completed, total) => {
+        setAiProgress({ completed, total });
+      }
     );
 
     if (res.success && res.items.length > 0) {
       setImages(res.items);
       window.dispatchEvent(new Event('hotel_data_updated'));
       setStatusBanner(
-        `✨ AI automatically updated SEO-friendly Names & Captions for all ${res.updatedCount} Gallery photos and saved to Supabase!`
+        `✨ AI Vision inspected all ${res.updatedCount} photos and updated each photo's Category, Name & SEO Caption according to its actual image content!`
       );
-      setTimeout(() => setStatusBanner(''), 6000);
+      setTimeout(() => setStatusBanner(''), 7000);
     }
     setIsAiOptimizing(false);
   };
@@ -124,12 +132,60 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
       )
     );
     setEditingImageId(null);
-    setStatusBanner('Photo name & caption saved to Supabase!');
+    setStatusBanner('Photo category, name & caption saved to Supabase!');
     setTimeout(() => setStatusBanner(''), 3500);
   };
 
-  const handleAiOptimizePendingUploads = () => {
+  const handleAiOptimizePendingUploads = async () => {
+    if (pendingUploads.length === 0) return;
     const hotelName = hotel?.name || 'Sun Moon Suites';
+    const address = hotel?.address || 'GT-20, Sector 117';
+    const city = hotel?.city || 'Noida';
+
+    try {
+      const response = await fetch('/api/gallery/ai-seo-optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotelName,
+          address,
+          city,
+          items: pendingUploads.map((item, idx) => ({
+            id: item.id,
+            image_url: item.image_url,
+            category: item.category || category || 'Rooms',
+            currentCaption: item.caption || '',
+            index: idx + 1,
+          })),
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data?.optimized) && data.optimized.length > 0) {
+          const map = new Map<string, { category: string; seoCaption: string }>();
+          for (const entry of data.optimized) {
+            if (entry?.id && entry?.seoCaption) {
+              map.set(entry.id, {
+                category: entry.category || category,
+                seoCaption: entry.seoCaption,
+              });
+            }
+          }
+          setPendingUploads((prev) =>
+            prev.map((item) => {
+              const found = map.get(item.id);
+              return found
+                ? { ...item, category: found.category, caption: found.seoCaption }
+                : item;
+            })
+          );
+          return;
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+
     const catCounters: Record<string, number> = {};
     setPendingUploads((prev) =>
       prev.map((item) => {
@@ -138,7 +194,13 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
         catCounters[c] = idx + 1;
         return {
           ...item,
-          caption: generateSmartSeoGalleryCaption(c, item.caption, idx, hotelName),
+          caption: generateSmartSeoGalleryCaption(
+            c,
+            item.caption,
+            idx,
+            hotelName,
+            item.image_url
+          ),
         };
       })
     );
@@ -331,11 +393,30 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
     }
   };
 
-  const categories = ['Rooms', 'Banquet Hall', 'Hotel & Lobby', 'Dining', 'Exterior & Facade'];
+  const categories = [
+    'Standard Room',
+    'Deluxe Room',
+    'Super Deluxe Room',
+    'Suite Room',
+    'Rooms',
+    'Banquet Hall',
+    'Hotel & Lobby',
+    'Dining',
+    'Exterior & Facade',
+  ];
+
+  const roomSubCategories = new Set([
+    'Rooms',
+    'Standard Room',
+    'Deluxe Room',
+    'Super Deluxe Room',
+    'Suite Room',
+  ]);
 
   const filtered = images.filter((img) => {
-    if (categoryFilter !== 'ALL' && img.category !== categoryFilter) return false;
-    return true;
+    if (categoryFilter === 'ALL') return true;
+    if (categoryFilter === 'Rooms') return roomSubCategories.has(img.category);
+    return img.category === categoryFilter;
   });
 
   if (isLoading) {
@@ -362,12 +443,12 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
             onClick={handleAiOptimizeAllGallery}
             disabled={isAiOptimizing || images.length === 0}
             className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-800 hover:from-amber-700 hover:to-amber-900 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all flex items-center gap-2 shadow-sm cursor-pointer"
-            title="Automatically generate Google SEO-friendly names & ALT captions for all photos in the gallery"
+            title="AI Vision inspects each image and automatically sets its Category, Photo Name & Google SEO Caption according to what is in the photo"
           >
             <Sparkles className={`w-4 h-4 ${isAiOptimizing ? 'animate-spin' : ''}`} />
             <span>
               {isAiOptimizing
-                ? 'AI Optimizing SEO Names...'
+                ? `AI Vision Analyzing (${aiProgress.completed}/${aiProgress.total})...`
                 : 'AI Auto-SEO Names & Captions'}
             </span>
           </button>
@@ -552,12 +633,30 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
                   </div>
                 ) : (
                   <div className="flex items-start justify-between gap-1.5">
-                    <span
-                      className="font-semibold text-xs text-stone-900 line-clamp-2 leading-snug"
-                      title={img.caption || img.category}
-                    >
-                      {img.caption || img.category}
-                    </span>
+                    {(() => {
+                      const rawCap = img.caption || img.category;
+                      const dashIdx = rawCap.indexOf(' — ');
+                      const photoTitle = dashIdx > 0 ? rawCap.slice(0, dashIdx).trim() : '';
+                      const seoDesc = dashIdx > 0 ? rawCap.slice(dashIdx + 3).trim() : rawCap;
+                      return (
+                        <div className="min-w-0 space-y-0.5" title={rawCap}>
+                          {photoTitle && (
+                            <p className="font-bold text-xs text-amber-900 truncate">
+                              {photoTitle}
+                            </p>
+                          )}
+                          <p
+                            className={`${
+                              photoTitle
+                                ? 'text-[11px] text-stone-600 font-medium'
+                                : 'font-semibold text-xs text-stone-900'
+                            } line-clamp-2 leading-snug`}
+                          >
+                            {seoDesc}
+                          </p>
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center gap-0.5 shrink-0">
                       <button
                         type="button"
