@@ -115,10 +115,13 @@ export const DEFAULT_ROOM_CATEGORIES: RoomCategory[] = [
   },
 ];
 
-function getStoredCategories(): RoomCategory[] {
+export function getStoredCategories(): RoomCategory[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_CATEGORIES_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
   } catch (e) {
     console.warn(e);
   }

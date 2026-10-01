@@ -93,10 +93,13 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
   },
 ];
 
-function getStoredGallery(): GalleryItem[] {
+export function getStoredGallery(): GalleryItem[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_GALLERY_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
   } catch (e) {
     console.warn(e);
   }
@@ -186,7 +189,7 @@ export async function addGalleryItem(
   }
 
   const current = getStoredGallery();
-  saveStoredGallery([newItem, ...current]);
+  saveStoredGallery([...current, newItem]);
 
   try {
     if (isValidUuid(newItem.hotel_id)) {
@@ -198,6 +201,10 @@ export async function addGalleryItem(
       );
     }
   } catch {}
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('hotel_data_updated'));
+  }
 
   return { success: true, data: newItem };
 }
@@ -241,7 +248,7 @@ export async function addMultipleGalleryItems(
   }
 
   const current = getStoredGallery();
-  saveStoredGallery([...newItems, ...current]);
+  saveStoredGallery([...current, ...newItems]);
 
   try {
     if (newItems[0] && isValidUuid(newItems[0].hotel_id)) {
@@ -253,6 +260,10 @@ export async function addMultipleGalleryItems(
       );
     }
   } catch {}
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('hotel_data_updated'));
+  }
 
   return { success: true, data: newItems };
 }
@@ -290,6 +301,10 @@ export async function deleteGalleryItem(
       await logAction(resolvedHotelId, `Deleted Gallery Image`, 'Gallery', id);
     }
   } catch {}
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('hotel_data_updated'));
+  }
 
   return { success: true };
 }
@@ -483,6 +498,32 @@ export function generateSmartSeoGalleryCaption(
   return `${cleanCurrent} at ${cleanHotel}`;
 }
 
+export function normalizeRoomCategoryName(name?: string | null): string {
+  const raw = (name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  if (
+    raw === 'suites room' ||
+    raw === 'suite rooms' ||
+    raw === 'suites rooms' ||
+    raw === 'suite' ||
+    raw === 'suites'
+  ) {
+    return 'suite room';
+  }
+  if (raw === 'super deluxe rooms' || raw === 'super deluxe') {
+    return 'super deluxe room';
+  }
+  if (raw === 'deluxe rooms' || raw === 'deluxe') {
+    return 'deluxe room';
+  }
+  if (raw === 'standard rooms' || raw === 'standard') {
+    return 'standard room';
+  }
+  return raw;
+}
+
 export async function updateGalleryItemCaption(
   id: string,
   hotelId: string,
@@ -532,7 +573,90 @@ export async function updateGalleryItemCaption(
     }
   }
 
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('hotel_data_updated'));
+  }
+
   return { success: true };
+}
+
+export async function reorderGalleryItemsInCategory(
+  hotelId: string,
+  targetId: string,
+  action: 'first' | 'prev' | 'next'
+): Promise<{ success: boolean; items: GalleryItem[] }> {
+  const current = await getGalleryItems(hotelId);
+  const target = current.find((i) => i.id === targetId);
+  if (!target) {
+    return { success: false, items: current };
+  }
+
+  const catNorm = normalizeRoomCategoryName(target.category);
+  const sameCatIndices: number[] = [];
+  current.forEach((item, idx) => {
+    if (normalizeRoomCategoryName(item.category) === catNorm) {
+      sameCatIndices.push(idx);
+    }
+  });
+
+  const posInCat = sameCatIndices.findIndex((globalIdx) => current[globalIdx].id === targetId);
+  if (posInCat === -1) {
+    return { success: false, items: current };
+  }
+
+  const catItems = sameCatIndices.map((idx) => current[idx]);
+  if (action === 'first' && posInCat > 0) {
+    const [moved] = catItems.splice(posInCat, 1);
+    catItems.unshift(moved);
+  } else if (action === 'prev' && posInCat > 0) {
+    const temp = catItems[posInCat - 1];
+    catItems[posInCat - 1] = catItems[posInCat];
+    catItems[posInCat] = temp;
+  } else if (action === 'next' && posInCat < catItems.length - 1) {
+    const temp = catItems[posInCat + 1];
+    catItems[posInCat + 1] = catItems[posInCat];
+    catItems[posInCat] = temp;
+  } else {
+    return { success: true, items: current };
+  }
+
+  // Reassign updated positions back into full gallery array and normalize sort_order
+  const nextAll = [...current];
+  sameCatIndices.forEach((globalIdx, i) => {
+    nextAll[globalIdx] = catItems[i];
+  });
+
+  const reindexed = nextAll.map((item, idx) => ({
+    ...item,
+    sort_order: idx + 1,
+  }));
+
+  saveStoredGallery(reindexed);
+
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      await Promise.all(
+        sameCatIndices.map(async (globalIdx) => {
+          const updatedItem = reindexed[globalIdx];
+          if (isValidUuid(updatedItem.id)) {
+            await supabase
+              .from('gallery')
+              .update({ sort_order: updatedItem.sort_order })
+              .eq('id', updatedItem.id);
+          }
+        })
+      );
+    } catch (e) {
+      console.warn('Supabase gallery reorder error:', e);
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('hotel_data_updated'));
+  }
+
+  return { success: true, items: reindexed };
 }
 
 export async function aiOptimizeAllGalleryCaptions(
@@ -602,12 +726,16 @@ export async function aiOptimizeAllGalleryCaptions(
     }
   }
 
-  // 2. Build final Category & SEO Caption for every photo
+  // 2. Build final SEO Caption for every photo while strictly preserving user-sorted categories
   const categoryCounters: Record<string, number> = {};
   const optimizedItems: GalleryItem[] = current.map((item) => {
     const fromGemini = aiMap.get(item.id);
-    const inferred = inferCategoryAndHintFromUrl(item.image_url, item.category || 'Rooms');
-    const finalCategory = fromGemini?.category || inferred.category || item.category || 'Rooms';
+    const existingCat = (item.category || '').trim();
+    const hasSpecificUserCategory = existingCat !== '' && existingCat !== 'Rooms';
+    const inferred = inferCategoryAndHintFromUrl(item.image_url, existingCat || 'Rooms');
+    const finalCategory = hasSpecificUserCategory
+      ? existingCat
+      : fromGemini?.category || inferred.category || existingCat || 'Rooms';
 
     const catIdx = categoryCounters[finalCategory] || 0;
     categoryCounters[finalCategory] = catIdx + 1;
@@ -632,7 +760,7 @@ export async function aiOptimizeAllGalleryCaptions(
   // 3. Save locally immediately
   saveStoredGallery(optimizedItems);
 
-  // 4. Persist all updated categories AND captions to Supabase public.gallery table
+  // 4. Persist updated captions to Supabase public.gallery table
   const supabase = getSupabase();
   if (supabase) {
     try {
@@ -646,25 +774,13 @@ export async function aiOptimizeAllGalleryCaptions(
           if (isValidUuid(item.id)) {
             await supabase.from('gallery').update(updatePayload).eq('id', item.id);
           }
-          if (item.image_url) {
-            await supabase
-              .from('gallery')
-              .update(updatePayload)
-              .eq('image_url', item.image_url);
-          } else if (resolvedHotelId && item.image_url) {
-            await supabase
-              .from('gallery')
-              .update(updatePayload)
-              .eq('hotel_id', resolvedHotelId)
-              .eq('image_url', item.image_url);
-          }
         })
       );
 
       if (resolvedHotelId) {
         await logAction(
           resolvedHotelId,
-          `AI Vision Optimized Categories & SEO Captions for ${optimizedItems.length} Gallery Photos`,
+          `AI Vision Optimized SEO Captions for ${optimizedItems.length} Gallery Photos`,
           'Gallery',
           resolvedHotelId
         );
@@ -684,9 +800,10 @@ export async function aiOptimizeAllGalleryCaptions(
 
 /**
  * Returns all photos belonging ONLY to a specific Room Category:
- * 1. Photos explicitly assigned in `cat.images`
- * 2. Plus any photos in `galleryItems` whose `category` matches `cat.name`
- *    (e.g. "Standard Room", "Deluxe Room", "Super Deluxe Room", "Suite Room")
+ * Strictly prioritizes the user's sorted Gallery photos (`galleryItems` whose
+ * normalized `category` matches `cat.name`, ordered by `sort_order` ascending).
+ * Never mixes in stale `cat.images` that were moved to a different category in Gallery
+ * or default Unsplash placeholders when Gallery photos exist for this room category.
  */
 export function getPhotosForRoomCategory(
   cat: RoomCategory,
@@ -696,45 +813,69 @@ export function getPhotosForRoomCategory(
   const seenUrls = new Set<string>();
   const result: { url: string; caption: string }[] = [];
 
-  const normCatName = (cat.name || '').trim().toLowerCase();
+  const normCatName = normalizeRoomCategoryName(cat.name);
 
-  // Map gallery image URLs to their SEO captions
-  const galleryCaptionMap = new Map<string, string>();
-  for (const g of galleryItems) {
-    if (g.image_url && g.caption) {
-      galleryCaptionMap.set(g.image_url, g.caption);
-    }
-  }
+  // 1. Primary Source of Truth: Photos sorted into this Room Category in the Website Gallery
+  const matchingGallery = galleryItems
+    .map((item, originalIndex) => ({ item, originalIndex }))
+    .filter(
+      ({ item }) =>
+        Boolean(item.image_url) &&
+        normalizeRoomCategoryName(item.category) === normCatName
+    )
+    .sort((a, b) => {
+      const sortA = a.item.sort_order ?? 9999;
+      const sortB = b.item.sort_order ?? 9999;
+      if (sortA !== sortB) return sortA - sortB;
+      return a.originalIndex - b.originalIndex;
+    });
 
-  // 1. Add photos explicitly saved on the RoomCategory (`cat.images`)
-  if (Array.isArray(cat.images)) {
-    cat.images.forEach((url, idx) => {
-      const cleanUrl = (url || '').trim();
+  if (matchingGallery.length > 0) {
+    matchingGallery.forEach(({ item }, idx) => {
+      const cleanUrl = (item.image_url || '').trim();
       if (cleanUrl && !seenUrls.has(cleanUrl)) {
         seenUrls.add(cleanUrl);
         result.push({
           url: cleanUrl,
           caption:
-            galleryCaptionMap.get(cleanUrl) ||
-            generateSmartSeoGalleryCaption(cat.name, '', idx, hotelName),
+            item.caption ||
+            generateSmartSeoGalleryCaption(cat.name, '', idx, hotelName, cleanUrl),
         });
       }
     });
+    return result;
   }
 
-  // 2. Add any photos from Website Gallery whose category matches this room category name
-  galleryItems.forEach((g, idx) => {
-    const gCat = (g.category || '').trim().toLowerCase();
-    if (g.image_url && gCat === normCatName && !seenUrls.has(g.image_url)) {
-      seenUrls.add(g.image_url);
-      result.push({
-        url: g.image_url,
-        caption:
-          g.caption ||
-          generateSmartSeoGalleryCaption(cat.name, '', result.length + idx, hotelName),
-      });
+  // 2. Fallback ONLY if no photos exist in Gallery for this Room Category:
+  // Use `cat.images`, excluding any photo that belongs to a DIFFERENT category in Gallery
+  const galleryCategoryByUrl = new Map<string, string>();
+  const galleryCaptionMap = new Map<string, string>();
+  for (const g of galleryItems) {
+    if (g.image_url) {
+      galleryCategoryByUrl.set(g.image_url.trim(), normalizeRoomCategoryName(g.category));
+      if (g.caption) {
+        galleryCaptionMap.set(g.image_url.trim(), g.caption);
+      }
     }
-  });
+  }
+
+  if (Array.isArray(cat.images)) {
+    cat.images.forEach((url, idx) => {
+      const cleanUrl = (url || '').trim();
+      if (!cleanUrl || seenUrls.has(cleanUrl)) return;
+      const existingGalCat = galleryCategoryByUrl.get(cleanUrl);
+      // Do not show a photo if the user sorted it into a different category in Gallery
+      if (existingGalCat && existingGalCat !== normCatName) return;
+
+      seenUrls.add(cleanUrl);
+      result.push({
+        url: cleanUrl,
+        caption:
+          galleryCaptionMap.get(cleanUrl) ||
+          generateSmartSeoGalleryCaption(cat.name, '', idx, hotelName, cleanUrl),
+      });
+    });
+  }
 
   return result;
 }

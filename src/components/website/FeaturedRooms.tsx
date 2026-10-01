@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Hotel, RoomCategory, GalleryItem } from '../../types';
-import { getRoomCategories, DEFAULT_ROOM_CATEGORIES } from '../../services/roomsService';
+import {
+  getRoomCategories,
+  getStoredCategories,
+} from '../../services/roomsService';
 import {
   getGalleryItems,
-  DEFAULT_GALLERY_ITEMS,
+  getStoredGallery,
   getPhotosForRoomCategory,
 } from '../../services/galleryService';
 import { formatINR } from '../../lib/utils';
@@ -29,8 +32,8 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
   hotel,
   onSelectCategoryForBooking,
 }) => {
-  const [categories, setCategories] = useState<RoomCategory[]>(DEFAULT_ROOM_CATEGORIES);
-  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(DEFAULT_GALLERY_ITEMS);
+  const [categories, setCategories] = useState<RoomCategory[]>(() => getStoredCategories());
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(() => getStoredGallery());
   const [isLoading, setIsLoading] = useState(false);
 
   // Per-card active slide index: { [categoryId]: number }

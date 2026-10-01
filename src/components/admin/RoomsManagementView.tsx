@@ -11,6 +11,8 @@ import {
 import {
   getGalleryItems,
   getPhotosForRoomCategory,
+  normalizeRoomCategoryName,
+  updateGalleryItemCaption,
 } from '../../services/galleryService';
 import { formatINR } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
@@ -63,6 +65,11 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
     if (hotel?.id) {
       loadData();
     }
+    const handleRefresh = () => {
+      if (hotel?.id) loadData();
+    };
+    window.addEventListener('hotel_data_updated', handleRefresh);
+    return () => window.removeEventListener('hotel_data_updated', handleRefresh);
   }, [hotel?.id]);
 
   const loadData = async () => {
@@ -147,10 +154,22 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
     setNewCatMaxAdults(Number(cat.max_adults || 2));
     setNewCatImages(existingPhotos);
 
+    const normTarget = normalizeRoomCategoryName(cat.name);
+    const matchingGalleryTab =
+      normTarget === 'suite room'
+        ? 'Suite Room'
+        : normTarget === 'super deluxe room'
+        ? 'Super Deluxe Room'
+        : normTarget === 'deluxe room'
+        ? 'Deluxe Room'
+        : normTarget === 'standard room'
+        ? 'Standard Room'
+        : cat.name;
+
     const hasSpecificGalleryTag = latestGallery.some(
-      (g) => (g.category || '').toLowerCase() === (cat.name || '').toLowerCase()
+      (g) => normalizeRoomCategoryName(g.category) === normTarget
     );
-    setGalleryFilterInModal(hasSpecificGalleryTag ? cat.name : 'ALL');
+    setGalleryFilterInModal(hasSpecificGalleryTag ? matchingGalleryTab : 'ALL');
     setCategoryError('');
     setShowCategoryModal(true);
   };
@@ -178,6 +197,29 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
             galleryImages[0]?.image_url ||
               'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
           ];
+
+    // Keep Gallery room category tags in sync if user added/removed photos in this modal
+    const normCat = normalizeRoomCategoryName(newCatName);
+    const canonicalGalleryCat =
+      normCat === 'suite room'
+        ? 'Suite Room'
+        : normCat === 'super deluxe room'
+        ? 'Super Deluxe Room'
+        : normCat === 'deluxe room'
+        ? 'Deluxe Room'
+        : normCat === 'standard room'
+        ? 'Standard Room'
+        : newCatName.trim();
+
+    const selectedSet = new Set(imagesArray);
+    for (const g of galleryImages) {
+      const gNorm = normalizeRoomCategoryName(g.category);
+      if (selectedSet.has(g.image_url) && gNorm !== normCat) {
+        await updateGalleryItemCaption(g.id, hotel.id, g.caption || canonicalGalleryCat, canonicalGalleryCat);
+      } else if (!selectedSet.has(g.image_url) && gNorm === normCat) {
+        await updateGalleryItemCaption(g.id, hotel.id, g.caption || 'Rooms', 'Rooms');
+      }
+    }
 
     if (editingCategoryId) {
       const res = await updateRoomCategory(editingCategoryId, hotel.id, {

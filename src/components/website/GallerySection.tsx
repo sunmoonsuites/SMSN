@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Hotel, GalleryItem } from '../../types';
-import { getGalleryItems, DEFAULT_GALLERY_ITEMS } from '../../services/galleryService';
+import { getGalleryItems, getStoredGallery } from '../../services/galleryService';
 import { Image as ImageIcon } from 'lucide-react';
 import { EmptyState } from '../common/EmptyState';
 
@@ -22,7 +22,7 @@ function buildGalleryImageAlt(item: GalleryItem, index: number, hotelName: strin
 }
 
 export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
-  const [items, setItems] = useState<GalleryItem[]>(DEFAULT_GALLERY_ITEMS);
+  const [items, setItems] = useState<GalleryItem[]>(() => getStoredGallery());
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 

@@ -8,6 +8,8 @@ import {
   aiOptimizeAllGalleryCaptions,
   updateGalleryItemCaption,
   generateSmartSeoGalleryCaption,
+  reorderGalleryItemsInCategory,
+  normalizeRoomCategoryName,
 } from '../../services/galleryService';
 import { uploadMultipleImagesToSupabase } from '../../services/storageService';
 import { LoadingSpinner } from '../common/LoadingSpinner';
@@ -24,6 +26,9 @@ import {
   Sparkles,
   Edit3,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  Star,
 } from 'lucide-react';
 
 interface GalleryManagementViewProps {
@@ -134,6 +139,23 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
     setEditingImageId(null);
     setStatusBanner('Photo category, name & caption saved to Supabase!');
     setTimeout(() => setStatusBanner(''), 3500);
+  };
+
+  const handleReorderInCategory = async (
+    id: string,
+    action: 'first' | 'prev' | 'next'
+  ) => {
+    if (!hotel?.id) return;
+    const res = await reorderGalleryItemsInCategory(hotel.id, id, action);
+    if (res.success) {
+      setImages(res.items);
+      setStatusBanner(
+        action === 'first'
+          ? 'Set photo as #1 Cover Photo for its category!'
+          : 'Updated photo display order in category!'
+      );
+      setTimeout(() => setStatusBanner(''), 3000);
+    }
   };
 
   const handleAiOptimizePendingUploads = async () => {
@@ -573,22 +595,72 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filtered.map((img) => (
-            <div
-              key={img.id}
-              className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-2xs group space-y-2 p-2"
-            >
-              <div className="relative aspect-video rounded-lg overflow-hidden bg-stone-100">
-                <img
-                  src={img.image_url}
-                  alt={img.caption || 'Hotel photo'}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/70 text-white text-[10px] font-bold rounded">
-                  {img.category}
-                </span>
-              </div>
+          {filtered.map((img) => {
+            const sameCatList = images.filter(
+              (i) =>
+                normalizeRoomCategoryName(i.category) ===
+                normalizeRoomCategoryName(img.category)
+            );
+            const indexInCat = sameCatList.findIndex((i) => i.id === img.id);
+            const isFirstInCat = indexInCat === 0;
+            const isLastInCat = indexInCat === sameCatList.length - 1;
+
+            return (
+              <div
+                key={img.id}
+                className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-2xs group space-y-2 p-2"
+              >
+                <div className="relative aspect-video rounded-lg overflow-hidden bg-stone-100">
+                  <img
+                    src={img.image_url}
+                    alt={img.caption || 'Hotel photo'}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/75 text-white text-[10px] font-bold rounded flex items-center gap-1">
+                    <span>{img.category}</span>
+                    {indexInCat >= 0 && (
+                      <span className="text-amber-300">
+                        {isFirstInCat ? '• #1 Cover' : `• #${indexInCat + 1}`}
+                      </span>
+                    )}
+                  </span>
+
+                  {/* Quick Order Controls within Category */}
+                  {sameCatList.length > 1 && (
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/75 px-1.5 py-1 rounded-lg opacity-90 group-hover:opacity-100 transition-opacity">
+                      {!isFirstInCat && (
+                        <button
+                          type="button"
+                          onClick={() => handleReorderInCategory(img.id, 'first')}
+                          className="px-1.5 py-0.5 bg-amber-600 hover:bg-amber-500 text-white rounded text-[9px] font-bold flex items-center gap-0.5 cursor-pointer"
+                          title={`Make #1 Cover Photo for ${img.category}`}
+                        >
+                          <Star className="w-2.5 h-2.5" />
+                          <span>#1 Cover</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={isFirstInCat}
+                        onClick={() => handleReorderInCategory(img.id, 'prev')}
+                        className="p-0.5 text-white hover:text-amber-300 disabled:opacity-30 cursor-pointer"
+                        title="Move earlier in category"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isLastInCat}
+                        onClick={() => handleReorderInCategory(img.id, 'next')}
+                        className="p-0.5 text-white hover:text-amber-300 disabled:opacity-30 cursor-pointer"
+                        title="Move later in category"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
 
               <div className="px-1 space-y-1.5">
                 {editingImageId === img.id ? (
@@ -683,7 +755,8 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
