@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Hotel } from '../../types';
 import { Calendar, Users, ArrowRight, Shield, Award, MapPin } from 'lucide-react';
+import { getTodayLocalDateStr, getNextDayLocalDateStr } from '../../lib/utils';
 
 interface HeroSectionProps {
   hotel: Hotel | null;
@@ -31,16 +32,20 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   hotel,
   onSearchAvailability,
 }) => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const initialCheckIn = getTodayLocalDateStr();
+  const initialCheckOut = getNextDayLocalDateStr(initialCheckIn);
 
-  const dayAfter = new Date();
-  dayAfter.setDate(dayAfter.getDate() + 2);
-
-  const [checkIn, setCheckIn] = useState(tomorrow.toISOString().split('T')[0]);
-  const [checkOut, setCheckOut] = useState(dayAfter.toISOString().split('T')[0]);
+  const [checkIn, setCheckIn] = useState(initialCheckIn);
+  const [checkOut, setCheckOut] = useState(initialCheckOut);
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
+
+  const handleCheckInChange = (newCheckIn: string) => {
+    setCheckIn(newCheckIn);
+    if (!checkOut || checkOut <= newCheckIn) {
+      setCheckOut(getNextDayLocalDateStr(newCheckIn));
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,9 +157,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 {...({
                   toolparamdescription: 'Check-in date in YYYY-MM-DD format for hotel stay',
                 } as any)}
-                min={new Date().toISOString().split('T')[0]}
+                min={getTodayLocalDateStr()}
                 value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
+                onChange={(e) => handleCheckInChange(e.target.value)}
                 className="w-full px-3 py-2.5 text-sm bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 focus:bg-white transition-all font-medium"
               />
             </div>
@@ -177,7 +182,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 {...({
                   toolparamdescription: 'Check-out date in YYYY-MM-DD format for hotel stay',
                 } as any)}
-                min={checkIn}
+                min={getNextDayLocalDateStr(checkIn)}
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
                 className="w-full px-3 py-2.5 text-sm bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 focus:bg-white transition-all font-medium"

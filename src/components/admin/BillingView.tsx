@@ -933,7 +933,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ hotel }) => {
                 <option value="">-- Walk-In / Standalone Invoice --</option>
                 {availableBookings.map((bk) => (
                   <option key={bk.id} value={bk.id}>
-                    {bk.booking_number} — {bk.guest_name || 'Guest'} ({bk.check_in_date})
+                    {bk.booking_number} — {bk.guest_name || 'Guest'} ({formatDate(bk.check_in_date)})
                   </option>
                 ))}
               </select>

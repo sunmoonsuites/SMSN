@@ -8,7 +8,14 @@ import {
   DEFAULT_BOOKING_ENGINE_CONFIG,
   buildYanoljaBookingUrl,
 } from '../../services/hotelService';
-import { formatINR, calculateNights, getCleanHotelWhatsApp } from '../../lib/utils';
+import {
+  formatINR,
+  formatDate,
+  calculateNights,
+  getCleanHotelWhatsApp,
+  getTodayLocalDateStr,
+  getNextDayLocalDateStr,
+} from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import {
   Calendar,
@@ -97,33 +104,46 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const dayAfter = new Date();
-      dayAfter.setDate(dayAfter.getDate() + 2);
-
-      const inDate = initialSearch?.checkIn || tomorrow.toISOString().split('T')[0];
-      const outDate = initialSearch?.checkOut || dayAfter.toISOString().split('T')[0];
+      const today = getTodayLocalDateStr();
+      const inDate = initialSearch?.checkIn || today;
+      let outDate = initialSearch?.checkOut || getNextDayLocalDateStr(inDate);
+      if (outDate <= inDate) {
+        outDate = getNextDayLocalDateStr(inDate);
+      }
+      const inAdults = initialSearch?.adults || 2;
+      const inChildren = initialSearch?.children || 0;
 
       setCheckIn(inDate);
       setCheckOut(outDate);
-      setAdults(initialSearch?.adults || 2);
-      setChildren(initialSearch?.children || 0);
+      setAdults(inAdults);
+      setChildren(inChildren);
       setAppliedPromo(null);
       setPromoError('');
       setSubmitError('');
 
       // Auto check availability if dates provided
-      fetchAvailability(inDate, outDate, initialSearch?.selectedCategoryId);
+      fetchAvailability(inDate, outDate, initialSearch?.selectedCategoryId, inAdults, inChildren);
     }
   }, [isOpen, initialSearch]);
 
-  const fetchAvailability = async (inDate: string, outDate: string, autoSelectCatId?: string) => {
+  const fetchAvailability = async (
+    inDate: string,
+    outDate: string,
+    autoSelectCatId?: string,
+    adultsCount: number = adults,
+    childrenCount: number = children
+  ) => {
     if (!hotel?.id) return;
     setIsLoadingAvailability(true);
     setStep('rooms');
 
-    const results = await checkRoomAvailability(hotel.id, inDate, outDate);
+    const results = await checkRoomAvailability(
+      hotel.id,
+      inDate,
+      outDate,
+      adultsCount,
+      childrenCount
+    );
     setAvailableCategories(results);
     setIsLoadingAvailability(false);
 
@@ -261,7 +281,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
           name: hotel?.name || 'Sun Moon Suites',
           description: `${selectedResult.category.name} (${nights} ${
             nights === 1 ? 'Night' : 'Nights'
-          }: ${checkIn} to ${checkOut})`,
+          }: ${formatDate(checkIn)} to ${formatDate(checkOut)})`,
           prefill: {
             name: `${guestFirstName.trim()} ${guestLastName.trim()}`.trim(),
             email: guestEmail.trim(),
@@ -301,7 +321,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
   const whatsappNumber = getCleanHotelWhatsApp(hotel?.whatsapp);
   const whatsappBookingUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-    `Hello ${hotel?.name || 'Sun Moon Suites'}, I have confirmed booking ${confirmedBookingRef} for dates ${checkIn} to ${checkOut}. Please share confirmation.`
+    `Hello ${hotel?.name || 'Sun Moon Suites'}, I have confirmed booking ${confirmedBookingRef} for dates ${formatDate(checkIn)} to ${formatDate(checkOut)}. Please share confirmation.`
   )}`;
 
   return (
@@ -340,7 +360,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5 font-medium text-stone-700">
                   <Calendar className="w-3.5 h-3.5 text-amber-700" />
-                  {checkIn} &rarr; {checkOut} ({nights} {nights === 1 ? 'Night' : 'Nights'})
+                  {formatDate(checkIn)} &rarr; {formatDate(checkOut)} ({nights} {nights === 1 ? 'Night' : 'Nights'})
                 </span>
                 <span className="flex items-center gap-1.5 font-medium text-stone-700">
                   <Users className="w-3.5 h-3.5 text-amber-700" />
@@ -470,7 +490,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center justify-between">
               <div>
                 <span className="font-semibold">{selectedResult?.category.name}</span> &bull;{' '}
-                {nights} {nights === 1 ? 'Night' : 'Nights'} ({checkIn} to {checkOut})
+                {nights} {nights === 1 ? 'Night' : 'Nights'} ({formatDate(checkIn)} to {formatDate(checkOut)})
               </div>
               <button
                 type="button"
@@ -585,7 +605,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     {selectedResult?.category.name}
                   </h4>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    {checkIn} to {checkOut} &bull; {nights} {nights === 1 ? 'Night' : 'Nights'} &bull;{' '}
+                    {formatDate(checkIn)} to {formatDate(checkOut)} &bull; {nights} {nights === 1 ? 'Night' : 'Nights'} &bull;{' '}
                     {adults} Adults
                   </p>
                 </div>
@@ -821,13 +841,13 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               <div className="flex justify-between">
                 <span className="text-stone-500">Check-in Date</span>
                 <span className="text-stone-800">
-                  {checkIn} (from {hotel?.check_in_time || '14:00'})
+                  {formatDate(checkIn)} (from {hotel?.check_in_time || '14:00'})
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-500">Check-out Date</span>
                 <span className="text-stone-800">
-                  {checkOut} (until {hotel?.check_out_time || '11:00'})
+                  {formatDate(checkOut)} (until {hotel?.check_out_time || '11:00'})
                 </span>
               </div>
               <div className="flex justify-between font-bold text-stone-900 pt-2 border-t border-stone-200">

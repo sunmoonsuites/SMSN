@@ -8,6 +8,7 @@ import {
   getEffectiveRoomPrice,
   getStoredLocalConfig,
   DEFAULT_BOOKING_ENGINE_CONFIG,
+  normalizeBookingEngineConfig,
 } from './hotelService';
 import { emitPMSNotification } from './notificationService';
 
@@ -289,7 +290,9 @@ export const SAMPLE_DEFAULT_BOOKINGS: Booking[] = [
 export async function checkRoomAvailability(
   hotelId: string,
   checkInDate: string,
-  checkOutDate: string
+  checkOutDate: string,
+  adults: number = 2,
+  children: number = 0
 ): Promise<AvailabilityResult[]> {
   const categories = await getRoomCategories(hotelId, true);
   const allRooms = await getRooms(hotelId);
@@ -335,7 +338,7 @@ export async function checkRoomAvailability(
 
   // Optional Yanolja / eZee Live Availability Sync (Inbuilt letsbook.me Link or REST API)
   const localHotel = getStoredLocalConfig();
-  const engineCfg = localHotel?.booking_engine_config ?? DEFAULT_BOOKING_ENGINE_CONFIG;
+  const engineCfg = normalizeBookingEngineConfig(localHotel?.booking_engine_config);
   const yanoljaAvailabilityMap: Record<
     string,
     {
@@ -347,23 +350,25 @@ export async function checkRoomAvailability(
     }
   > = {};
 
-  const activeMode = engineCfg?.mode || 'yanolja_link_inbuilt';
+  const activeMode = engineCfg.mode || 'yanolja_link_inbuilt';
   const isLinkInbuiltActive =
-    engineCfg?.is_enabled !== false &&
+    engineCfg.is_enabled !== false &&
+    activeMode !== 'local_only' &&
     (activeMode === 'yanolja_link_inbuilt' ||
+      activeMode === 'builtin' ||
       (activeMode === 'yanolja_api' && !engineCfg?.yanolja_api_key?.trim()));
 
   if (isLinkInbuiltActive) {
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4500);
+      const timer = setTimeout(() => controller.abort(), 5000);
       const query = new URLSearchParams({
         bookingUrl:
           engineCfg?.yanolja_booking_url?.trim() || 'https://letsbook.me/booking/sunmoonsuites',
         checkIn: checkInDate,
         checkOut: checkOutDate,
-        adults: '2',
-        children: '0',
+        adults: String(adults || 2),
+        children: String(children || 0),
       });
       const resp = await fetch(`/api/yanolja/link-availability?${query.toString()}`, {
         signal: controller.signal,
@@ -411,8 +416,8 @@ export async function checkRoomAvailability(
         APIKey: engineCfg.yanolja_api_key.trim(),
         check_in_date: checkInDate,
         check_out_date: checkOutDate,
-        number_adults: '2',
-        number_children: '0',
+        number_adults: String(adults || 2),
+        number_children: String(children || 0),
       });
       const resp = await fetch(`${apiBase}?${query.toString()}`);
       if (resp.ok) {
@@ -459,8 +464,7 @@ export async function checkRoomAvailability(
       Object.entries(yanoljaAvailabilityMap).find(([k]) => k === normCatName)?.[1];
 
     if (matchedYanolja?.available !== undefined) {
-      const localBookedCount = bookedCategoryCounts[cat.id] || 0;
-      count = Math.max(0, matchedYanolja.available - localBookedCount);
+      count = matchedYanolja.available;
     }
 
     const { effectivePrice, isInauguralActive } = getEffectiveRoomPrice(cat);
@@ -518,8 +522,8 @@ async function syncBookingToYanoljaApi(
   totalAmount: number
 ): Promise<{ synced: boolean; yanoljaBookingId?: string }> {
   const localHotel = getStoredLocalConfig();
-  const engineCfg = localHotel?.booking_engine_config ?? DEFAULT_BOOKING_ENGINE_CONFIG;
-  if (engineCfg?.is_enabled === false || engineCfg?.mode === 'builtin') {
+  const engineCfg = normalizeBookingEngineConfig(localHotel?.booking_engine_config);
+  if (engineCfg?.is_enabled === false || engineCfg?.mode === 'local_only') {
     return { synced: false };
   }
 

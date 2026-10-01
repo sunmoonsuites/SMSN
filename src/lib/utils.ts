@@ -13,16 +13,20 @@ export function formatINR(amount: number): string {
 
 export function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '-';
+  const trimmed = String(dateStr).trim();
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[3]}-${isoMatch[2]}-${isoMatch[1]}`;
+  }
   try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    const d = new Date(trimmed);
+    if (isNaN(d.getTime())) return trimmed;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
   } catch {
-    return dateStr;
+    return trimmed;
   }
 }
 
@@ -30,17 +34,41 @@ export function formatDateTime(dateStr?: string | null): string {
   if (!dateStr) return '-';
   try {
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
+    if (isNaN(d.getTime())) return formatDate(dateStr);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const timePart = d.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
     });
+    return `${dd}-${mm}-${yyyy}, ${timePart}`;
   } catch {
-    return dateStr;
+    return formatDate(dateStr);
   }
+}
+
+export function getTodayLocalDateStr(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function getNextDayLocalDateStr(baseDateStr?: string): string {
+  let d: Date;
+  if (baseDateStr && /^\d{4}-\d{2}-\d{2}$/.test(baseDateStr)) {
+    const [y, m, day] = baseDateStr.split('-').map(Number);
+    d = new Date(y, m - 1, day);
+  } else {
+    d = new Date();
+  }
+  d.setDate(d.getDate() + 1);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function calculateNights(checkIn: string, checkOut: string): number {

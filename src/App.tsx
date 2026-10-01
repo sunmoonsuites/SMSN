@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Hotel, StaffUser } from './types';
-import { getInitialHotelFast } from './lib/utils';
+import { getInitialHotelFast, getTodayLocalDateStr, getNextDayLocalDateStr } from './lib/utils';
 import {
   buildYanoljaBookingUrl,
   DEFAULT_BOOKING_ENGINE_CONFIG,
@@ -281,14 +281,12 @@ export function MainApp() {
   };
 
   const handleSelectCategoryForBooking = (categoryId: string) => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
+    const today = getTodayLocalDateStr();
+    const tomorrow = getNextDayLocalDateStr(today);
 
     openPublicBookingOrRedirect({
-      checkIn: tomorrow.toISOString().split('T')[0],
-      checkOut: dayAfter.toISOString().split('T')[0],
+      checkIn: today,
+      checkOut: tomorrow,
       adults: 2,
       children: 0,
       selectedCategoryId: categoryId,
@@ -296,14 +294,12 @@ export function MainApp() {
   };
 
   const handleSelectOfferCode = (code: string) => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
+    const today = getTodayLocalDateStr();
+    const tomorrow = getNextDayLocalDateStr(today);
 
     openPublicBookingOrRedirect({
-      checkIn: tomorrow.toISOString().split('T')[0],
-      checkOut: dayAfter.toISOString().split('T')[0],
+      checkIn: today,
+      checkOut: tomorrow,
       adults: 2,
       children: 0,
     });

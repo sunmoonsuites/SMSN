@@ -192,8 +192,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     initialEngine.is_enabled !== false
   );
   const [engineMode, setEngineMode] = useState<
-    'builtin' | 'yanolja_link_inbuilt' | 'yanolja_api' | 'yanolja_redirect'
-  >(initialEngine.mode || 'yanolja_link_inbuilt');
+    'builtin' | 'local_only' | 'yanolja_link_inbuilt' | 'yanolja_api' | 'yanolja_redirect'
+  >(
+    !initialEngine.mode || initialEngine.mode === 'builtin'
+      ? 'yanolja_link_inbuilt'
+      : initialEngine.mode
+  );
   const [yanoljaBookingUrl, setYanoljaBookingUrl] = useState<string>(
     initialEngine.yanolja_booking_url || 'https://letsbook.me/booking/sunmoonsuites'
   );
@@ -306,8 +310,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setGoogleBusinessUrl(hotel.social_links.google_business || '');
       }
       if (hotel.booking_engine_config) {
-        setEngineEnabled(hotel.booking_engine_config.is_enabled !== false);
-        setEngineMode(hotel.booking_engine_config.mode || 'yanolja_link_inbuilt');
+        const isLegacy =
+          !hotel.booking_engine_config.mode || hotel.booking_engine_config.mode === 'builtin';
+        setEngineEnabled(isLegacy ? true : hotel.booking_engine_config.is_enabled !== false);
+        setEngineMode(isLegacy ? 'yanolja_link_inbuilt' : hotel.booking_engine_config.mode!);
         setYanoljaBookingUrl(
           hotel.booking_engine_config.yanolja_booking_url ||
             'https://letsbook.me/booking/sunmoonsuites'
@@ -2037,7 +2043,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => {
                     const next = !engineEnabled;
                     setEngineEnabled(next);
-                    if (next && engineMode === 'builtin') {
+                    if (next && (engineMode === 'builtin' || engineMode === 'local_only')) {
                       setEngineMode('yanolja_link_inbuilt');
                     }
                   }}
@@ -2080,11 +2086,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    setEngineMode('builtin');
+                    setEngineMode('local_only');
                     setEngineEnabled(false);
                   }}
                   className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                    !engineEnabled || engineMode === 'builtin'
+                    !engineEnabled || engineMode === 'local_only'
                       ? 'border-amber-700 bg-white ring-2 ring-amber-600/20'
                       : 'border-stone-200 bg-white/70 hover:border-stone-300'
                   }`}

@@ -175,7 +175,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
         <div>
           <h3 className="font-serif font-bold text-2xl text-stone-900">Front Desk Operations</h3>
           <p className="text-xs text-stone-500">
-            Today's Date: <span className="font-semibold text-stone-800">{todayStr}</span> &bull; 30-Room Property Desk
+            Today's Date: <span className="font-semibold text-stone-800">{formatDate(todayStr)}</span> &bull; 30-Room Property Desk
           </p>
         </div>
 

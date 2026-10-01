@@ -180,6 +180,24 @@ export const DEFAULT_BOOKING_ENGINE_CONFIG: BookingEngineConfig = {
   payment_collection_mode: 'pay_at_hotel',
 };
 
+export function normalizeBookingEngineConfig(
+  raw?: Partial<BookingEngineConfig> | null
+): BookingEngineConfig {
+  if (!raw) return { ...DEFAULT_BOOKING_ENGINE_CONFIG };
+  // Upgrade legacy 'builtin' default from earlier configuration to 'yanolja_link_inbuilt'
+  const isLegacyBuiltin = !raw.mode || raw.mode === 'builtin';
+  return {
+    ...DEFAULT_BOOKING_ENGINE_CONFIG,
+    ...raw,
+    is_enabled: isLegacyBuiltin ? true : raw.is_enabled !== false,
+    mode: isLegacyBuiltin ? 'yanolja_link_inbuilt' : raw.mode,
+    yanolja_booking_url:
+      raw.yanolja_booking_url?.trim() || DEFAULT_BOOKING_ENGINE_CONFIG.yanolja_booking_url,
+    yanolja_hotel_code:
+      raw.yanolja_hotel_code?.trim() || DEFAULT_BOOKING_ENGINE_CONFIG.yanolja_hotel_code,
+  };
+}
+
 export function buildYanoljaBookingUrl(
   baseUrl?: string,
   params?: {
@@ -525,6 +543,7 @@ export function getInitialHotelSync(): Hotel {
     id: localConfig.id || 'ca8ca4c4-d493-490f-8d30-774e8fca42b6',
     ...DEFAULT_HOTEL_INFO,
     ...localConfig,
+    booking_engine_config: normalizeBookingEngineConfig(localConfig.booking_engine_config),
     created_at: localConfig.created_at || new Date().toISOString(),
     updated_at: localConfig.updated_at || new Date().toISOString(),
   } as Hotel;
@@ -761,13 +780,11 @@ export async function getHotel(): Promise<Hotel | null> {
           ...DEFAULT_INAUGURAL_OFFER_CONFIG,
           ...(cmsFromHotelsTable.inaugural_offer || rawSettingsSocial.inaugural_offer || {}),
         },
-        booking_engine_config: {
-          ...DEFAULT_BOOKING_ENGINE_CONFIG,
-          ...(cmsFromHotelsTable.booking_engine_config ||
+        booking_engine_config: normalizeBookingEngineConfig(
+          cmsFromHotelsTable.booking_engine_config ||
             rawSettingsSocial.booking_engine_config ||
-            localConfig.booking_engine_config ||
-            {}),
-        },
+            localConfig.booking_engine_config
+        ),
         social_links: {
           ...DEFAULT_SOCIAL_LINKS,
           ...(cmsFromHotelsTable.social_links || {}),
