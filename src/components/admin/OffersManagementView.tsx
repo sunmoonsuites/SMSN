@@ -221,7 +221,7 @@ export const OffersManagementView: React.FC<OffersManagementViewProps> = ({ hote
             <p className="text-xs text-stone-600">
               When turned <strong>ON</strong>, all 4 room categories show their regular tariff crossed out (e.g.{' '}
               <span className="line-through">₹2,000</span>) and book at your flat offer rate (
-              <strong>{formatINR(inauguralPrice)}/night</strong>). Turning it <strong>OFF</strong> immediately restores regular room tariffs.
+              <strong>{formatINR(inauguralPrice)}/night</strong>), and the coupon code box at checkout is automatically hidden so no additional offer can be stacked. When turned <strong>OFF</strong>, regular tariffs apply and guests can use a <strong>single coupon code</strong> per booking.
             </p>
           </div>
 

@@ -381,9 +381,11 @@ export async function createBooking(
   if (!supabase) return { success: false, error: 'Database configuration required' };
 
   try {
+    const { isInauguralActive } = getEffectiveRoomPrice({ base_price: 1500 });
     const nights = calculateNights(params.checkInDate, params.checkOutDate);
     const roomCharges = params.ratePerNight * nights;
-    const discount = params.discountAmount || 0;
+    const discount = isInauguralActive ? 0 : params.discountAmount || 0;
+    const effectivePromoCode = isInauguralActive ? null : params.promoCode || null;
     const taxableAmount = Math.max(0, roomCharges - discount);
     const { tax } = calculateGST(taxableAmount);
     const totalAmount = taxableAmount + tax;
@@ -457,7 +459,7 @@ export async function createBooking(
           total_amount: totalAmount,
           paid_amount: 0,
           payment_status: 'Pending',
-          promo_code: params.promoCode || null,
+          promo_code: effectivePromoCode,
           special_requests: params.specialRequests || null,
         },
       ])
@@ -489,9 +491,11 @@ export async function createBooking(
     return { success: true, booking: booking as Booking };
   } catch (err: any) {
     console.warn('Database booking insert failed or pending migration, saving locally:', err);
+    const { isInauguralActive } = getEffectiveRoomPrice({ base_price: 1500 });
     const nights = calculateNights(params.checkInDate, params.checkOutDate);
     const roomCharges = params.ratePerNight * nights;
-    const discount = params.discountAmount || 0;
+    const discount = isInauguralActive ? 0 : params.discountAmount || 0;
+    const effectivePromoCode = isInauguralActive ? undefined : params.promoCode || undefined;
     const taxableAmount = Math.max(0, roomCharges - discount);
     const { tax } = calculateGST(taxableAmount);
     const totalAmount = taxableAmount + tax;
@@ -516,7 +520,7 @@ export async function createBooking(
       total_amount: totalAmount,
       paid_amount: 0,
       payment_status: 'Pending',
-      promo_code: params.promoCode || undefined,
+      promo_code: effectivePromoCode,
       special_requests: params.specialRequests || undefined,
       booking_rooms: [
         {

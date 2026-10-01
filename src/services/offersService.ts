@@ -1,7 +1,11 @@
 import { getSupabase } from '../lib/supabase';
 import { Offer } from '../types';
 import { logAction } from './auditService';
-import { isValidUuid, resolveSupabaseHotelId } from './hotelService';
+import {
+  isValidUuid,
+  resolveSupabaseHotelId,
+  getEffectiveRoomPrice,
+} from './hotelService';
 
 const LOCAL_STORAGE_OFFERS_KEY = 'pms_custom_offers';
 
@@ -151,6 +155,15 @@ export async function validatePromoCode(
   code: string,
   bookingAmount: number
 ): Promise<{ valid: boolean; discountAmount: number; message: string; offer?: Offer }> {
+  const { isInauguralActive } = getEffectiveRoomPrice({ base_price: 1500 });
+  if (isInauguralActive) {
+    return {
+      valid: false,
+      discountAmount: 0,
+      message: 'Inaugural Offer is already applied. Additional coupon codes cannot be combined.',
+    };
+  }
+
   const normalizedCode = code.trim().toUpperCase();
   const allOffers = await getOffers(hotelId, true);
 

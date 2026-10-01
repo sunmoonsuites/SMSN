@@ -3,6 +3,7 @@ import { Modal } from '../common/Modal';
 import { Hotel, RoomCategory } from '../../types';
 import { checkRoomAvailability, createBooking, AvailabilityResult } from '../../services/bookingService';
 import { validatePromoCode } from '../../services/offersService';
+import { getEffectiveRoomPrice } from '../../services/hotelService';
 import { formatINR, calculateNights, getCleanHotelWhatsApp } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import {
@@ -109,7 +110,32 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     }
   };
 
+  const priceInfo = selectedResult
+    ? getEffectiveRoomPrice(selectedResult.category, hotel)
+    : getEffectiveRoomPrice({ base_price: 1500 }, hotel);
+  const isOfferAlreadyApplied = Boolean(
+    priceInfo.isInauguralActive ||
+      (selectedResult &&
+        Number(selectedResult.category.base_price) > Number(selectedResult.ratePerNight))
+  );
+
+  useEffect(() => {
+    if (isOfferAlreadyApplied && appliedPromo) {
+      setAppliedPromo(null);
+      setPromoInput('');
+      setPromoError('');
+    }
+  }, [isOfferAlreadyApplied, appliedPromo]);
+
   const handleApplyPromo = async () => {
+    if (isOfferAlreadyApplied) {
+      setPromoError('Inaugural Offer is already applied. Additional coupons cannot be combined.');
+      return;
+    }
+    if (appliedPromo) {
+      setPromoError('Only a single coupon can be applied per booking.');
+      return;
+    }
     if (!promoInput.trim() || !hotel?.id || !selectedResult) return;
     setIsValidatingPromo(true);
     setPromoError('');
@@ -130,8 +156,12 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   };
 
   const nights = calculateNights(checkIn, checkOut);
+  const originalRoomTotal = selectedResult
+    ? Number(selectedResult.category.base_price || selectedResult.ratePerNight) * nights
+    : 0;
   const roomTotal = selectedResult ? selectedResult.ratePerNight * nights : 0;
-  const discountTotal = appliedPromo ? appliedPromo.discount : 0;
+  const inauguralSavings = Math.max(0, originalRoomTotal - roomTotal);
+  const discountTotal = !isOfferAlreadyApplied && appliedPromo ? appliedPromo.discount : 0;
   const taxableTotal = Math.max(0, roomTotal - discountTotal);
   const taxAmount = Math.round((taxableTotal * (taxableTotal > 7500 ? 18 : 12)) / 100);
   const grandTotal = taxableTotal + taxAmount;
@@ -158,7 +188,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       categoryId: selectedResult.categoryId,
       ratePerNight: selectedResult.ratePerNight,
       source: 'Website',
-      promoCode: appliedPromo?.code,
+      promoCode: !isOfferAlreadyApplied ? appliedPromo?.code : undefined,
       discountAmount: discountTotal,
       specialRequests: specialRequests.trim() || undefined,
     });
@@ -469,47 +499,87 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 </div>
               </div>
 
-              {/* Promo Code Input */}
-              <div className="pt-1">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Tag className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder="Promo Code (e.g. WELCOME10)"
-                      value={promoInput}
-                      onChange={(e) => setPromoInput(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-lg uppercase font-semibold"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!promoInput.trim() || isValidatingPromo}
-                    onClick={handleApplyPromo}
-                    className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-lg disabled:opacity-50"
-                  >
-                    {isValidatingPromo ? 'Checking...' : 'Apply'}
-                  </button>
+              {/* Promo Code / Offer Status */}
+              {isOfferAlreadyApplied ? (
+                <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                    {hotel?.inaugural_offer?.badge_text || '🎉 Inaugural Offer'} Already Applied
+                  </span>
+                  <span className="text-[11px] text-amber-800 font-medium">
+                    No other offer or coupon can be combined
+                  </span>
                 </div>
+              ) : (
+                <div className="pt-1">
+                  {!appliedPromo ? (
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Tag className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          placeholder="Have a Coupon Code? (Single coupon allowed)"
+                          value={promoInput}
+                          onChange={(e) => setPromoInput(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-lg uppercase font-semibold bg-white"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!promoInput.trim() || isValidatingPromo}
+                        onClick={handleApplyPromo}
+                        className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-lg disabled:opacity-50 cursor-pointer"
+                      >
+                        {isValidatingPromo ? 'Checking...' : 'Apply'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-2">
+                      <p className="text-xs text-emerald-800 font-semibold flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>
+                          {appliedPromo.message} <span className="text-[10px] text-emerald-700 font-normal">(1 Coupon Applied)</span>
+                        </span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppliedPromo(null);
+                          setPromoError('');
+                          setPromoInput('');
+                        }}
+                        className="text-[11px] font-bold text-rose-700 hover:text-rose-900 underline cursor-pointer shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
 
-                {appliedPromo && (
-                  <p className="text-xs text-emerald-700 mt-1 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    {appliedPromo.message}
-                  </p>
-                )}
-                {promoError && <p className="text-xs text-rose-600 mt-1">{promoError}</p>}
-              </div>
+                  {promoError && <p className="text-xs text-rose-600 mt-1">{promoError}</p>}
+                </div>
+              )}
 
               {/* Bill Details */}
               <div className="pt-2 border-t border-stone-200 space-y-1.5 text-xs text-stone-600">
+                {isOfferAlreadyApplied && inauguralSavings > 0 && (
+                  <>
+                    <div className="flex justify-between text-stone-400">
+                      <span>Regular Room Tariff ({nights} {nights === 1 ? 'Night' : 'Nights'})</span>
+                      <span className="line-through">{formatINR(originalRoomTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-amber-800 font-semibold">
+                      <span>{hotel?.inaugural_offer?.badge_text || '🎉 Inaugural Offer'} Savings</span>
+                      <span>- {formatINR(inauguralSavings)}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between">
-                  <span>Room Tariff</span>
+                  <span>{isOfferAlreadyApplied ? 'Offer Room Tariff' : 'Room Tariff'}</span>
                   <span>{formatINR(roomTotal)}</span>
                 </div>
-                {discountTotal > 0 && (
+                {!isOfferAlreadyApplied && discountTotal > 0 && (
                   <div className="flex justify-between text-emerald-700 font-medium">
-                    <span>Discount ({appliedPromo?.code})</span>
+                    <span>Coupon Discount ({appliedPromo?.code})</span>
                     <span>- {formatINR(discountTotal)}</span>
                   </div>
                 )}
