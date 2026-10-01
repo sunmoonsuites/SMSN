@@ -2,6 +2,10 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Hotel, StaffUser } from './types';
 import { getInitialHotelFast } from './lib/utils';
+import {
+  buildYanoljaBookingUrl,
+  DEFAULT_BOOKING_ENGINE_CONFIG,
+} from './services/hotelService';
 
 // Website Components (Imported directly to prevent dynamic chunk fetch errors and layout shift)
 import { Navbar } from './components/website/Navbar';
@@ -250,14 +254,30 @@ export function MainApp() {
     }
   };
 
+  const openPublicBookingOrRedirect = (searchParams?: {
+    checkIn: string;
+    checkOut: string;
+    adults: number;
+    children: number;
+    selectedCategoryId?: string;
+  }) => {
+    const engineCfg = hotel?.booking_engine_config ?? DEFAULT_BOOKING_ENGINE_CONFIG;
+    if (engineCfg?.is_enabled && engineCfg.mode === 'yanolja_redirect') {
+      const targetUrl = buildYanoljaBookingUrl(engineCfg.yanolja_booking_url, searchParams);
+      window.location.href = targetUrl;
+      return;
+    }
+    setBookingInitialSearch(searchParams);
+    setShowBookingModal(true);
+  };
+
   const handleSearchAvailability = (search: {
     checkIn: string;
     checkOut: string;
     adults: number;
     children: number;
   }) => {
-    setBookingInitialSearch(search);
-    setShowBookingModal(true);
+    openPublicBookingOrRedirect(search);
   };
 
   const handleSelectCategoryForBooking = (categoryId: string) => {
@@ -266,14 +286,13 @@ export function MainApp() {
     const dayAfter = new Date();
     dayAfter.setDate(dayAfter.getDate() + 2);
 
-    setBookingInitialSearch({
+    openPublicBookingOrRedirect({
       checkIn: tomorrow.toISOString().split('T')[0],
       checkOut: dayAfter.toISOString().split('T')[0],
       adults: 2,
       children: 0,
       selectedCategoryId: categoryId,
     });
-    setShowBookingModal(true);
   };
 
   const handleSelectOfferCode = (code: string) => {
@@ -282,13 +301,12 @@ export function MainApp() {
     const dayAfter = new Date();
     dayAfter.setDate(dayAfter.getDate() + 2);
 
-    setBookingInitialSearch({
+    openPublicBookingOrRedirect({
       checkIn: tomorrow.toISOString().split('T')[0],
       checkOut: dayAfter.toISOString().split('T')[0],
       adults: 2,
       children: 0,
     });
-    setShowBookingModal(true);
   };
 
   if (isLoadingHotel) {
@@ -406,10 +424,7 @@ export function MainApp() {
     <>
       <Navbar
         hotel={hotel}
-        onOpenBooking={() => {
-          setBookingInitialSearch(undefined);
-          setShowBookingModal(true);
-        }}
+        onOpenBooking={() => openPublicBookingOrRedirect(undefined)}
         onNavigateSection={handleNavigateSection}
       />
 
@@ -437,10 +452,7 @@ export function MainApp() {
 
       <MobileStickyBar
         hotel={hotel}
-        onOpenBooking={() => {
-          setBookingInitialSearch(undefined);
-          setShowBookingModal(true);
-        }}
+        onOpenBooking={() => openPublicBookingOrRedirect(undefined)}
       />
     </>
   );

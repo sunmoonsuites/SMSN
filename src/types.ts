@@ -58,6 +58,19 @@ export interface InauguralOfferConfig {
   banner_text?: string;
 }
 
+export interface BookingEngineConfig {
+  is_enabled?: boolean;
+  mode?: 'builtin' | 'yanolja_api' | 'yanolja_redirect';
+  yanolja_booking_url?: string;
+  yanolja_hotel_code?: string;
+  yanolja_api_key?: string;
+  yanolja_api_endpoint?: string;
+  razorpay_enabled?: boolean;
+  razorpay_key_id?: string;
+  razorpay_key_secret?: string;
+  payment_collection_mode?: 'pay_at_hotel' | 'both' | 'online_only';
+}
+
 export interface HeroConfig {
   badge?: string;
   heading?: string;
@@ -101,6 +114,7 @@ export interface Hotel {
   banquet_config?: BanquetConfig;
   insights_config?: InsightsConfig;
   inaugural_offer?: InauguralOfferConfig;
+  booking_engine_config?: BookingEngineConfig;
   cancellation_policy?: string;
   terms_and_conditions?: string;
   privacy_policy?: string;

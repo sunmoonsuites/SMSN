@@ -8,6 +8,7 @@ import {
   BanquetConfig,
   InsightsConfig,
   InauguralOfferConfig,
+  BookingEngineConfig,
   RoomCategory,
   SocialLinks,
   FAQItem,
@@ -166,6 +167,49 @@ export const DEFAULT_INAUGURAL_OFFER_CONFIG: InauguralOfferConfig = {
   banner_text: 'Grand Inaugural Offer — All Room Categories at Flat ₹999 / Night!',
 };
 
+export const DEFAULT_BOOKING_ENGINE_CONFIG: BookingEngineConfig = {
+  is_enabled: false,
+  mode: 'builtin',
+  yanolja_booking_url: 'https://letsbook.me/booking/sunmoonsuites',
+  yanolja_hotel_code: '',
+  yanolja_api_key: '',
+  yanolja_api_endpoint: 'https://live.ipms247.com/booking/reservation_api/listing.php',
+  razorpay_enabled: false,
+  razorpay_key_id: '',
+  razorpay_key_secret: '',
+  payment_collection_mode: 'pay_at_hotel',
+};
+
+export function buildYanoljaBookingUrl(
+  baseUrl?: string,
+  params?: {
+    checkIn?: string;
+    checkOut?: string;
+    adults?: number;
+    children?: number;
+  }
+): string {
+  const cleanBase = (baseUrl || 'https://letsbook.me/booking/sunmoonsuites').split('?')[0].trim();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dayAfter = new Date();
+  dayAfter.setDate(dayAfter.getDate() + 2);
+
+  const checkIn = params?.checkIn || tomorrow.toISOString().split('T')[0];
+  const checkOut = params?.checkOut || dayAfter.toISOString().split('T')[0];
+  const adults = params?.adults ?? 2;
+  const children = params?.children ?? 0;
+
+  const query = new URLSearchParams({
+    checkin: checkIn,
+    checkout: checkOut,
+    adults: String(adults),
+    children: String(children),
+  });
+
+  return `${cleanBase}?${query.toString()}`;
+}
+
 /**
  * Returns the active per-night tariff for a room category, taking the hotel's
  * Inaugural Offer into account when enabled, along with the original base_price.
@@ -273,6 +317,7 @@ export const DEFAULT_HOTEL_INFO: Partial<Hotel> = {
   banquet_config: DEFAULT_BANQUET_CONFIG,
   insights_config: DEFAULT_INSIGHTS_CONFIG,
   inaugural_offer: DEFAULT_INAUGURAL_OFFER_CONFIG,
+  booking_engine_config: DEFAULT_BOOKING_ENGINE_CONFIG,
   cancellation_policy:
     'Free cancellation up to 24 hours prior to standard check-in time (14:00 hotel local time). Cancellations made within 24 hours of arrival will incur a 1-night tariff fee. No-shows are charged the full reservation amount.',
   terms_and_conditions:
@@ -372,6 +417,7 @@ function encodeCmsPayloadForHotelsTable(config: Partial<Hotel>): string {
     banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
     insights_config: config.insights_config || DEFAULT_INSIGHTS_CONFIG,
     inaugural_offer: config.inaugural_offer || DEFAULT_INAUGURAL_OFFER_CONFIG,
+    booking_engine_config: config.booking_engine_config || DEFAULT_BOOKING_ENGINE_CONFIG,
     cancellation_policy:
       config.cancellation_policy || DEFAULT_HOTEL_INFO.cancellation_policy || '',
     terms_and_conditions:
@@ -562,6 +608,8 @@ async function persistFullHotelConfigToSupabase(
           banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
           insights_config: config.insights_config || DEFAULT_INSIGHTS_CONFIG,
           inaugural_offer: config.inaugural_offer || DEFAULT_INAUGURAL_OFFER_CONFIG,
+          booking_engine_config:
+            config.booking_engine_config || DEFAULT_BOOKING_ENGINE_CONFIG,
         },
       };
 
@@ -712,6 +760,13 @@ export async function getHotel(): Promise<Hotel | null> {
         inaugural_offer: {
           ...DEFAULT_INAUGURAL_OFFER_CONFIG,
           ...(cmsFromHotelsTable.inaugural_offer || rawSettingsSocial.inaugural_offer || {}),
+        },
+        booking_engine_config: {
+          ...DEFAULT_BOOKING_ENGINE_CONFIG,
+          ...(cmsFromHotelsTable.booking_engine_config ||
+            rawSettingsSocial.booking_engine_config ||
+            localConfig.booking_engine_config ||
+            {}),
         },
         social_links: {
           ...DEFAULT_SOCIAL_LINKS,

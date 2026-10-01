@@ -3,7 +3,11 @@ import { Modal } from '../common/Modal';
 import { Hotel, RoomCategory } from '../../types';
 import { checkRoomAvailability, createBooking, AvailabilityResult } from '../../services/bookingService';
 import { validatePromoCode } from '../../services/offersService';
-import { getEffectiveRoomPrice } from '../../services/hotelService';
+import {
+  getEffectiveRoomPrice,
+  DEFAULT_BOOKING_ENGINE_CONFIG,
+  buildYanoljaBookingUrl,
+} from '../../services/hotelService';
 import { formatINR, calculateNights, getCleanHotelWhatsApp } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import {
@@ -69,6 +73,27 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [confirmedBookingRef, setConfirmedBookingRef] = useState('');
+  const [paidOnlineRef, setPaidOnlineRef] = useState('');
+
+  const engineConfig = hotel?.booking_engine_config ?? DEFAULT_BOOKING_ENGINE_CONFIG;
+  const isRazorpayActive = Boolean(
+    engineConfig?.razorpay_enabled && engineConfig?.razorpay_key_id?.trim()
+  );
+  const paymentMode = isRazorpayActive
+    ? engineConfig?.payment_collection_mode || 'both'
+    : 'pay_at_hotel';
+
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'razorpay' | 'pay_at_hotel'>(
+    'pay_at_hotel'
+  );
+
+  useEffect(() => {
+    if (isRazorpayActive && (paymentMode === 'online_only' || paymentMode === 'both')) {
+      setSelectedPaymentMethod('razorpay');
+    } else {
+      setSelectedPaymentMethod('pay_at_hotel');
+    }
+  }, [isRazorpayActive, paymentMode, isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -166,13 +191,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const taxAmount = Math.round((taxableTotal * (taxableTotal > 7500 ? 18 : 12)) / 100);
   const grandTotal = taxableTotal + taxAmount;
 
-  const handleConfirmBooking = async () => {
+  const finalizeBookingRecord = async (paymentRef?: string) => {
     if (!hotel?.id || !selectedResult) return;
-    if (!guestFirstName.trim() || !guestPhone.trim() || !guestEmail.trim()) {
-      setSubmitError('Please fill in all mandatory guest details (First Name, Mobile, Email).');
-      return;
-    }
-
     setIsSubmitting(true);
     setSubmitError('');
 
@@ -191,17 +211,89 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       promoCode: !isOfferAlreadyApplied ? appliedPromo?.code : undefined,
       discountAmount: discountTotal,
       specialRequests: specialRequests.trim() || undefined,
+      paymentStatus: paymentRef ? 'Paid' : 'Pending',
+      paidAmount: paymentRef ? grandTotal : 0,
+      paymentReference: paymentRef,
     });
 
     setIsSubmitting(false);
 
     if (res.success && res.booking) {
+      setPaidOnlineRef(paymentRef || '');
       setConfirmedBookingRef(res.booking.booking_reference);
       setStep('confirmed');
       if (onBookingSuccess) onBookingSuccess(res.booking.booking_reference);
     } else {
       setSubmitError(res.error || 'Failed to confirm booking. Please try again.');
     }
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!hotel?.id || !selectedResult) return;
+    if (!guestFirstName.trim() || !guestPhone.trim() || !guestEmail.trim()) {
+      setSubmitError('Please fill in all mandatory guest details (First Name, Mobile, Email).');
+      return;
+    }
+
+    if (isRazorpayActive && selectedPaymentMethod === 'razorpay') {
+      setIsSubmitting(true);
+      setSubmitError('');
+
+      try {
+        if (!(window as any).Razorpay) {
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Could not load Razorpay checkout script.'));
+            document.body.appendChild(script);
+          });
+        }
+
+        const rzpOptions = {
+          key: engineConfig.razorpay_key_id?.trim(),
+          amount: Math.round(grandTotal * 100),
+          currency: 'INR',
+          name: hotel?.name || 'Sun Moon Suites',
+          description: `${selectedResult.category.name} (${nights} ${
+            nights === 1 ? 'Night' : 'Nights'
+          }: ${checkIn} to ${checkOut})`,
+          prefill: {
+            name: `${guestFirstName.trim()} ${guestLastName.trim()}`.trim(),
+            email: guestEmail.trim(),
+            contact: guestPhone.trim(),
+          },
+          theme: {
+            color: '#92400e',
+          },
+          handler: async (response: any) => {
+            const payId = response?.razorpay_payment_id || `rzp_${Date.now()}`;
+            await finalizeBookingRecord(payId);
+          },
+          modal: {
+            ondismiss: () => {
+              setIsSubmitting(false);
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(rzpOptions);
+        rzp.on('payment.failed', (resp: any) => {
+          setIsSubmitting(false);
+          setSubmitError(
+            resp?.error?.description || 'Payment failed. Please try again or select Pay on Arrival.'
+          );
+        });
+        rzp.open();
+      } catch (err: any) {
+        setIsSubmitting(false);
+        setSubmitError(err?.message || 'Unable to initialize Razorpay payment gateway.');
+      }
+      return;
+    }
+
+    await finalizeBookingRecord();
   };
 
   const whatsappNumber = getCleanHotelWhatsApp(hotel?.whatsapp);
@@ -601,13 +693,68 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             </div>
 
             {/* Payment & Guarantee Mode */}
-            <div className="p-3.5 rounded-lg bg-amber-50/80 border border-amber-200 text-xs text-amber-900">
-              <p className="font-semibold mb-1">Pay on Arrival &bull; Guaranteed Reservation</p>
-              <p className="text-[11px] text-amber-800">
-                No credit card required upfront. Pay upon check-in via Cash, UPI (Google Pay, PhonePe, Paytm), or Card.
-                Standard check-in time is {hotel?.check_in_time || '14:00'}.
-              </p>
-            </div>
+            {isRazorpayActive && paymentMode !== 'pay_at_hotel' ? (
+              <div className="space-y-2.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                  Select Payment Method
+                </label>
+                <div
+                  className={`grid grid-cols-1 ${
+                    paymentMode === 'both' ? 'sm:grid-cols-2' : ''
+                  } gap-3 text-xs`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod('razorpay')}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      selectedPaymentMethod === 'razorpay'
+                        ? 'border-amber-700 bg-amber-50/90 ring-2 ring-amber-600/20 text-amber-950'
+                        : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="font-bold flex items-center justify-between">
+                      <span>Pay Online Now (Razorpay)</span>
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px] font-extrabold uppercase">
+                        Instant Paid
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-600 mt-1">
+                      Pay securely on this website via UPI (GPay, PhonePe, Paytm), Credit/Debit Card, or NetBanking.
+                    </p>
+                  </button>
+
+                  {paymentMode === 'both' && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPaymentMethod('pay_at_hotel')}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        selectedPaymentMethod === 'pay_at_hotel'
+                          ? 'border-amber-700 bg-amber-50/90 ring-2 ring-amber-600/20 text-amber-950'
+                          : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'
+                      }`}
+                    >
+                      <div className="font-bold flex items-center justify-between">
+                        <span>Pay on Arrival at Hotel</span>
+                        <span className="px-2 py-0.5 bg-stone-200 text-stone-700 rounded text-[10px] font-bold uppercase">
+                          Reception
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-stone-600 mt-1">
+                        Reserve your room now and pay upon check-in via Cash, UPI, or Card at the front desk.
+                      </p>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-lg bg-amber-50/80 border border-amber-200 text-xs text-amber-900">
+                <p className="font-semibold mb-1">Pay on Arrival &bull; Guaranteed Reservation</p>
+                <p className="text-[11px] text-amber-800">
+                  No credit card required upfront. Pay upon check-in via Cash, UPI (Google Pay, PhonePe, Paytm), or Card.
+                  Standard check-in time is {hotel?.check_in_time || '14:00'}.
+                </p>
+              </div>
+            )}
 
             {submitError && (
               <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs">
@@ -631,7 +778,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 onClick={handleConfirmBooking}
                 className="px-6 py-2.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-xs uppercase tracking-wider font-semibold rounded-lg flex items-center gap-2 cursor-pointer shadow-sm"
               >
-                {isSubmitting ? 'Securing Booking...' : `Confirm Booking (${formatINR(grandTotal)})`}
+                {isSubmitting
+                  ? 'Processing...'
+                  : isRazorpayActive && selectedPaymentMethod === 'razorpay'
+                  ? `Pay Online & Confirm (${formatINR(grandTotal)})`
+                  : `Confirm Booking (${formatINR(grandTotal)})`}
               </button>
             </div>
           </div>

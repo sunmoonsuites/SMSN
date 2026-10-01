@@ -4,7 +4,11 @@ import { logAction } from './auditService';
 import { findOrCreateGuest } from './guestsService';
 import { generateBookingRef, calculateNights, calculateGST } from '../lib/utils';
 import { updateRoomStatus, getRoomCategories, getRooms, DEFAULT_ROOM_CATEGORIES } from './roomsService';
-import { getEffectiveRoomPrice } from './hotelService';
+import {
+  getEffectiveRoomPrice,
+  getStoredLocalConfig,
+  DEFAULT_BOOKING_ENGINE_CONFIG,
+} from './hotelService';
 import { emitPMSNotification } from './notificationService';
 
 export interface AvailabilityResult {
@@ -326,14 +330,73 @@ export async function checkRoomAvailability(
     }
   });
 
+  // Optional Yanolja / eZee Live API Availability Sync (when enabled in Settings)
+  const localHotel = getStoredLocalConfig();
+  const engineCfg = localHotel?.booking_engine_config ?? DEFAULT_BOOKING_ENGINE_CONFIG;
+  const yanoljaAvailabilityMap: Record<string, { available?: number; rate?: number }> = {};
+
+  if (
+    engineCfg?.is_enabled &&
+    engineCfg.mode === 'yanolja_api' &&
+    engineCfg.yanolja_hotel_code?.trim() &&
+    engineCfg.yanolja_api_key?.trim()
+  ) {
+    try {
+      const apiBase =
+        engineCfg.yanolja_api_endpoint?.trim() ||
+        'https://live.ipms247.com/booking/reservation_api/listing.php';
+      const query = new URLSearchParams({
+        request_type: 'RoomList',
+        HotelCode: engineCfg.yanolja_hotel_code.trim(),
+        APIKey: engineCfg.yanolja_api_key.trim(),
+        check_in_date: checkInDate,
+        check_out_date: checkOutDate,
+        number_adults: '2',
+        number_children: '0',
+      });
+      const resp = await fetch(`${apiBase}?${query.toString()}`);
+      if (resp.ok) {
+        const yData = await resp.json();
+        const roomList = Array.isArray(yData) ? yData : yData?.RoomList || [];
+        roomList.forEach((item: any) => {
+          const rName = String(item?.Room_Name || item?.Roomtype_Name || '').toLowerCase();
+          const avail = Number(item?. min_ava_rooms ?? item?.Available_Rooms ?? -1);
+          const rate = Number(item?.room_rates_info?.avg_per_night_without_tax ?? item?.Base_Price ?? 0);
+          if (rName) {
+            yanoljaAvailabilityMap[rName] = {
+              available: avail >= 0 ? avail : undefined,
+              rate: rate > 0 ? rate : undefined,
+            };
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Yanolja API availability check fallback to database:', e);
+    }
+  }
+
   const results: AvailabilityResult[] = [];
   for (const cat of categories) {
     const categoryRooms = allRooms.filter((r) => r.category_id === cat.id);
     const availableRooms = categoryRooms.filter((r) => !bookedRoomIds.has(r.id));
-    const count = availableRooms.length > 0 ? availableRooms.length : Math.max(1, 10 - (bookedCategoryCounts[cat.id] || 0));
+    let count =
+      availableRooms.length > 0
+        ? availableRooms.length
+        : Math.max(1, 10 - (bookedCategoryCounts[cat.id] || 0));
 
-    const { effectivePrice } = getEffectiveRoomPrice(cat);
-    const subtotal = effectivePrice * nights;
+    const catKey = cat.name.toLowerCase();
+    const matchedYanolja = Object.entries(yanoljaAvailabilityMap).find(
+      ([k]) => k.includes(catKey) || catKey.includes(k)
+    )?.[1];
+
+    if (matchedYanolja?.available !== undefined) {
+      count = matchedYanolja.available;
+    }
+
+    const { effectivePrice, isInauguralActive } = getEffectiveRoomPrice(cat);
+    const finalRate =
+      !isInauguralActive && matchedYanolja?.rate ? matchedYanolja.rate : effectivePrice;
+    const subtotal = finalRate * nights;
     const { tax, total } = calculateGST(subtotal);
 
     results.push({
@@ -341,7 +404,7 @@ export async function checkRoomAvailability(
       category: cat,
       availableRoomCount: count,
       availableRooms,
-      ratePerNight: effectivePrice,
+      ratePerNight: finalRate,
       totalNights: nights,
       subtotal,
       tax,
@@ -368,6 +431,55 @@ export interface CreateBookingParams {
   promoCode?: string;
   discountAmount?: number;
   specialRequests?: string;
+  paymentStatus?: 'Pending' | 'Partial' | 'Paid';
+  paidAmount?: number;
+  paymentReference?: string;
+}
+
+async function syncBookingToYanoljaApi(
+  params: CreateBookingParams,
+  bookingRef: string,
+  totalAmount: number
+): Promise<void> {
+  const localHotel = getStoredLocalConfig();
+  const engineCfg = localHotel?.booking_engine_config ?? DEFAULT_BOOKING_ENGINE_CONFIG;
+  if (
+    !engineCfg?.is_enabled ||
+    engineCfg.mode !== 'yanolja_api' ||
+    !engineCfg.yanolja_hotel_code?.trim() ||
+    !engineCfg.yanolja_api_key?.trim()
+  ) {
+    return;
+  }
+
+  try {
+    const apiBase =
+      engineCfg.yanolja_api_endpoint?.trim() ||
+      'https://live.ipms247.com/booking/reservation_api/listing.php';
+    const nameParts = params.guestName.trim().split(' ');
+    const firstName = nameParts[0] || 'Guest';
+    const lastName = nameParts.slice(1).join(' ') || 'Guest';
+
+    const payload = new URLSearchParams({
+      request_type: 'InsertBooking',
+      HotelCode: engineCfg.yanolja_hotel_code.trim(),
+      APIKey: engineCfg.yanolja_api_key.trim(),
+      check_in_date: params.checkInDate,
+      check_out_date: params.checkOutDate,
+      First_Name: firstName,
+      Last_Name: lastName,
+      Email_Address: params.guestEmail.trim(),
+      Mobile_No: params.guestPhone.trim(),
+      booking_reference: bookingRef,
+      total_amount: String(totalAmount),
+      payment_type: params.paymentReference ? 'Prepaid_Razorpay' : 'Pay_At_Hotel',
+      payment_id: params.paymentReference || '',
+    });
+
+    await fetch(`${apiBase}?${payload.toString()}`, { method: 'POST' });
+  } catch (err) {
+    console.warn('Yanolja InsertBooking sync queued/skipped:', err);
+  }
 }
 
 /**
@@ -457,10 +569,12 @@ export async function createBooking(
           tax_amount: tax,
           discount_amount: discount,
           total_amount: totalAmount,
-          paid_amount: 0,
-          payment_status: 'Pending',
+          paid_amount: params.paidAmount ?? 0,
+          payment_status: params.paymentStatus || 'Pending',
           promo_code: effectivePromoCode,
-          special_requests: params.specialRequests || null,
+          special_requests: params.paymentReference
+            ? `${params.specialRequests ? params.specialRequests + ' | ' : ''}Razorpay Payment ID: ${params.paymentReference}`
+            : params.specialRequests || null,
         },
       ])
       .select()
@@ -479,6 +593,8 @@ export async function createBooking(
     ]);
 
     if (roomLinkErr) console.warn('Could not link room:', roomLinkErr);
+
+    await syncBookingToYanoljaApi(params, bookingRef, totalAmount);
 
     await logAction(
       params.hotelId,
@@ -501,6 +617,8 @@ export async function createBooking(
     const totalAmount = taxableAmount + tax;
     const bookingRef = generateBookingRef();
 
+    await syncBookingToYanoljaApi(params, bookingRef, totalAmount);
+
     const fallbackBooking: Booking = {
       id: `local-book-${Date.now()}`,
       hotel_id: params.hotelId,
@@ -518,10 +636,12 @@ export async function createBooking(
       tax_amount: tax,
       discount_amount: discount,
       total_amount: totalAmount,
-      paid_amount: 0,
-      payment_status: 'Pending',
+      paid_amount: params.paidAmount ?? 0,
+      payment_status: params.paymentStatus || 'Pending',
       promo_code: effectivePromoCode,
-      special_requests: params.specialRequests || undefined,
+      special_requests: params.paymentReference
+        ? `${params.specialRequests ? params.specialRequests + ' | ' : ''}Razorpay Payment ID: ${params.paymentReference}`
+        : params.specialRequests || undefined,
       booking_rooms: [
         {
           id: `local-br-${Date.now()}`,

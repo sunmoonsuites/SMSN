@@ -7,6 +7,7 @@ import {
   FAQItem,
   SocialLinks,
   BanquetConfig,
+  BookingEngineConfig,
 } from '../../types';
 import {
   updateHotel,
@@ -17,6 +18,7 @@ import {
   DEFAULT_AMENITIES_LIST,
   DEFAULT_LANDMARKS_LIST,
   DEFAULT_BANQUET_CONFIG,
+  DEFAULT_BOOKING_ENGINE_CONFIG,
   DEFAULT_FAQ_ITEMS,
   DEFAULT_SOCIAL_LINKS,
 } from '../../services/hotelService';
@@ -63,6 +65,7 @@ interface SettingsViewProps {
 
 type SettingsTab =
   | 'general'
+  | 'yanolja'
   | 'hero'
   | 'amenities'
   | 'banquet'
@@ -182,6 +185,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [tripadvisorUrl, setTripadvisorUrl] = useState(initialSocial.tripadvisor || '');
   const [googleBusinessUrl, setGoogleBusinessUrl] = useState(initialSocial.google_business || '');
 
+  // Yanolja Cloud PMS & Razorpay Payment Gateway State
+  const initialEngine: BookingEngineConfig =
+    hotel?.booking_engine_config || DEFAULT_BOOKING_ENGINE_CONFIG;
+  const [engineEnabled, setEngineEnabled] = useState<boolean>(Boolean(initialEngine.is_enabled));
+  const [engineMode, setEngineMode] = useState<'builtin' | 'yanolja_api' | 'yanolja_redirect'>(
+    initialEngine.mode || 'builtin'
+  );
+  const [yanoljaBookingUrl, setYanoljaBookingUrl] = useState<string>(
+    initialEngine.yanolja_booking_url || 'https://letsbook.me/booking/sunmoonsuites'
+  );
+  const [yanoljaHotelCode, setYanoljaHotelCode] = useState<string>(
+    initialEngine.yanolja_hotel_code || ''
+  );
+  const [yanoljaApiKey, setYanoljaApiKey] = useState<string>(
+    initialEngine.yanolja_api_key || ''
+  );
+  const [yanoljaApiEndpoint, setYanoljaApiEndpoint] = useState<string>(
+    initialEngine.yanolja_api_endpoint ||
+      'https://live.ipms247.com/booking/reservation_api/listing.php'
+  );
+  const [razorpayEnabled, setRazorpayEnabled] = useState<boolean>(
+    Boolean(initialEngine.razorpay_enabled)
+  );
+  const [razorpayKeyId, setRazorpayKeyId] = useState<string>(
+    initialEngine.razorpay_key_id || ''
+  );
+  const [razorpayKeySecret, setRazorpayKeySecret] = useState<string>(
+    initialEngine.razorpay_key_secret || ''
+  );
+  const [paymentCollectionMode, setPaymentCollectionMode] = useState<
+    'pay_at_hotel' | 'both' | 'online_only'
+  >(initialEngine.payment_collection_mode || 'pay_at_hotel');
+
   // Operation state
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -258,6 +294,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setTripadvisorUrl(hotel.social_links.tripadvisor || '');
         setGoogleBusinessUrl(hotel.social_links.google_business || '');
       }
+      if (hotel.booking_engine_config) {
+        setEngineEnabled(Boolean(hotel.booking_engine_config.is_enabled));
+        setEngineMode(hotel.booking_engine_config.mode || 'builtin');
+        setYanoljaBookingUrl(
+          hotel.booking_engine_config.yanolja_booking_url ||
+            'https://letsbook.me/booking/sunmoonsuites'
+        );
+        setYanoljaHotelCode(hotel.booking_engine_config.yanolja_hotel_code || '');
+        setYanoljaApiKey(hotel.booking_engine_config.yanolja_api_key || '');
+        setYanoljaApiEndpoint(
+          hotel.booking_engine_config.yanolja_api_endpoint ||
+            'https://live.ipms247.com/booking/reservation_api/listing.php'
+        );
+        setRazorpayEnabled(Boolean(hotel.booking_engine_config.razorpay_enabled));
+        setRazorpayKeyId(hotel.booking_engine_config.razorpay_key_id || '');
+        setRazorpayKeySecret(hotel.booking_engine_config.razorpay_key_secret || '');
+        setPaymentCollectionMode(
+          hotel.booking_engine_config.payment_collection_mode || 'pay_at_hotel'
+        );
+      }
     }
   }, [hotel]);
 
@@ -310,6 +366,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         events: banquetEvents.trim(),
         ambiance: banquetAmbiance.trim(),
         service: banquetService.trim(),
+      },
+      booking_engine_config: {
+        is_enabled: engineEnabled,
+        mode: engineMode,
+        yanolja_booking_url:
+          yanoljaBookingUrl.trim() || 'https://letsbook.me/booking/sunmoonsuites',
+        yanolja_hotel_code: yanoljaHotelCode.trim(),
+        yanolja_api_key: yanoljaApiKey.trim(),
+        yanolja_api_endpoint:
+          yanoljaApiEndpoint.trim() ||
+          'https://live.ipms247.com/booking/reservation_api/listing.php',
+        razorpay_enabled: razorpayEnabled,
+        razorpay_key_id: razorpayKeyId.trim(),
+        razorpay_key_secret: razorpayKeySecret.trim(),
+        payment_collection_mode: paymentCollectionMode,
       },
       landmarks_list: landmarksList,
       cancellation_policy: cancellationPolicy.trim(),
@@ -616,6 +687,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         >
           <Building className="w-4 h-4" />
           General Profile &amp; Contacts
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('yanolja')}
+          className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'yanolja'
+              ? 'bg-white text-stone-900 shadow-2xs font-bold'
+              : 'text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-amber-700" />
+          <span>Yanolja PMS &amp; Razorpay</span>
+          <span
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              engineEnabled || razorpayEnabled
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-stone-200 text-stone-700'
+            }`}
+          >
+            {engineEnabled || razorpayEnabled ? 'Active' : 'Standby'}
+          </span>
         </button>
 
         <button
@@ -1883,6 +1976,285 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               >
                 <Save className="w-4 h-4" />
                 {isSaving ? 'Saving...' : 'Save Social Links'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* TAB: YANOLJA PMS & RAZORPAY INTEGRATION */}
+      {activeTab === 'yanolja' && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-2xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 pb-4">
+            <div>
+              <h4 className="font-serif font-bold text-lg text-stone-900 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-amber-800" />
+                Yanolja Cloud PMS &amp; Razorpay Payment Gateway Setup
+              </h4>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Enter your Yanolja Cloud Solution and Razorpay credentials whenever you receive them, and activate with 1 click. Until activated, your website continues to use the built-in booking system safely.
+              </p>
+            </div>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider shrink-0 ${
+                engineEnabled || razorpayEnabled
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-stone-100 text-stone-600 border border-stone-200'
+              }`}
+            >
+              {engineEnabled || razorpayEnabled
+                ? 'Integration Active'
+                : 'Standby (Default Website Booking Active)'}
+            </span>
+          </div>
+
+          <form onSubmit={handleSaveAll} className="space-y-6 text-xs">
+            {/* SECTION 1: YANOLJA CLOUD PMS / BOOKING ENGINE */}
+            <div className="p-5 rounded-xl border border-amber-200 bg-amber-50/40 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h5 className="font-serif font-bold text-base text-stone-900">
+                    1. Yanolja Cloud Solution (eZee) Booking Integration
+                  </h5>
+                  <p className="text-xs text-stone-600">
+                    Turn this ON when you want bookings to connect with Yanolja Cloud Solution. When OFF, the default in-house website booking modal stays active.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !engineEnabled;
+                    setEngineEnabled(next);
+                    if (next && engineMode === 'builtin') {
+                      setEngineMode('yanolja_api');
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider cursor-pointer transition-colors shrink-0 ${
+                    engineEnabled
+                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                      : 'bg-stone-900 hover:bg-amber-800 text-white'
+                  }`}
+                >
+                  {engineEnabled ? '✓ Yanolja Active (Click to Turn OFF)' : 'Activate Yanolja Integration'}
+                </button>
+              </div>
+
+              {/* Mode Selector */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEngineMode('builtin');
+                    setEngineEnabled(false);
+                  }}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    !engineEnabled || engineMode === 'builtin'
+                      ? 'border-amber-700 bg-white ring-2 ring-amber-600/20'
+                      : 'border-stone-200 bg-white/70 hover:border-stone-300'
+                  }`}
+                >
+                  <div className="font-bold text-stone-900 flex items-center justify-between">
+                    <span>Mode A: Website Built-in</span>
+                    <span className="px-2 py-0.5 bg-stone-100 text-stone-700 rounded text-[10px]">
+                      Default
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Uses your website's built-in booking modal and saves reservations directly in your Staff PMS &amp; Supabase database.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEngineMode('yanolja_api');
+                    setEngineEnabled(true);
+                  }}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    engineEnabled && engineMode === 'yanolja_api'
+                      ? 'border-amber-700 bg-white ring-2 ring-amber-600/20'
+                      : 'border-stone-200 bg-white/70 hover:border-stone-300'
+                  }`}
+                >
+                  <div className="font-bold text-stone-900 flex items-center justify-between">
+                    <span>Mode B: Standalone API</span>
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded text-[10px] font-bold">
+                      MakeMyTrip Style
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Guests stay 100% on your website. Availability &amp; bookings sync with Yanolja in the background using Hotel Code &amp; API Key.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEngineMode('yanolja_redirect');
+                    setEngineEnabled(true);
+                  }}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    engineEnabled && engineMode === 'yanolja_redirect'
+                      ? 'border-amber-700 bg-white ring-2 ring-amber-600/20'
+                      : 'border-stone-200 bg-white/70 hover:border-stone-300'
+                  }`}
+                >
+                  <div className="font-bold text-stone-900 flex items-center justify-between">
+                    <span>Mode C: Direct Link</span>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px] font-bold">
+                      letsbook.me
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Redirects "Book Now" &amp; "Check Availability" with selected dates directly to your Yanolja booking link.
+                  </p>
+                </button>
+              </div>
+
+              {/* Yanolja Credential Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-amber-200/80">
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Yanolja / eZee Hotel Code (Property ID)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter Hotel Code provided by Yanolja (e.g. 48291)"
+                    value={yanoljaHotelCode}
+                    onChange={(e) => setYanoljaHotelCode(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Yanolja / eZee API Key (Auth Code)
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Enter API Key / Auth Code provided by Yanolja"
+                    value={yanoljaApiKey}
+                    onChange={(e) => setYanoljaApiKey(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Yanolja Direct Booking URL (letsbook.me Link)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://letsbook.me/booking/sunmoonsuites"
+                    value={yanoljaBookingUrl}
+                    onChange={(e) => setYanoljaBookingUrl(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Yanolja REST API Endpoint URL
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://live.ipms247.com/booking/reservation_api/listing.php"
+                    value={yanoljaApiEndpoint}
+                    onChange={(e) => setYanoljaApiEndpoint(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 2: RAZORPAY PAYMENT GATEWAY */}
+            <div className="p-5 rounded-xl border border-stone-200 bg-stone-50/70 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h5 className="font-serif font-bold text-base text-stone-900">
+                    2. Razorpay Payment Gateway (Online Payment on Your Website)
+                  </h5>
+                  <p className="text-xs text-stone-600">
+                    Enter your Razorpay Key ID to open the official Razorpay Payment Popup (UPI, GPay, PhonePe, Cards, NetBanking) directly on your website during checkout.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !razorpayEnabled;
+                    setRazorpayEnabled(next);
+                    if (next && paymentCollectionMode === 'pay_at_hotel') {
+                      setPaymentCollectionMode('both');
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider cursor-pointer transition-colors shrink-0 ${
+                    razorpayEnabled
+                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                      : 'bg-stone-900 hover:bg-amber-800 text-white'
+                  }`}
+                >
+                  {razorpayEnabled ? '✓ Razorpay ON (Click to Turn OFF)' : 'Activate Razorpay Gateway'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-stone-200">
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Razorpay Key ID (Live / Test Key)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. rzp_live_xxxxxxxxxxxx"
+                    value={razorpayKeyId}
+                    onChange={(e) => setRazorpayKeyId(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Razorpay Key Secret (Optional)
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Enter Key Secret from Razorpay"
+                    value={razorpayKeySecret}
+                    onChange={(e) => setRazorpayKeySecret(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Checkout Payment Mode
+                  </label>
+                  <select
+                    value={paymentCollectionMode}
+                    onChange={(e) =>
+                      setPaymentCollectionMode(
+                        e.target.value as 'pay_at_hotel' | 'both' | 'online_only'
+                      )
+                    }
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-semibold text-xs"
+                  >
+                    <option value="pay_at_hotel">Pay at Hotel Only (Default)</option>
+                    <option value="both">Both: Pay Online (Razorpay) OR Pay at Hotel</option>
+                    <option value="online_only">100% Online Payment Only (Razorpay)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-stone-200 flex justify-end">
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer shadow-xs flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {isSaving ? 'Saving...' : 'Save Yanolja & Razorpay Settings'}
               </button>
             </div>
           </form>
