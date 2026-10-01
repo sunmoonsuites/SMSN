@@ -369,7 +369,8 @@ export async function checkRoomAvailability(
         signal: controller.signal,
       });
       clearTimeout(timer);
-      if (resp.ok) {
+      const ct = resp.headers.get('content-type') || '';
+      if (resp.ok && ct.includes('application/json')) {
         const linkData = await resp.json();
         const rooms = Array.isArray(linkData?.rooms) ? linkData.rooms : [];
         rooms.forEach((item: any) => {
@@ -555,7 +556,8 @@ async function syncBookingToYanoljaApi(
         }),
       });
       clearTimeout(timer);
-      if (resp.ok) {
+      const ct = resp.headers.get('content-type') || '';
+      if (resp.ok && ct.includes('application/json')) {
         const resJson = await resp.json();
         if (resJson?.success && resJson?.yanoljaBookingId) {
           return { synced: true, yanoljaBookingId: String(resJson.yanoljaBookingId) };
