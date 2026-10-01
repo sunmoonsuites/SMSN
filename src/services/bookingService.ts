@@ -4,6 +4,7 @@ import { logAction } from './auditService';
 import { findOrCreateGuest } from './guestsService';
 import { generateBookingRef, calculateNights, calculateGST } from '../lib/utils';
 import { updateRoomStatus, getRoomCategories, getRooms, DEFAULT_ROOM_CATEGORIES } from './roomsService';
+import { getEffectiveRoomPrice } from './hotelService';
 import { emitPMSNotification } from './notificationService';
 
 export interface AvailabilityResult {
@@ -331,7 +332,8 @@ export async function checkRoomAvailability(
     const availableRooms = categoryRooms.filter((r) => !bookedRoomIds.has(r.id));
     const count = availableRooms.length > 0 ? availableRooms.length : Math.max(1, 10 - (bookedCategoryCounts[cat.id] || 0));
 
-    const subtotal = cat.base_price * nights;
+    const { effectivePrice } = getEffectiveRoomPrice(cat);
+    const subtotal = effectivePrice * nights;
     const { tax, total } = calculateGST(subtotal);
 
     results.push({
@@ -339,7 +341,7 @@ export async function checkRoomAvailability(
       category: cat,
       availableRoomCount: count,
       availableRooms,
-      ratePerNight: cat.base_price,
+      ratePerNight: effectivePrice,
       totalNights: nights,
       subtotal,
       tax,

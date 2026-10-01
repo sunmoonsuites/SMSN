@@ -293,6 +293,16 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
                         <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                           <div className="text-right">
+                            {result.category.base_price > result.ratePerNight && (
+                              <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-extrabold uppercase rounded">
+                                  {hotel?.inaugural_offer?.badge_text || '🎉 Inaugural Offer'}
+                                </span>
+                                <span className="text-xs text-stone-400 line-through font-serif">
+                                  {formatINR(result.category.base_price)}
+                                </span>
+                              </div>
+                            )}
                             <div className="text-lg font-bold text-stone-900 font-serif">
                               {formatINR(result.ratePerNight)}
                               <span className="text-xs font-normal text-stone-500"> / night</span>

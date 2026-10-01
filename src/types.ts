@@ -51,6 +51,13 @@ export interface InsightsConfig {
   description?: string;
 }
 
+export interface InauguralOfferConfig {
+  is_enabled?: boolean;
+  offer_price?: number;
+  badge_text?: string;
+  banner_text?: string;
+}
+
 export interface HeroConfig {
   badge?: string;
   heading?: string;
@@ -93,6 +100,7 @@ export interface Hotel {
   landmarks_list?: LandmarkItem[];
   banquet_config?: BanquetConfig;
   insights_config?: InsightsConfig;
+  inaugural_offer?: InauguralOfferConfig;
   cancellation_policy?: string;
   terms_and_conditions?: string;
   privacy_policy?: string;

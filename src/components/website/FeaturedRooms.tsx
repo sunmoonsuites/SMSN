@@ -5,6 +5,10 @@ import {
   getStoredCategories,
 } from '../../services/roomsService';
 import {
+  getEffectiveRoomPrice,
+  DEFAULT_INAUGURAL_OFFER_CONFIG,
+} from '../../services/hotelService';
+import {
   getGalleryItems,
   getStoredGallery,
   getPhotosForRoomCategory,
@@ -98,6 +102,10 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
     ? getPhotosForRoomCategory(lightboxCategory, galleryItems, hotelName)
     : [];
 
+  const inauguralConfig = hotel?.inaugural_offer ?? DEFAULT_INAUGURAL_OFFER_CONFIG;
+  const isGlobalInauguralActive =
+    Boolean(inauguralConfig?.is_enabled) && Number(inauguralConfig?.offer_price) > 0;
+
   return (
     <section id="rooms" className="py-20 bg-stone-50 border-b border-stone-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -111,6 +119,20 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
           <p className="text-sm text-stone-600 leading-relaxed">
             30 thoughtfully designed rooms across 4 categories—Standard Room, Deluxe Room, Super Deluxe Room, and Suite Room. Click any room photo to browse photos exclusively for that room category.
           </p>
+
+          {isGlobalInauguralActive && (
+            <div className="pt-2">
+              <div className="inline-flex flex-wrap items-center justify-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-amber-700 via-amber-800 to-stone-900 text-white text-xs sm:text-sm font-bold shadow-md border border-amber-400/40">
+                <span className="px-2 py-0.5 rounded-full bg-amber-400 text-stone-950 text-[11px] uppercase tracking-wider font-extrabold">
+                  {inauguralConfig.badge_text || '🎉 Inaugural Offer'}
+                </span>
+                <span>
+                  {inauguralConfig.banner_text ||
+                    `All Room Categories at Flat ${formatINR(Number(inauguralConfig.offer_price))} / Night!`}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {isLoading ? (
@@ -135,6 +157,7 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
               const totalPhotos = roomPhotos.length;
               const activeIdx = totalPhotos > 0 ? (cardPhotoIndex[cat.id] || 0) % totalPhotos : 0;
               const activePhoto = roomPhotos[activeIdx];
+              const priceInfo = getEffectiveRoomPrice(cat, hotel);
 
               return (
                 <div
@@ -167,9 +190,29 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                       </div>
                     )}
 
+                    {/* Inaugural Offer Badge (Top Left) */}
+                    {priceInfo.isInauguralActive && (
+                      <div className="absolute top-3 left-3 bg-amber-500 text-stone-950 px-2.5 py-1 rounded-full text-[11px] font-extrabold shadow-sm flex items-center gap-1">
+                        <span>{priceInfo.badgeText}</span>
+                        {priceInfo.discountPercent > 0 && (
+                          <span className="bg-stone-900 text-amber-300 px-1.5 py-0.2 rounded-full text-[9px] uppercase">
+                            {priceInfo.discountPercent}% OFF
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Price Badge */}
-                    <div className="absolute top-3 right-3 bg-stone-900/90 backdrop-blur-xs text-white px-3 py-1 rounded-full text-xs font-serif font-bold shadow-xs">
-                      {formatINR(cat.base_price)}{' '}
+                    <div className="absolute top-3 right-3 bg-stone-900/90 backdrop-blur-xs text-white px-3 py-1 rounded-full text-xs font-serif font-bold shadow-xs flex items-center gap-1.5">
+                      {priceInfo.isInauguralActive &&
+                        priceInfo.originalPrice > priceInfo.effectivePrice && (
+                          <span className="text-[11px] text-stone-300 line-through font-normal opacity-85">
+                            {formatINR(priceInfo.originalPrice)}
+                          </span>
+                        )}
+                      <span className={priceInfo.isInauguralActive ? 'text-amber-300 text-sm' : ''}>
+                        {formatINR(priceInfo.effectivePrice)}
+                      </span>
                       <span className="text-[10px] font-sans font-normal opacity-80">/ night</span>
                     </div>
 
@@ -316,8 +359,29 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                     Photo {lightboxIndex + 1} of {lightboxPhotos.length}
                   </span>
                 </div>
-                <h3 className="font-serif text-lg sm:text-xl font-bold text-white mt-0.5">
-                  {lightboxCategory.name} — { formatINR(lightboxCategory.base_price) } / night
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-white mt-0.5 flex items-center gap-2 flex-wrap">
+                  <span>{lightboxCategory.name} —</span>
+                  {(() => {
+                    const lbPrice = getEffectiveRoomPrice(lightboxCategory, hotel);
+                    return (
+                      <>
+                        {lbPrice.isInauguralActive &&
+                          lbPrice.originalPrice > lbPrice.effectivePrice && (
+                            <span className="text-sm text-stone-400 line-through font-normal">
+                              {formatINR(lbPrice.originalPrice)}
+                            </span>
+                          )}
+                        <span className="text-amber-300">
+                          {formatINR(lbPrice.effectivePrice)} / night
+                        </span>
+                        {lbPrice.isInauguralActive && (
+                          <span className="px-2 py-0.5 bg-amber-500 text-stone-950 text-[10px] font-sans font-extrabold rounded-full">
+                            {lbPrice.badgeText}
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </h3>
               </div>
 

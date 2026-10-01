@@ -7,6 +7,8 @@ import {
   LandmarkItem,
   BanquetConfig,
   InsightsConfig,
+  InauguralOfferConfig,
+  RoomCategory,
   SocialLinks,
   FAQItem,
 } from '../types';
@@ -157,6 +159,55 @@ export const DEFAULT_INSIGHTS_CONFIG: InsightsConfig = {
     'Explore helpful guides on local events in Noida, metro connectivity, medical stay tips, and hospitality updates from Sun Moon Suites in Sector 117.',
 };
 
+export const DEFAULT_INAUGURAL_OFFER_CONFIG: InauguralOfferConfig = {
+  is_enabled: true,
+  offer_price: 999,
+  badge_text: '🎉 Inaugural Offer',
+  banner_text: 'Grand Inaugural Offer — All Room Categories at Flat ₹999 / Night!',
+};
+
+/**
+ * Returns the active per-night tariff for a room category, taking the hotel's
+ * Inaugural Offer into account when enabled, along with the original base_price.
+ */
+export function getEffectiveRoomPrice(
+  cat: Pick<RoomCategory, 'base_price'>,
+  hotel?: Partial<Hotel> | null
+): {
+  effectivePrice: number;
+  originalPrice: number;
+  isInauguralActive: boolean;
+  badgeText: string;
+  discountPercent: number;
+} {
+  const originalPrice = Number(cat.base_price) || 1500;
+  const localHotel = hotel || getStoredLocalConfig();
+  const offer = localHotel?.inaugural_offer ?? DEFAULT_INAUGURAL_OFFER_CONFIG;
+  const offerPrice = Number(offer?.offer_price);
+
+  if (offer?.is_enabled && offerPrice > 0) {
+    const discountPercent =
+      originalPrice > offerPrice
+        ? Math.round(((originalPrice - offerPrice) / originalPrice) * 100)
+        : 0;
+    return {
+      effectivePrice: offerPrice,
+      originalPrice,
+      isInauguralActive: true,
+      badgeText: offer.badge_text || '🎉 Inaugural Offer',
+      discountPercent,
+    };
+  }
+
+  return {
+    effectivePrice: originalPrice,
+    originalPrice,
+    isInauguralActive: false,
+    badgeText: '',
+    discountPercent: 0,
+  };
+}
+
 export const DEFAULT_SOCIAL_LINKS: SocialLinks = {
   instagram: 'https://instagram.com/sunmoonsuites',
   facebook: 'https://facebook.com/sunmoonsuites',
@@ -221,6 +272,7 @@ export const DEFAULT_HOTEL_INFO: Partial<Hotel> = {
   landmarks_list: DEFAULT_LANDMARKS_LIST,
   banquet_config: DEFAULT_BANQUET_CONFIG,
   insights_config: DEFAULT_INSIGHTS_CONFIG,
+  inaugural_offer: DEFAULT_INAUGURAL_OFFER_CONFIG,
   cancellation_policy:
     'Free cancellation up to 24 hours prior to standard check-in time (14:00 hotel local time). Cancellations made within 24 hours of arrival will incur a 1-night tariff fee. No-shows are charged the full reservation amount.',
   terms_and_conditions:
@@ -319,6 +371,7 @@ function encodeCmsPayloadForHotelsTable(config: Partial<Hotel>): string {
         : DEFAULT_LANDMARKS_LIST,
     banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
     insights_config: config.insights_config || DEFAULT_INSIGHTS_CONFIG,
+    inaugural_offer: config.inaugural_offer || DEFAULT_INAUGURAL_OFFER_CONFIG,
     cancellation_policy:
       config.cancellation_policy || DEFAULT_HOTEL_INFO.cancellation_policy || '',
     terms_and_conditions:
@@ -508,6 +561,7 @@ async function persistFullHotelConfigToSupabase(
           landmarks_list: config.landmarks_list || DEFAULT_LANDMARKS_LIST,
           banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
           insights_config: config.insights_config || DEFAULT_INSIGHTS_CONFIG,
+          inaugural_offer: config.inaugural_offer || DEFAULT_INAUGURAL_OFFER_CONFIG,
         },
       };
 
@@ -587,6 +641,10 @@ export async function getHotel(): Promise<Hotel | null> {
             rawSettingsSocial.insights_config ||
             localConfig.insights_config ||
             DEFAULT_INSIGHTS_CONFIG,
+          inaugural_offer:
+            rawSettingsSocial.inaugural_offer ||
+            localConfig.inaugural_offer ||
+            DEFAULT_INAUGURAL_OFFER_CONFIG,
           plus_code:
             rawSettingsSocial.plus_code ||
             localConfig.plus_code ||
@@ -650,6 +708,10 @@ export async function getHotel(): Promise<Hotel | null> {
         insights_config: {
           ...DEFAULT_INSIGHTS_CONFIG,
           ...(cmsFromHotelsTable.insights_config || rawSettingsSocial.insights_config || {}),
+        },
+        inaugural_offer: {
+          ...DEFAULT_INAUGURAL_OFFER_CONFIG,
+          ...(cmsFromHotelsTable.inaugural_offer || rawSettingsSocial.inaugural_offer || {}),
         },
         social_links: {
           ...DEFAULT_SOCIAL_LINKS,

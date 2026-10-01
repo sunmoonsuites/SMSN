@@ -6,6 +6,10 @@ import {
   updateOffer,
   deleteOffer,
 } from '../../services/offersService';
+import {
+  updateHotel,
+  DEFAULT_INAUGURAL_OFFER_CONFIG,
+} from '../../services/hotelService';
 import { formatINR, formatDate } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { EmptyState } from '../common/EmptyState';
@@ -15,6 +19,7 @@ import {
   Plus,
   Trash2,
   Calendar,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface OffersManagementViewProps {
@@ -40,6 +45,58 @@ export const OffersManagementView: React.FC<OffersManagementViewProps> = ({ hote
   });
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Inaugural Flat Offer State
+  const initialInaugural = hotel?.inaugural_offer ?? DEFAULT_INAUGURAL_OFFER_CONFIG;
+  const [inauguralEnabled, setInauguralEnabled] = useState<boolean>(
+    initialInaugural.is_enabled !== false
+  );
+  const [inauguralPrice, setInauguralPrice] = useState<number>(
+    Number(initialInaugural.offer_price) || 999
+  );
+  const [inauguralBanner, setInauguralBanner] = useState<string>(
+    initialInaugural.banner_text ||
+      'Grand Inaugural Offer — All Room Categories at Flat ₹999 / Night!'
+  );
+  const [isSavingInaugural, setIsSavingInaugural] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  useEffect(() => {
+    const cfg = hotel?.inaugural_offer ?? DEFAULT_INAUGURAL_OFFER_CONFIG;
+    setInauguralEnabled(cfg.is_enabled !== false);
+    setInauguralPrice(Number(cfg.offer_price) || 999);
+    setInauguralBanner(
+      cfg.banner_text || 'Grand Inaugural Offer — All Room Categories at Flat ₹999 / Night!'
+    );
+  }, [hotel?.inaugural_offer]);
+
+  const handleSaveInauguralOffer = async (nextEnabled?: boolean) => {
+    if (!hotel?.id) return;
+    const targetEnabled = nextEnabled !== undefined ? nextEnabled : inauguralEnabled;
+    setInauguralEnabled(targetEnabled);
+    setIsSavingInaugural(true);
+    const res = await updateHotel(hotel.id, {
+      inaugural_offer: {
+        is_enabled: targetEnabled,
+        offer_price: Number(inauguralPrice) || 999,
+        badge_text: '🎉 Inaugural Offer',
+        banner_text:
+          inauguralBanner.trim() ||
+          `Grand Inaugural Offer — All Room Categories at Flat ₹${Number(inauguralPrice) || 999} / Night!`,
+      },
+    });
+    setIsSavingInaugural(false);
+    if (res.success) {
+      setStatusMessage(
+        targetEnabled
+          ? `🎉 Inaugural Offer Active: All Room Categories are now displayed at ${formatINR(
+              Number(inauguralPrice) || 999
+            )} / night on the website!`
+          : 'Inaugural Offer turned OFF. Website now displays standard room category tariffs.'
+      );
+      setTimeout(() => setStatusMessage(''), 5000);
+    }
+  };
 
   useEffect(() => {
     if (hotel?.id) {
@@ -129,6 +186,96 @@ export const OffersManagementView: React.FC<OffersManagementViewProps> = ({ hote
           <Plus className="w-4 h-4" />
           <span>Add Promo Code</span>
         </button>
+      </div>
+
+      {statusMessage && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs rounded-xl flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{statusMessage}</span>
+        </div>
+      )}
+
+      {/* 1-Click Inaugural Flat Offer Manager */}
+      <div className="p-4 rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-white to-amber-50/60 shadow-2xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-800 text-white text-[10px] font-extrabold uppercase tracking-wider">
+                🎉 Inaugural Offer Control
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                  inauguralEnabled
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-stone-200 text-stone-600'
+                }`}
+              >
+                {inauguralEnabled
+                  ? `LIVE ON WEBSITE (${formatINR(inauguralPrice)} / Night)`
+                  : 'OFF (Regular Tariffs)'}
+              </span>
+            </div>
+            <h4 className="font-serif font-bold text-base text-stone-900">
+              All Room Categories Flat Offer Rate (Strikethrough Regular Tariff + Offer Badge)
+            </h4>
+            <p className="text-xs text-stone-600">
+              When turned <strong>ON</strong>, all 4 room categories show their regular tariff crossed out (e.g.{' '}
+              <span className="line-through">₹2,000</span>) and book at your flat offer rate (
+              <strong>{formatINR(inauguralPrice)}/night</strong>). Turning it <strong>OFF</strong> immediately restores regular room tariffs.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              disabled={isSavingInaugural}
+              onClick={() => handleSaveInauguralOffer(!inauguralEnabled)}
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition-colors cursor-pointer shadow-xs ${
+                inauguralEnabled
+                  ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                  : 'bg-stone-800 hover:bg-stone-900 text-white'
+              }`}
+            >
+              {inauguralEnabled ? '✓ Offer is ON (Click to Turn OFF)' : 'Turn ON Inaugural Offer'}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-2 border-t border-amber-200/70 items-end">
+          <div className="sm:col-span-3">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-700 mb-1">
+              Flat Offer Price / Night (INR)
+            </label>
+            <input
+              type="number"
+              min={100}
+              value={inauguralPrice}
+              onChange={(e) => setInauguralPrice(Number(e.target.value))}
+              className="w-full px-3 py-1.5 text-xs font-bold border border-stone-300 rounded-lg bg-white"
+            />
+          </div>
+          <div className="sm:col-span-7">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-700 mb-1">
+              Website Offer Banner Text
+            </label>
+            <input
+              type="text"
+              value={inauguralBanner}
+              onChange={(e) => setInauguralBanner(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs border border-stone-300 rounded-lg bg-white"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <button
+              type="button"
+              disabled={isSavingInaugural}
+              onClick={() => handleSaveInauguralOffer(inauguralEnabled)}
+              className="w-full py-1.5 px-3 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              {isSavingInaugural ? 'Saving...' : 'Save Offer'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Offers Grid */}

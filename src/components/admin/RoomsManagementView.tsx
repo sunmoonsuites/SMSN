@@ -9,6 +9,11 @@ import {
   updateRoomCategory,
 } from '../../services/roomsService';
 import {
+  updateHotel,
+  getEffectiveRoomPrice,
+  DEFAULT_INAUGURAL_OFFER_CONFIG,
+} from '../../services/hotelService';
+import {
   getGalleryItems,
   getPhotosForRoomCategory,
   normalizeRoomCategoryName,
@@ -60,6 +65,57 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
   // 30 Rooms Auto-Setup
   const [isInitializing, setIsInitializing] = useState(false);
   const [message, setMessage] = useState('');
+
+  // Inaugural Offer State
+  const initialInaugural = hotel?.inaugural_offer ?? DEFAULT_INAUGURAL_OFFER_CONFIG;
+  const [inauguralEnabled, setInauguralEnabled] = useState<boolean>(
+    initialInaugural.is_enabled !== false
+  );
+  const [inauguralPrice, setInauguralPrice] = useState<number>(
+    Number(initialInaugural.offer_price) || 999
+  );
+  const [inauguralBanner, setInauguralBanner] = useState<string>(
+    initialInaugural.banner_text ||
+      'Grand Inaugural Offer — All Room Categories at Flat ₹999 / Night!'
+  );
+  const [isSavingInaugural, setIsSavingInaugural] = useState(false);
+
+  useEffect(() => {
+    const cfg = hotel?.inaugural_offer ?? DEFAULT_INAUGURAL_OFFER_CONFIG;
+    setInauguralEnabled(cfg.is_enabled !== false);
+    setInauguralPrice(Number(cfg.offer_price) || 999);
+    setInauguralBanner(
+      cfg.banner_text || 'Grand Inaugural Offer — All Room Categories at Flat ₹999 / Night!'
+    );
+  }, [hotel?.inaugural_offer]);
+
+  const handleSaveInauguralOffer = async (nextEnabled?: boolean) => {
+    if (!hotel?.id) return;
+    const targetEnabled = nextEnabled !== undefined ? nextEnabled : inauguralEnabled;
+    setInauguralEnabled(targetEnabled);
+    setIsSavingInaugural(true);
+    const res = await updateHotel(hotel.id, {
+      inaugural_offer: {
+        is_enabled: targetEnabled,
+        offer_price: Number(inauguralPrice) || 999,
+        badge_text: '🎉 Inaugural Offer',
+        banner_text:
+          inauguralBanner.trim() ||
+          `Grand Inaugural Offer — All Room Categories at Flat ₹${Number(inauguralPrice) || 999} / Night!`,
+      },
+    });
+    setIsSavingInaugural(false);
+    if (res.success) {
+      setMessage(
+        targetEnabled
+          ? `🎉 Inaugural Offer Active: All Room Categories are now displayed at ${formatINR(
+              Number(inauguralPrice) || 999
+            )} / night on the website!`
+          : 'Inaugural Offer turned OFF. Website now displays standard room category tariffs.'
+      );
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
 
   useEffect(() => {
     if (hotel?.id) {
@@ -359,6 +415,85 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
         </div>
       )}
 
+      {/* 1-Click Inaugural Flat Offer Manager */}
+      <div className="p-4 rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-white to-amber-50/60 shadow-2xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-800 text-white text-[10px] font-extrabold uppercase tracking-wider">
+                🎉 Inaugural Offer Control
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                  inauguralEnabled
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-stone-200 text-stone-600'
+                }`}
+              >
+                {inauguralEnabled ? `LIVE ON WEBSITE (${formatINR(inauguralPrice)} / Night)` : 'OFF (Regular Tariffs)'}
+              </span>
+            </div>
+            <h4 className="font-serif font-bold text-base text-stone-900">
+              All Room Categories Flat Offer Rate (Strikethrough Regular Tariff + Offer Badge)
+            </h4>
+            <p className="text-xs text-stone-600">
+              When turned <strong>ON</strong>, all 4 room categories show their regular tariff crossed out (e.g. <span className="line-through">₹2,000</span>) and book at your flat offer rate (<strong>{formatINR(inauguralPrice)}/night</strong>). Turning it <strong>OFF</strong> immediately restores regular room tariffs.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              disabled={isSavingInaugural}
+              onClick={() => handleSaveInauguralOffer(!inauguralEnabled)}
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition-colors cursor-pointer shadow-xs ${
+                inauguralEnabled
+                  ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                  : 'bg-stone-800 hover:bg-stone-900 text-white'
+              }`}
+            >
+              {inauguralEnabled ? '✓ Offer is ON (Click to Turn OFF)' : 'Turn ON Inaugural Offer'}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-2 border-t border-amber-200/70 items-end">
+          <div className="sm:col-span-3">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-700 mb-1">
+              Flat Offer Price / Night (INR)
+            </label>
+            <input
+              type="number"
+              min={100}
+              value={inauguralPrice}
+              onChange={(e) => setInauguralPrice(Number(e.target.value))}
+              className="w-full px-3 py-1.5 text-xs font-bold border border-stone-300 rounded-lg bg-white"
+            />
+          </div>
+          <div className="sm:col-span-7">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-700 mb-1">
+              Website Offer Banner Text
+            </label>
+            <input
+              type="text"
+              value={inauguralBanner}
+              onChange={(e) => setInauguralBanner(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs border border-stone-300 rounded-lg bg-white"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <button
+              type="button"
+              disabled={isSavingInaugural}
+              onClick={() => handleSaveInauguralOffer(inauguralEnabled)}
+              className="w-full py-1.5 px-3 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              {isSavingInaugural ? 'Saving...' : 'Save Offer'}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Website Room Categories & Photos Manager */}
       {categories.length > 0 && (
         <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs space-y-3">
@@ -368,7 +503,7 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
                 Website Room Categories, Tariffs &amp; Photos ({categories.length})
               </h4>
               <p className="text-xs text-stone-500">
-                Click <strong>Select Photo from Gallery / Tariff</strong> on any room category to choose its display photo directly from your Website Gallery
+                Click <strong>Manage Photos</strong> on any room category to edit its regular tariff or manage its display photos from your Website Gallery
               </p>
             </div>
           </div>
@@ -380,6 +515,15 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
                 galleryImages,
                 hotel?.name || 'Sun Moon Suites'
               );
+              const priceInfo = getEffectiveRoomPrice(cat, {
+                ...hotel,
+                inaugural_offer: {
+                  is_enabled: inauguralEnabled,
+                  offer_price: inauguralPrice,
+                  badge_text: '🎉 Inaugural Offer',
+                  banner_text: inauguralBanner,
+                },
+              });
               return (
                 <div
                   key={cat.id}
@@ -398,8 +542,16 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
                         <ImageIcon className="w-6 h-6" />
                       </div>
                     )}
-                    <span className="absolute top-2 right-2 px-2 py-0.5 bg-stone-900/85 text-white text-xs font-serif font-bold rounded">
-                      {formatINR(cat.base_price)}
+                    <span className="absolute top-2 right-2 px-2 py-0.5 bg-stone-900/85 text-white text-xs font-serif font-bold rounded flex items-center gap-1">
+                      {priceInfo.isInauguralActive &&
+                        priceInfo.originalPrice > priceInfo.effectivePrice && (
+                          <span className="text-[10px] text-stone-300 line-through font-normal">
+                            {formatINR(priceInfo.originalPrice)}
+                          </span>
+                        )}
+                      <span className={priceInfo.isInauguralActive ? 'text-amber-300' : ''}>
+                        {formatINR(priceInfo.effectivePrice)}
+                      </span>
                     </span>
                     <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-stone-900/85 text-amber-300 text-[10px] font-bold rounded flex items-center gap-1">
                       <Images className="w-3 h-3" />
