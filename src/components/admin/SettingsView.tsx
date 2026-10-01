@@ -8,6 +8,7 @@ import {
   SocialLinks,
   BanquetConfig,
   BookingEngineConfig,
+  EmailVerificationConfig,
 } from '../../types';
 import {
   updateHotel,
@@ -19,6 +20,7 @@ import {
   DEFAULT_LANDMARKS_LIST,
   DEFAULT_BANQUET_CONFIG,
   DEFAULT_BOOKING_ENGINE_CONFIG,
+  DEFAULT_EMAIL_VERIFICATION_CONFIG,
   DEFAULT_FAQ_ITEMS,
   DEFAULT_SOCIAL_LINKS,
 } from '../../services/hotelService';
@@ -28,6 +30,7 @@ import { getAmenityIcon } from '../website/AmenitiesSection';
 import { usePMSTheme } from '../../services/themeService';
 import { uploadImageToSupabase } from '../../services/storageService';
 import { GalleryPickerModal } from '../common/GalleryPickerModal';
+import { testGmailConfiguration } from '../../services/emailVerificationService';
 import {
   Settings,
   Building,
@@ -55,6 +58,12 @@ import {
   Sun,
   Moon,
   Clock,
+  Mail,
+  Key,
+  Eye,
+  EyeOff,
+  Send,
+  Info,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -66,6 +75,7 @@ interface SettingsViewProps {
 type SettingsTab =
   | 'general'
   | 'yanolja'
+  | 'email_verification'
   | 'hero'
   | 'amenities'
   | 'banquet'
@@ -233,6 +243,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     error?: string;
   } | null>(null);
 
+  // Email & Google App Password Verification State
+  const initialEmailConfig: EmailVerificationConfig =
+    hotel?.email_verification_config || DEFAULT_EMAIL_VERIFICATION_CONFIG;
+  const [emailVerificationEnabled, setEmailVerificationEnabled] = useState<boolean>(
+    initialEmailConfig.is_enabled !== false
+  );
+  const [senderEmail, setSenderEmail] = useState<string>(
+    initialEmailConfig.sender_email || 'sunmoonsuites@gmail.com'
+  );
+  const [gmailAppPassword, setGmailAppPassword] = useState<string>(
+    initialEmailConfig.gmail_app_password || ''
+  );
+  const [senderName, setSenderName] = useState<string>(
+    initialEmailConfig.sender_name || 'Sun Moon Suites'
+  );
+  const [showAppPassword, setShowAppPassword] = useState(false);
+  const [testRecipientEmail, setTestRecipientEmail] = useState(
+    hotel?.email || 'sunmoonsuites@gmail.com'
+  );
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [emailTestResult, setEmailTestResult] = useState<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  } | null>(null);
+
   // Operation state
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -331,6 +367,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           hotel.booking_engine_config.payment_collection_mode || 'pay_at_hotel'
         );
       }
+      if (hotel.email_verification_config) {
+        setEmailVerificationEnabled(hotel.email_verification_config.is_enabled !== false);
+        setSenderEmail(hotel.email_verification_config.sender_email || 'sunmoonsuites@gmail.com');
+        setGmailAppPassword(hotel.email_verification_config.gmail_app_password || '');
+        setSenderName(hotel.email_verification_config.sender_name || 'Sun Moon Suites');
+      }
     }
   }, [hotel]);
 
@@ -399,6 +441,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         razorpay_key_secret: razorpayKeySecret.trim(),
         payment_collection_mode: paymentCollectionMode,
       },
+      email_verification_config: {
+        is_enabled: emailVerificationEnabled,
+        sender_email: senderEmail.trim(),
+        gmail_app_password: gmailAppPassword.trim(),
+        sender_name: senderName.trim(),
+      },
       landmarks_list: landmarksList,
       cancellation_policy: cancellationPolicy.trim(),
       terms_and_conditions: termsAndConditions.trim(),
@@ -422,6 +470,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     } else {
       setSaveError(res.error || 'Failed to save settings.');
     }
+  };
+
+  // Test Gmail Configuration handler
+  const handleTestEmail = async () => {
+    if (!gmailAppPassword.trim()) {
+      setEmailTestResult({
+        success: false,
+        error: 'Please enter a 16-character Google App Password first.',
+      });
+      return;
+    }
+    setIsTestingEmail(true);
+    setEmailTestResult(null);
+
+    const res = await testGmailConfiguration({
+      senderEmail: senderEmail.trim(),
+      gmailAppPassword: gmailAppPassword.trim(),
+      testRecipientEmail: testRecipientEmail.trim() || senderEmail.trim(),
+      senderName: senderName.trim(),
+    });
+
+    setIsTestingEmail(false);
+    setEmailTestResult(res);
   };
 
   // Amenities handlers
@@ -725,6 +796,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             }`}
           >
             {engineEnabled || razorpayEnabled ? 'Active' : 'Standby'}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('email_verification')}
+          className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'email_verification'
+              ? 'bg-white text-stone-900 shadow-2xs font-bold'
+              : 'text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <Mail className="w-4 h-4 text-amber-700" />
+          <span>Email OTP Verification</span>
+          <span
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              emailVerificationEnabled && gmailAppPassword.trim()
+                ? 'bg-emerald-100 text-emerald-800'
+                : emailVerificationEnabled
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-stone-200 text-stone-700'
+            }`}
+          >
+            {emailVerificationEnabled && gmailAppPassword.trim()
+              ? 'Active'
+              : emailVerificationEnabled
+              ? 'Setup Needed'
+              : 'Disabled'}
           </span>
         </button>
 
@@ -2347,6 +2446,242 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               >
                 <Save className="w-4 h-4" />
                 {isSaving ? 'Saving...' : 'Save Yanolja & Razorpay Settings'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* TAB: GMAIL OTP EMAIL VERIFICATION SETTINGS */}
+      {activeTab === 'email_verification' && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-2xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 pb-4">
+            <div>
+              <h4 className="font-serif font-bold text-lg text-stone-900 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-amber-800" />
+                Guest Email OTP Verification via Gmail
+              </h4>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Send an automated 6-digit security code to guests via Gmail before confirming room reservations. Codes are sent directly through your official Gmail account.
+              </p>
+            </div>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider shrink-0 ${
+                emailVerificationEnabled && gmailAppPassword.trim()
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : emailVerificationEnabled
+                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                  : 'bg-stone-100 text-stone-600 border border-stone-200'
+              }`}
+            >
+              {emailVerificationEnabled && gmailAppPassword.trim()
+                ? '✓ Active & Sending via Gmail'
+                : emailVerificationEnabled
+                ? 'App Password Needed'
+                : 'Feature Disabled'}
+            </span>
+          </div>
+
+          <form onSubmit={handleSaveAll} className="space-y-6 text-xs">
+            {/* TOGGLE CARD */}
+            <div className="p-5 rounded-xl border border-amber-200 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h5 className="font-serif font-bold text-base text-stone-900">
+                  Require Email Verification Before Booking Confirmation
+                </h5>
+                <p className="text-xs text-stone-600 mt-1 max-w-xl">
+                  When enabled, any guest booking on your website will receive an instant 6-digit verification code on their email address. They must enter this code to finalize their reservation.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEmailVerificationEnabled(!emailVerificationEnabled)}
+                className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider cursor-pointer transition-colors shrink-0 ${
+                  emailVerificationEnabled
+                    ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                    : 'bg-stone-300 hover:bg-stone-400 text-stone-800'
+                }`}
+              >
+                {emailVerificationEnabled ? '✓ Enabled' : 'Disabled'}
+              </button>
+            </div>
+
+            {/* CREDENTIALS CARD */}
+            <div className="p-5 rounded-xl border border-stone-200 bg-white space-y-4">
+              <h5 className="font-serif font-bold text-sm text-stone-900 flex items-center gap-2">
+                <Key className="w-4 h-4 text-amber-800" />
+                Gmail SMTP &amp; Google App Password Credentials (Saved in Supabase)
+              </h5>
+              <p className="text-stone-500 text-xs">
+                These credentials are saved safely in your Supabase database. Your actual Gmail account password is <strong>never</strong> needed or stored. Only an official Google App Password is used.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Sender Gmail Address *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={senderEmail}
+                    onChange={(e) => setSenderEmail(e.target.value)}
+                    placeholder="sunmoonsuites@gmail.com"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs bg-stone-50 font-medium"
+                  />
+                  <span className="text-[11px] text-stone-500 mt-1 block">
+                    Verification emails will be dispatched from this Gmail address.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Sender Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={senderName}
+                    onChange={(e) => setSenderName(e.target.value)}
+                    placeholder="Sun Moon Suites"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs font-medium"
+                  />
+                  <span className="text-[11px] text-stone-500 mt-1 block">
+                    The hotel name displayed in the guest's email inbox.
+                  </span>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Google App Password (16 Characters) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showAppPassword ? 'text' : 'password'}
+                      value={gmailAppPassword}
+                      onChange={(e) => setGmailAppPassword(e.target.value)}
+                      placeholder="e.g. abcd efgh ijkl mnop"
+                      className="w-full px-3 py-2.5 pr-10 border border-stone-300 rounded-lg font-mono text-sm tracking-widest bg-stone-50 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-700 font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAppPassword(!showAppPassword)}
+                      className="absolute right-2.5 top-2.5 text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
+                      title={showAppPassword ? 'Hide Password' : 'Show Password'}
+                    >
+                      {showAppPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <span className="text-[11px] text-amber-900 mt-1 block font-medium">
+                    Spaces are automatically handled. Paste the 16-letter code generated by Google.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* STEP-BY-STEP GOOGLE APP PASSWORD GUIDE */}
+            <div className="p-5 rounded-xl border border-sky-200 bg-sky-50/50 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Info className="w-5 h-5 text-sky-700 shrink-0" />
+                  <h5 className="font-serif font-bold text-sm text-sky-950">
+                    Google App Password Kaise Generate Karein (Step-by-Step Guide):
+                  </h5>
+                </div>
+                <a
+                  href="https://myaccount.google.com/apppasswords"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shrink-0"
+                >
+                  <span>Open Google App Passwords</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs text-stone-700">
+                <div className="bg-white p-3.5 rounded-lg border border-sky-100 space-y-1.5">
+                  <span className="font-bold text-sky-900 block text-xs">Step 1 &amp; 2: Security &amp; 2-Step Verification</span>
+                  <p className="text-[11px] text-stone-600 leading-relaxed">
+                    1. Google Account me login karein: <strong>myaccount.google.com</strong> (using {senderEmail}).<br/>
+                    2. Left menu me <strong>"Security"</strong> (सुरक्षा) par click karein.<br/>
+                    3. Ensure karein ki <strong>"2-Step Verification"</strong> ON hai (Google App Password ke liye 2-Step Verification ON hona zaroori hota hai).
+                  </p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-lg border border-sky-100 space-y-1.5">
+                  <span className="font-bold text-sky-900 block text-xs">Step 3 &amp; 4: Generate 16-digit App Password</span>
+                  <p className="text-[11px] text-stone-600 leading-relaxed">
+                    4. Search bar me type karein <strong>"App passwords"</strong> ya direct link par click karein.<br/>
+                    5. App name me likhein: <strong>"Sun Moon Suites PMS"</strong> aur <strong>"Create"</strong> par click karein.<br/>
+                    6. Google aapko 16-character ka password dega (jaise <em>abcd efgh ijkl mnop</em>).<br/>
+                    7. Is 16-character code ko copy karke upar paste karein aur <strong>Save All Changes</strong> par click karein.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* LIVE TEST CONNECTION CARD */}
+            <div className="p-5 rounded-xl border border-stone-200 bg-white space-y-3">
+              <h5 className="font-serif font-bold text-sm text-stone-900 flex items-center gap-2">
+                <Send className="w-4 h-4 text-amber-800" />
+                Test Gmail Connection &amp; Send Test Email
+              </h5>
+              <p className="text-xs text-stone-500">
+                Verify that your Google App Password is authenticated and able to send live OTP emails right now.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+                <input
+                  type="email"
+                  value={testRecipientEmail}
+                  onChange={(e) => setTestRecipientEmail(e.target.value)}
+                  placeholder="Enter test email address..."
+                  className="w-full sm:flex-1 px-3 py-2 border border-stone-300 rounded-lg text-xs"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleTestEmail}
+                  disabled={isTestingEmail || !gmailAppPassword.trim()}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-stone-900 hover:bg-amber-800 disabled:opacity-50 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {isTestingEmail ? 'Testing Connection...' : 'Send Test Email'}
+                </button>
+              </div>
+
+              {emailTestResult && (
+                <div
+                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                    emailTestResult.success
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-rose-50 border-rose-200 text-rose-800'
+                  }`}
+                >
+                  {emailTestResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <span className="font-bold">
+                      {emailTestResult.success ? 'Success: ' : 'Error: '}
+                    </span>
+                    {emailTestResult.message || emailTestResult.error}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-stone-200 flex justify-end">
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer shadow-xs flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {isSaving ? 'Saving Changes to Supabase...' : 'Save Email Verification Settings'}
               </button>
             </div>
           </form>

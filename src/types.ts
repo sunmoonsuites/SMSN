@@ -58,6 +58,13 @@ export interface InauguralOfferConfig {
   banner_text?: string;
 }
 
+export interface EmailVerificationConfig {
+  is_enabled?: boolean;
+  sender_email?: string;
+  gmail_app_password?: string;
+  sender_name?: string;
+}
+
 export interface BookingEngineConfig {
   is_enabled?: boolean;
   mode?: 'builtin' | 'local_only' | 'yanolja_link_inbuilt' | 'yanolja_api' | 'yanolja_redirect';
@@ -114,6 +121,7 @@ export interface Hotel {
   banquet_config?: BanquetConfig;
   insights_config?: InsightsConfig;
   inaugural_offer?: InauguralOfferConfig;
+  email_verification_config?: EmailVerificationConfig;
   booking_engine_config?: BookingEngineConfig;
   cancellation_policy?: string;
   terms_and_conditions?: string;

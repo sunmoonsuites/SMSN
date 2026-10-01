@@ -8,6 +8,7 @@ import {
   BanquetConfig,
   InsightsConfig,
   InauguralOfferConfig,
+  EmailVerificationConfig,
   BookingEngineConfig,
   RoomCategory,
   SocialLinks,
@@ -166,6 +167,27 @@ export const DEFAULT_INAUGURAL_OFFER_CONFIG: InauguralOfferConfig = {
   badge_text: '🎉 Inaugural Offer',
   banner_text: 'Grand Inaugural Offer — All Room Categories at Flat ₹999 / Night!',
 };
+
+export const DEFAULT_EMAIL_VERIFICATION_CONFIG: EmailVerificationConfig = {
+  is_enabled: true,
+  sender_email: 'sunmoonsuites@gmail.com',
+  gmail_app_password: '',
+  sender_name: 'Sun Moon Suites',
+};
+
+export function normalizeEmailVerificationConfig(
+  raw?: Partial<EmailVerificationConfig> | null
+): EmailVerificationConfig {
+  if (!raw) return { ...DEFAULT_EMAIL_VERIFICATION_CONFIG };
+  return {
+    ...DEFAULT_EMAIL_VERIFICATION_CONFIG,
+    ...raw,
+    is_enabled: raw.is_enabled !== false,
+    sender_email: raw.sender_email?.trim() || DEFAULT_EMAIL_VERIFICATION_CONFIG.sender_email,
+    gmail_app_password: raw.gmail_app_password?.trim() || '',
+    sender_name: raw.sender_name?.trim() || DEFAULT_EMAIL_VERIFICATION_CONFIG.sender_name,
+  };
+}
 
 export const DEFAULT_BOOKING_ENGINE_CONFIG: BookingEngineConfig = {
   is_enabled: true,
@@ -335,6 +357,7 @@ export const DEFAULT_HOTEL_INFO: Partial<Hotel> = {
   banquet_config: DEFAULT_BANQUET_CONFIG,
   insights_config: DEFAULT_INSIGHTS_CONFIG,
   inaugural_offer: DEFAULT_INAUGURAL_OFFER_CONFIG,
+  email_verification_config: DEFAULT_EMAIL_VERIFICATION_CONFIG,
   booking_engine_config: DEFAULT_BOOKING_ENGINE_CONFIG,
   cancellation_policy:
     'Free cancellation up to 24 hours prior to standard check-in time (14:00 hotel local time). Cancellations made within 24 hours of arrival will incur a 1-night tariff fee. No-shows are charged the full reservation amount.',
@@ -435,6 +458,8 @@ function encodeCmsPayloadForHotelsTable(config: Partial<Hotel>): string {
     banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
     insights_config: config.insights_config || DEFAULT_INSIGHTS_CONFIG,
     inaugural_offer: config.inaugural_offer || DEFAULT_INAUGURAL_OFFER_CONFIG,
+    email_verification_config:
+      config.email_verification_config || DEFAULT_EMAIL_VERIFICATION_CONFIG,
     booking_engine_config: config.booking_engine_config || DEFAULT_BOOKING_ENGINE_CONFIG,
     cancellation_policy:
       config.cancellation_policy || DEFAULT_HOTEL_INFO.cancellation_policy || '',
@@ -543,6 +568,9 @@ export function getInitialHotelSync(): Hotel {
     id: localConfig.id || 'ca8ca4c4-d493-490f-8d30-774e8fca42b6',
     ...DEFAULT_HOTEL_INFO,
     ...localConfig,
+    email_verification_config: normalizeEmailVerificationConfig(
+      localConfig.email_verification_config
+    ),
     booking_engine_config: normalizeBookingEngineConfig(localConfig.booking_engine_config),
     created_at: localConfig.created_at || new Date().toISOString(),
     updated_at: localConfig.updated_at || new Date().toISOString(),
@@ -627,6 +655,8 @@ async function persistFullHotelConfigToSupabase(
           banquet_config: config.banquet_config || DEFAULT_BANQUET_CONFIG,
           insights_config: config.insights_config || DEFAULT_INSIGHTS_CONFIG,
           inaugural_offer: config.inaugural_offer || DEFAULT_INAUGURAL_OFFER_CONFIG,
+          email_verification_config:
+            config.email_verification_config || DEFAULT_EMAIL_VERIFICATION_CONFIG,
           booking_engine_config:
             config.booking_engine_config || DEFAULT_BOOKING_ENGINE_CONFIG,
         },
@@ -712,6 +742,10 @@ export async function getHotel(): Promise<Hotel | null> {
             rawSettingsSocial.inaugural_offer ||
             localConfig.inaugural_offer ||
             DEFAULT_INAUGURAL_OFFER_CONFIG,
+          email_verification_config:
+            rawSettingsSocial.email_verification_config ||
+            localConfig.email_verification_config ||
+            DEFAULT_EMAIL_VERIFICATION_CONFIG,
           plus_code:
             rawSettingsSocial.plus_code ||
             localConfig.plus_code ||
@@ -780,6 +814,11 @@ export async function getHotel(): Promise<Hotel | null> {
           ...DEFAULT_INAUGURAL_OFFER_CONFIG,
           ...(cmsFromHotelsTable.inaugural_offer || rawSettingsSocial.inaugural_offer || {}),
         },
+        email_verification_config: normalizeEmailVerificationConfig(
+          cmsFromHotelsTable.email_verification_config ||
+            rawSettingsSocial.email_verification_config ||
+            localConfig.email_verification_config
+        ),
         booking_engine_config: normalizeBookingEngineConfig(
           cmsFromHotelsTable.booking_engine_config ||
             rawSettingsSocial.booking_engine_config ||

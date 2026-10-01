@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
+import nodemailer from 'nodemailer';
 import { GoogleGenAI, Type } from '@google/genai';
 
 async function startServer() {
@@ -83,6 +84,236 @@ async function startServer() {
       }
     } catch (err: any) {
       return res.status(500).json({ verified: false, error: err.message || 'Signature verification failed' });
+    }
+  });
+
+  // 3a. Email Verification Service via Gmail SMTP (Nodemailer)
+  // Generates 6-digit OTP codes and sends them directly to guests via Gmail before booking confirmation
+  interface OtpRecord {
+    code: string;
+    expiresAt: number;
+    attempts: number;
+    guestName?: string;
+  }
+  const otpCache = new Map<string, OtpRecord>();
+
+  // Send Verification OTP to Guest Email
+  app.post('/api/auth/send-verification-otp', async (req, res) => {
+    try {
+      const { email, guestName, emailConfig } = req.body || {};
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return res.status(400).json({ success: false, error: 'Valid email address is required.' });
+      }
+
+      const cleanEmail = email.toLowerCase().trim();
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Store in memory cache (valid for 10 minutes)
+      otpCache.set(cleanEmail, {
+        code: otpCode,
+        expiresAt: Date.now() + 10 * 60 * 1000,
+        attempts: 0,
+        guestName: guestName ? String(guestName).trim() : 'Guest',
+      });
+
+      // Determine Gmail App Password & Sender
+      const senderEmail =
+        (emailConfig?.sender_email || process.env.GMAIL_USER || 'sunmoonsuites@gmail.com').trim();
+      const rawPassword =
+        (emailConfig?.gmail_app_password || process.env.GMAIL_APP_PASSWORD || '').trim();
+      const cleanPassword = rawPassword.replace(/\s+/g, '');
+      const senderName =
+        (emailConfig?.sender_name || 'Sun Moon Suites').trim();
+
+      if (!cleanPassword) {
+        // When Google App Password has not been configured yet in Settings, provide clear feedback
+        console.log(`[OTP] Generated verification OTP ${otpCode} for ${cleanEmail} (Gmail App Password pending setup)`);
+        return res.json({
+          success: true,
+          emailSent: false,
+          warning: 'Gmail App Password is not configured yet in Staff Portal > Settings > Email Verification.',
+          devCode: otpCode,
+          message: 'Verification code generated.',
+        });
+      }
+
+      // Configure Gmail transporter
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: senderEmail,
+          pass: cleanPassword,
+        },
+      });
+
+      const mailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e7e5e4; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <div style="background: #78350f; padding: 26px 20px; text-align: center; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 22px; font-family: Georgia, serif; font-weight: 700; letter-spacing: 0.5px;">${senderName}</h1>
+            <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9; color: #fef3c7;">Sector 117, Noida &bull; Guest Booking Verification</p>
+          </div>
+          <div style="padding: 28px 24px; color: #292524;">
+            <p style="font-size: 15px; margin: 0 0 16px 0;">Dear <strong>${guestName || 'Guest'}</strong>,</p>
+            <p style="font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; color: #44403c;">
+              Thank you for choosing <strong>${senderName}</strong> for your stay. To ensure the security of your reservation, please verify your email address using the one-time verification code below:
+            </p>
+            <div style="background: #fef3c7; border: 2px dashed #d97706; border-radius: 10px; padding: 20px; text-align: center; margin: 24px 0;">
+              <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #92400e; display: block; margin-bottom: 6px;">Your 6-Digit Verification Code</span>
+              <span style="font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #78350f; font-family: monospace; display: inline-block;">${otpCode}</span>
+              <span style="font-size: 12px; color: #b45309; display: block; margin-top: 8px; font-weight: 500;">Valid for 10 minutes &bull; Do not share with anyone</span>
+            </div>
+            <p style="font-size: 13px; color: #78716c; line-height: 1.5; margin: 0 0 16px 0;">
+              Enter this code on the hotel booking screen to confirm your reservation. If you did not make this request, please disregard this email.
+            </p>
+            <div style="background: #fafaf9; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #57534e; margin-top: 20px; border: 1px solid #f5f5f4;">
+              <strong>Property Front Desk:</strong> GT-20, Sector 117, Noida, UP &bull; Call: +91 8586868442
+            </div>
+          </div>
+          <div style="background: #f5f5f4; padding: 14px 24px; text-align: center; font-size: 11px; color: #a8a29e; border-top: 1px solid #e7e5e4;">
+            &copy; ${new Date().getFullYear()} ${senderName}. Direct Official Booking Engine.
+          </div>
+        </div>
+      `;
+
+      await transporter.sendMail({
+        from: `"${senderName}" <${senderEmail}>`,
+        to: cleanEmail,
+        subject: `${otpCode} is your ${senderName} Booking Verification Code`,
+        text: `Your ${senderName} verification code is: ${otpCode}. It is valid for 10 minutes.`,
+        html: mailHtml,
+      });
+
+      console.log(`[OTP] Successfully delivered email with OTP ${otpCode} to ${cleanEmail}`);
+      return res.json({
+        success: true,
+        emailSent: true,
+        message: `Verification code sent to ${cleanEmail}. Please check your inbox or spam folder.`,
+      });
+    } catch (err: any) {
+      console.error('[OTP] Error sending verification email:', err);
+      return res.status(500).json({
+        success: false,
+        error:
+          err.message ||
+          'Failed to send verification email. Please check your Gmail App Password in Settings.',
+      });
+    }
+  });
+
+  // Verify OTP
+  app.post('/api/auth/verify-otp', (req, res) => {
+    try {
+      const { email, code } = req.body || {};
+      if (!email || !code) {
+        return res.status(400).json({ verified: false, error: 'Email and verification code are required.' });
+      }
+
+      const cleanEmail = String(email).toLowerCase().trim();
+      const cleanCode = String(code).trim().replace(/\s+/g, '');
+
+      const record = otpCache.get(cleanEmail);
+      if (!record) {
+        return res.status(400).json({
+          verified: false,
+          error: 'No active verification code found for this email. Please request a new code.',
+        });
+      }
+
+      if (Date.now() > record.expiresAt) {
+        otpCache.delete(cleanEmail);
+        return res.status(400).json({
+          verified: false,
+          error: 'Verification code has expired. Please request a new code.',
+        });
+      }
+
+      if (record.attempts >= 5) {
+        otpCache.delete(cleanEmail);
+        return res.status(400).json({
+          verified: false,
+          error: 'Too many incorrect attempts. Please request a new code.',
+        });
+      }
+
+      if (record.code !== cleanCode) {
+        record.attempts += 1;
+        const remaining = 5 - record.attempts;
+        return res.status(400).json({
+          verified: false,
+          error: `Incorrect code. ${remaining} ${remaining === 1 ? 'attempt' : 'attempts'} remaining.`,
+        });
+      }
+
+      // Successful verification
+      otpCache.delete(cleanEmail);
+      return res.json({
+        verified: true,
+        message: 'Email verified successfully!',
+      });
+    } catch (err: any) {
+      return res.status(500).json({ verified: false, error: err.message || 'OTP verification failed' });
+    }
+  });
+
+  // Test Gmail Configuration endpoint
+  app.post('/api/auth/test-email-config', async (req, res) => {
+    try {
+      const { senderEmail, gmailAppPassword, testRecipientEmail, senderName } = req.body || {};
+      const cleanSender = (senderEmail || 'sunmoonsuites@gmail.com').trim();
+      const cleanPass = String(gmailAppPassword || '').trim().replace(/\s+/g, '');
+      const cleanRecipient = (testRecipientEmail || cleanSender).trim();
+      const cleanName = (senderName || 'Sun Moon Suites').trim();
+
+      if (!cleanPass) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please enter a 16-character Google App Password first.',
+        });
+      }
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: cleanSender,
+          pass: cleanPass,
+        },
+      });
+
+      // Verify connection
+      await transporter.verify();
+
+      // Send actual test mail
+      await transporter.sendMail({
+        from: `"${cleanName}" <${cleanSender}>`,
+        to: cleanRecipient,
+        subject: `[TEST] ${cleanName} Gmail Integration Verified!`,
+        text: `Congratulations! Your Google App Password for ${cleanSender} is active and ready to send booking verification OTPs.`,
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #d1fae5; border-radius: 8px; background: #ecfdf5; color: #065f46;">
+            <h2 style="margin-top: 0; color: #047857;">✓ Gmail Configuration Test Successful!</h2>
+            <p>Your Google App Password for <strong>${cleanSender}</strong> is working perfectly.</p>
+            <p>Guests booking rooms on Sun Moon Suites website will now receive instantaneous 6-digit verification codes straight from this Gmail account.</p>
+            <hr style="border: 0; border-top: 1px solid #a7f3d0; margin: 15px 0;" />
+            <small style="color: #059669;">Sun Moon Suites Sector 117 Noida &bull; Test Message sent at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</small>
+          </div>
+        `,
+      });
+
+      return res.json({
+        success: true,
+        message: `Connection successful! A test email was sent to ${cleanRecipient}.`,
+      });
+    } catch (err: any) {
+      console.error('[Email Test Error]:', err);
+      let advice = '';
+      const msg = err.message || '';
+      if (msg.includes('535-5.7.8') || msg.includes('Username and Password not accepted')) {
+        advice = ' Invalid Google App Password. Please ensure 2-Step Verification is turned ON in Google Account, and generate a 16-letter App Password at https://myaccount.google.com/apppasswords.';
+      }
+      return res.status(400).json({
+        success: false,
+        error: `Gmail Connection Failed: ${msg}.${advice}`,
+      });
     }
   });
 

@@ -17,6 +17,7 @@ import {
   getNextDayLocalDateStr,
 } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { sendVerificationOtp, verifyOtp } from '../../services/emailVerificationService';
 import {
   Calendar,
   Users,
@@ -27,6 +28,10 @@ import {
   Bed,
   Maximize2,
   MessageCircle,
+  Mail,
+  Key,
+  RefreshCw,
+  Info,
 } from 'lucide-react';
 
 interface BookingFlowModalProps {
@@ -50,7 +55,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   initialSearch,
   onBookingSuccess,
 }) => {
-  const [step, setStep] = useState<'search' | 'rooms' | 'guest' | 'review' | 'confirmed'>('search');
+  const [step, setStep] = useState<'search' | 'rooms' | 'guest' | 'verify_email' | 'review' | 'confirmed'>('search');
 
   // Dates & Guests
   const [checkIn, setCheckIn] = useState('');
@@ -69,6 +74,18 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
+
+  // Email OTP Verification State
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [verifiedEmail, setVerifiedEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpSuccessMessage, setOtpSuccessMessage] = useState('');
+  const [otpWarning, setOtpWarning] = useState('');
+  const [otpDevCode, setOtpDevCode] = useState('');
+  const [otpCountdown, setOtpCountdown] = useState(0);
 
   // Promo Code
   const [promoInput, setPromoInput] = useState('');
@@ -152,6 +169,83 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       if (match && match.availableRoomCount > 0) {
         setSelectedResult(match);
       }
+    }
+  };
+
+  useEffect(() => {
+    if (otpCountdown > 0) {
+      const timer = setTimeout(() => setOtpCountdown(otpCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [otpCountdown]);
+
+  const handleRequestOtp = async () => {
+    if (!guestEmail.trim()) {
+      setSubmitError('Please enter a valid email address.');
+      return;
+    }
+    setIsSendingOtp(true);
+    setOtpError('');
+    setOtpSuccessMessage('');
+    setOtpWarning('');
+
+    const res = await sendVerificationOtp(
+      guestEmail.trim(),
+      guestFirstName.trim(),
+      hotel?.email_verification_config
+    );
+
+    setIsSendingOtp(false);
+    if (res.success) {
+      setOtpSuccessMessage(res.message || `Verification code sent to ${guestEmail.trim()}`);
+      if (res.devCode) setOtpDevCode(res.devCode);
+      if (res.warning) setOtpWarning(res.warning);
+      setOtpCountdown(30);
+      setStep('verify_email');
+    } else {
+      setOtpError(res.error || 'Failed to send verification email. Please check your connection.');
+      setStep('verify_email');
+    }
+  };
+
+  const handleVerifyOtpCode = async () => {
+    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+      setOtpError('Please enter the 6-digit code received on your email.');
+      return;
+    }
+    setIsVerifyingOtp(true);
+    setOtpError('');
+
+    const res = await verifyOtp(guestEmail.trim(), otpCode.trim());
+    setIsVerifyingOtp(false);
+
+    if (res.verified) {
+      setIsEmailVerified(true);
+      setVerifiedEmail(guestEmail.trim());
+      setOtpSuccessMessage('Email verified successfully!');
+      setTimeout(() => {
+        setStep('review');
+      }, 500);
+    } else {
+      setOtpError(res.error || 'Invalid verification code. Please try again.');
+    }
+  };
+
+  const handleProceedFromGuest = async () => {
+    if (!guestFirstName.trim() || !guestPhone.trim() || !guestEmail.trim()) {
+      setSubmitError('Please fill in all mandatory guest details (First Name, Mobile, Email).');
+      return;
+    }
+    setSubmitError('');
+    const isVerificationEnabled = hotel?.email_verification_config?.is_enabled !== false;
+    if (isVerificationEnabled) {
+      if (isEmailVerified && verifiedEmail.toLowerCase() === guestEmail.trim().toLowerCase()) {
+        setStep('review');
+      } else {
+        await handleRequestOtp();
+      }
+    } else {
+      setStep('review');
     }
   };
 
@@ -258,6 +352,16 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       return;
     }
 
+    const isVerificationEnabled = hotel?.email_verification_config?.is_enabled !== false;
+    if (
+      isVerificationEnabled &&
+      (!isEmailVerified || verifiedEmail.toLowerCase() !== guestEmail.trim().toLowerCase())
+    ) {
+      setSubmitError('Email verification required. Please verify your email before confirming.');
+      setStep('verify_email');
+      return;
+    }
+
     if (isRazorpayActive && selectedPaymentMethod === 'razorpay') {
       setIsSubmitting(true);
       setSubmitError('');
@@ -347,8 +451,20 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             <span className={step === 'rooms' ? 'text-amber-800 font-bold' : ''}>1. Select Room</span>
             <span>&rarr;</span>
             <span className={step === 'guest' ? 'text-amber-800 font-bold' : ''}>2. Guest Information</span>
+            {hotel?.email_verification_config?.is_enabled !== false && (
+              <>
+                <span>&rarr;</span>
+                <span className={step === 'verify_email' ? 'text-amber-800 font-bold' : ''}>
+                  3. Verify Email
+                </span>
+              </>
+            )}
             <span>&rarr;</span>
-            <span className={step === 'review' ? 'text-amber-800 font-bold' : ''}>3. Review &amp; Guarantee</span>
+            <span className={step === 'review' ? 'text-amber-800 font-bold' : ''}>
+              {hotel?.email_verification_config?.is_enabled !== false
+                ? '4. Review & Guarantee'
+                : '3. Review & Guarantee'}
+            </span>
           </div>
         )}
 
@@ -552,7 +668,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   required
                   placeholder="name@example.com"
                   value={guestEmail}
-                  onChange={(e) => setGuestEmail(e.target.value)}
+                  onChange={(e) => {
+                    const newEmail = e.target.value;
+                    setGuestEmail(newEmail);
+                    if (isEmailVerified && verifiedEmail.toLowerCase() !== newEmail.trim().toLowerCase()) {
+                      setIsEmailVerified(false);
+                      setVerifiedEmail('');
+                    }
+                  }}
                   className="w-full px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700 font-medium"
                 />
               </div>
@@ -575,7 +698,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStep('rooms')}
-                className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Back
@@ -583,12 +706,154 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
               <button
                 type="button"
-                disabled={!guestFirstName.trim() || !guestPhone.trim() || !guestEmail.trim()}
-                onClick={() => setStep('review')}
-                className="px-6 py-2.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-xs uppercase tracking-wider font-semibold rounded-lg flex items-center gap-2"
+                disabled={!guestFirstName.trim() || !guestPhone.trim() || !guestEmail.trim() || isSendingOtp}
+                onClick={handleProceedFromGuest}
+                className="px-6 py-2.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-xs uppercase tracking-wider font-semibold rounded-lg flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
               >
-                Continue to Review
-                <ArrowRight className="w-3.5 h-3.5" />
+                {isSendingOtp ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Sending Code...
+                  </>
+                ) : hotel?.email_verification_config?.is_enabled !== false &&
+                  (!isEmailVerified || verifiedEmail.toLowerCase() !== guestEmail.trim().toLowerCase()) ? (
+                  <>
+                    Verify Email &amp; Continue
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                ) : (
+                  <>
+                    Continue to Review
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP: EMAIL VERIFICATION */}
+        {step === 'verify_email' && (
+          <div className="space-y-5">
+            <div className="p-6 bg-gradient-to-b from-amber-50/60 to-white rounded-2xl border border-amber-200/80 text-center space-y-4">
+              <div className="w-12 h-12 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center mx-auto shadow-xs">
+                <Mail className="w-6 h-6" />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="font-serif font-bold text-lg text-stone-900">
+                  Verify Your Email Address
+                </h4>
+                <p className="text-xs text-stone-600 max-w-md mx-auto">
+                  A 6-digit verification code has been dispatched via Gmail to:
+                </p>
+                <p className="text-sm font-bold text-amber-900 font-mono">
+                  {guestEmail}
+                </p>
+              </div>
+
+              {/* 6-Digit Code Input */}
+              <div className="max-w-xs mx-auto space-y-2">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-700">
+                  Enter 6-Digit Verification Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  autoFocus
+                  placeholder="••••••"
+                  value={otpCode}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setOtpCode(val);
+                    if (otpError) setOtpError('');
+                  }}
+                  className="w-full text-center tracking-[12px] font-mono text-2xl font-bold py-3 px-4 border-2 border-amber-700/60 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-500/20 bg-white"
+                />
+              </div>
+
+              {/* Dev/Test Mode Banner (Shown if App Password not yet configured) */}
+              {otpDevCode && (
+                <div className="max-w-md mx-auto p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs text-left flex items-start gap-2">
+                  <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Test Code: </span>
+                    <span className="font-mono font-bold text-sm bg-amber-200/70 px-1.5 py-0.5 rounded">{otpDevCode}</span>
+                    <p className="text-[11px] text-amber-800 mt-1">
+                      (Google App Password setup is pending in Staff Portal Settings. Enter this test code or add App Password in Settings to deliver to actual Gmail inbox).
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {otpError && (
+                <div className="max-w-xs mx-auto p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+                  {otpError}
+                </div>
+              )}
+
+              {otpSuccessMessage && !otpError && (
+                <div className="max-w-xs mx-auto p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  {otpSuccessMessage}
+                </div>
+              )}
+
+              {/* Action Buttons: Verify & Resend */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={isVerifyingOtp || otpCode.trim().length !== 6}
+                  onClick={handleVerifyOtpCode}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isVerifyingOtp ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Verifying Code...
+                    </>
+                  ) : (
+                    <>
+                      Verify Code &amp; Continue
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSendingOtp || otpCountdown > 0}
+                  onClick={handleRequestOtp}
+                  className="w-full sm:w-auto px-4 py-2.5 border border-stone-300 hover:bg-stone-50 disabled:opacity-50 text-stone-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSendingOtp ? 'animate-spin' : ''}`} />
+                  {otpCountdown > 0
+                    ? `Resend in ${otpCountdown}s`
+                    : isSendingOtp
+                    ? 'Sending...'
+                    : 'Resend Code'}
+                </button>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep('guest')}
+                  className="text-stone-500 hover:text-amber-800 text-xs underline cursor-pointer"
+                >
+                  Mistyped your email? Change Email Address
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-stone-200">
+              <button
+                type="button"
+                onClick={() => setStep('guest')}
+                className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1.5 cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back to Guest Info
               </button>
             </div>
           </div>
@@ -710,9 +975,17 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             </div>
 
             {/* Guest Summary */}
-            <div className="p-3 bg-stone-50 rounded-lg border border-stone-200 text-xs text-stone-600">
-              <span className="font-semibold text-stone-900">Guest:</span> {guestFirstName}{' '}
-              {guestLastName} &bull; {guestPhone} &bull; {guestEmail}
+            <div className="p-3 bg-stone-50 rounded-lg border border-stone-200 text-xs text-stone-600 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="font-semibold text-stone-900">Guest:</span> {guestFirstName}{' '}
+                {guestLastName} &bull; {guestPhone} &bull; {guestEmail}
+              </div>
+              {isEmailVerified && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  Email Verified
+                </span>
+              )}
             </div>
 
             {/* Payment & Guarantee Mode */}
@@ -788,8 +1061,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             <div className="flex items-center justify-between pt-4 border-t border-stone-200">
               <button
                 type="button"
-                onClick={() => setStep('guest')}
-                className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1.5"
+                onClick={() =>
+                  setStep(
+                    hotel?.email_verification_config?.is_enabled !== false
+                      ? 'verify_email'
+                      : 'guest'
+                  )
+                }
+                className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Back
