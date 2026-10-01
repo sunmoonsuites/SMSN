@@ -555,7 +555,12 @@ async function syncBookingToYanoljaApi(
           categoryName: params.categoryName,
           roomTypeUnkid: params.yanoljaRoomTypeUnkid,
           roomRateUnkid: params.yanoljaRoomRateUnkid,
+          ratePerNight: params.ratePerNight,
           totalAmount,
+          paidAmount: params.paidAmount ?? 0,
+          paymentStatus: params.paymentStatus || 'Pending',
+          paymentReference: params.paymentReference || '',
+          promoCode: params.promoCode || '',
           bookingReference: bookingRef,
         }),
       });

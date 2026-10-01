@@ -320,7 +320,13 @@ async function startServer() {
         categoryName,
         roomRateUnkid,
         roomTypeUnkid,
+        ratePerNight,
         totalAmount,
+        paidAmount,
+        paymentStatus,
+        paymentReference,
+        promoCode,
+        bookingReference,
       } = req.body || {};
 
       const session = await getYanoljaLinkSession(
@@ -384,13 +390,41 @@ async function startServer() {
         rawDigits.length > 10 ? rawDigits.slice(rawDigits.length - 10) : rawDigits || '9999999999';
       const formattedMobile = `+91-${cleanMobile}`;
 
+      // Option B: Format explicit tariff, offer details, and balance due for front desk in Yanolja Remarks
+      const rate = Number(ratePerNight || 0);
+      const total = Number(totalAmount || 0);
+      const paid = Number(paidAmount || 0);
+      const balance = Math.max(0, total - paid);
+
+      let offerDescription = 'Direct Website Tariff';
+      if (rate === 999 || (!promoCode && rate > 0)) {
+        offerDescription = `Direct Website Inaugural Offer at ₹${rate}/night`;
+      } else if (promoCode) {
+        offerDescription = `Direct Website Offer (${promoCode}) at ₹${rate}/night`;
+      } else if (rate > 0) {
+        offerDescription = `Direct Website Tariff at ₹${rate}/night`;
+      }
+
+      const paymentDetail =
+        paid > 0
+          ? `PAID ONLINE: ₹${paid}${paymentReference ? ` (Ref: ${paymentReference})` : ''} • Balance Due: ₹${balance}`
+          : `PAY AT HOTEL • Balance Due: ₹${balance > 0 ? balance : total}`;
+
+      const websiteTariffNote = `Booked via ${offerDescription} • Total: ₹${total} (GST Incl.) • ${paymentDetail}${
+        bookingReference ? ` • Web Ref: ${bookingReference}` : ''
+      }`;
+
+      const finalRemark = specialRequests && String(specialRequests).trim()
+        ? `${websiteTariffNote} | Special Requests: ${String(specialRequests).trim()}`
+        : websiteTariffNote;
+
       const insertPayload = {
         hotelCode: session.hotelCode,
         guestName: String(guestName || 'Guest').trim(),
         mobile: formattedMobile,
         email: String(guestEmail || 'guest@sunmoonsuites.com').trim(),
-        specialRequests: String(specialRequests || '').trim(),
-        remark: String(specialRequests || 'Direct Website Booking').trim(),
+        specialRequests: finalRemark,
+        remark: finalRemark,
         checkInDate: String(checkInDate),
         checkOutDate: String(checkOutDate),
         bookingDetails: [
@@ -443,6 +477,7 @@ async function startServer() {
                 reservationNo: yanoljaBookingId,
                 status: 'Confirmed',
                 amount: Number(totalAmount || 0),
+                remark: finalRemark,
               }),
             }
           );
