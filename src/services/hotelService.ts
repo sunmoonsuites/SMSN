@@ -168,10 +168,10 @@ export const DEFAULT_INAUGURAL_OFFER_CONFIG: InauguralOfferConfig = {
 };
 
 export const DEFAULT_BOOKING_ENGINE_CONFIG: BookingEngineConfig = {
-  is_enabled: false,
-  mode: 'builtin',
+  is_enabled: true,
+  mode: 'yanolja_link_inbuilt',
   yanolja_booking_url: 'https://letsbook.me/booking/sunmoonsuites',
-  yanolja_hotel_code: '',
+  yanolja_hotel_code: '63594',
   yanolja_api_key: '',
   yanolja_api_endpoint: 'https://live.ipms247.com/booking/reservation_api/listing.php',
   razorpay_enabled: false,

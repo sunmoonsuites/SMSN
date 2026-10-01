@@ -60,7 +60,7 @@ export interface InauguralOfferConfig {
 
 export interface BookingEngineConfig {
   is_enabled?: boolean;
-  mode?: 'builtin' | 'yanolja_api' | 'yanolja_redirect';
+  mode?: 'builtin' | 'yanolja_link_inbuilt' | 'yanolja_api' | 'yanolja_redirect';
   yanolja_booking_url?: string;
   yanolja_hotel_code?: string;
   yanolja_api_key?: string;

@@ -86,6 +86,396 @@ async function startServer() {
     }
   });
 
+  // 3b. Yanolja Cloud Solution (letsbook.me) Internal Link Bridge
+  // Allows feeding the https://letsbook.me/booking/sunmoonsuites link directly into the system
+  // so availability and booking creation happen internally on the hotel's own website without redirecting away.
+  const YANOLJA_SERVICE_BASE = 'https://commonservice.ipms247.com/YCSAPIServices/booking';
+  const YANOLJA_BROWSER_UA =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+
+  const yanoljaSessionCache = new Map<
+    string,
+    {
+      hotelCode: string;
+      hotelName: string;
+      bearerToken: string;
+      rawDetails: any;
+      expiresAt: number;
+    }
+  >();
+
+  function extractPropertySlugFromUrl(bookingUrl?: string): string {
+    const fallback = 'sunmoonsuites';
+    if (!bookingUrl || typeof bookingUrl !== 'string') return fallback;
+    const cleaned = bookingUrl.trim().split('?')[0].replace(/\/+$/, '');
+    const match = cleaned.match(/\/booking\/([a-zA-Z0-9_-]+)/i);
+    if (match && match[1]) return match[1];
+    const parts = cleaned.split('/').filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (last && !last.includes('.')) return last;
+    return fallback;
+  }
+
+  async function getYanoljaLinkSession(bookingUrl?: string, forceRefresh = false) {
+    const slug = extractPropertySlugFromUrl(bookingUrl);
+    const cached = yanoljaSessionCache.get(slug);
+    if (!forceRefresh && cached && cached.expiresAt > Date.now()) {
+      return { slug, ...cached };
+    }
+
+    const url = `${YANOLJA_SERVICE_BASE}/gethoteldetails?propertySlug=${encodeURIComponent(slug)}`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': YANOLJA_BROWSER_UA,
+        Accept: 'application/json',
+        Origin: 'https://letsbook.me',
+        Referer: `https://letsbook.me/booking/${slug}`,
+      },
+    });
+
+    if (!resp.ok) {
+      throw new Error(`Yanolja link service returned HTTP ${resp.status}`);
+    }
+
+    const json: any = await resp.json();
+    if (json?.status !== 'success' || !json?.data) {
+      throw new Error(json?.errorMessage || json?.message || 'Could not resolve Yanolja property details from link.');
+    }
+
+    const hotelCode = String(json.data.hotelCode || '63594');
+    const rawXk = String(json.data._xk || '');
+    const bearerToken = rawXk ? rawXk.split('').reverse().join('') : '';
+    const hotelName = String(json.data.hotelName || 'Sun Moon Suites');
+
+    const sessionData = {
+      hotelCode,
+      hotelName,
+      bearerToken,
+      rawDetails: json.data,
+      expiresAt: Date.now() + 20 * 60 * 1000, // 20 mins cache
+    };
+    yanoljaSessionCache.set(slug, sessionData);
+    return { slug, ...sessionData };
+  }
+
+  app.get('/api/yanolja/link-status', async (req, res) => {
+    try {
+      const bookingUrl = (req.query.bookingUrl as string) || 'https://letsbook.me/booking/sunmoonsuites';
+      const session = await getYanoljaLinkSession(bookingUrl, true);
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dayAfter = new Date();
+      dayAfter.setDate(dayAfter.getDate() + 2);
+      const checkIn = (req.query.checkIn as string) || tomorrow.toISOString().split('T')[0];
+      const checkOut = (req.query.checkOut as string) || dayAfter.toISOString().split('T')[0];
+
+      const availParams = new URLSearchParams({
+        hotelCode: session.hotelCode,
+        checkinDate: checkIn,
+        checkoutDate: checkOut,
+        adults: '2',
+        child: '0',
+        rooms: '1',
+        refresh: 'false',
+        languageCode: 'en',
+      });
+
+      const availResp = await fetch(`${YANOLJA_SERVICE_BASE}/getAvailability?${availParams.toString()}`, {
+        headers: {
+          'User-Agent': YANOLJA_BROWSER_UA,
+          Accept: 'application/json',
+          Authorization: `Bearer ${session.bearerToken}`,
+          Origin: 'https://letsbook.me',
+          Referer: `https://letsbook.me/booking/${session.slug}`,
+        },
+      });
+
+      const availJson: any = availResp.ok ? await availResp.json() : null;
+      const rooms = Array.isArray(availJson?.data)
+        ? availJson.data.map((r: any) => ({
+            roomName: r.roomName,
+            roomType: r.roomType,
+            roomTypeUnkid: String(r.roomTypeUnkid || ''),
+            roomRateUnkid: String(r.roomRateUnkid || ''),
+            availableRooms: Number(r.availableRooms ?? 0),
+            stayPrice: Number(r.price?.stayPrice ?? 0),
+            stayPriceAfterTax: Number(r.price?.stayPriceAfterTax ?? 0),
+            totalTaxes: Number(r.price?.totalTaxes ?? 0),
+          }))
+        : [];
+
+      return res.json({
+        success: true,
+        slug: session.slug,
+        hotelCode: session.hotelCode,
+        hotelName: session.hotelName,
+        roomsCount: rooms.length,
+        rooms,
+      });
+    } catch (err: any) {
+      return res.status(502).json({
+        success: false,
+        error: err?.message || 'Unable to connect to Yanolja booking link.',
+      });
+    }
+  });
+
+  app.get('/api/yanolja/link-availability', async (req, res) => {
+    try {
+      const bookingUrl = (req.query.bookingUrl as string) || 'https://letsbook.me/booking/sunmoonsuites';
+      const checkIn = (req.query.checkIn as string) || '';
+      const checkOut = (req.query.checkOut as string) || '';
+      const adults = String(req.query.adults || '2');
+      const children = String(req.query.children || '0');
+
+      if (!checkIn || !checkOut) {
+        return res.status(400).json({ success: false, error: 'checkIn and checkOut are required.' });
+      }
+
+      let session = await getYanoljaLinkSession(bookingUrl, false);
+      const buildAvailUrl = (hotelCode: string) =>
+        `${YANOLJA_SERVICE_BASE}/getAvailability?${new URLSearchParams({
+          hotelCode,
+          checkinDate: checkIn,
+          checkoutDate: checkOut,
+          adults,
+          child: children,
+          rooms: '1',
+          refresh: 'false',
+          languageCode: 'en',
+        }).toString()}`;
+
+      let availResp = await fetch(buildAvailUrl(session.hotelCode), {
+        headers: {
+          'User-Agent': YANOLJA_BROWSER_UA,
+          Accept: 'application/json',
+          Authorization: `Bearer ${session.bearerToken}`,
+          Origin: 'https://letsbook.me',
+          Referer: `https://letsbook.me/booking/${session.slug}`,
+        },
+      });
+
+      if (availResp.status === 401 || availResp.status === 403) {
+        session = await getYanoljaLinkSession(bookingUrl, true);
+        availResp = await fetch(buildAvailUrl(session.hotelCode), {
+          headers: {
+            'User-Agent': YANOLJA_BROWSER_UA,
+            Accept: 'application/json',
+            Authorization: `Bearer ${session.bearerToken}`,
+            Origin: 'https://letsbook.me',
+            Referer: `https://letsbook.me/booking/${session.slug}`,
+          },
+        });
+      }
+
+      const availJson: any = await availResp.json();
+      if (availJson?.status !== 'success' || !Array.isArray(availJson?.data)) {
+        return res.status(502).json({
+          success: false,
+          error: availJson?.errorMessage || 'Yanolja availability returned non-success response.',
+        });
+      }
+
+      const rooms = availJson.data.map((r: any) => ({
+        roomName: String(r.roomName || ''),
+        roomType: String(r.roomType || ''),
+        roomTypeUnkid: String(r.roomTypeUnkid || ''),
+        roomRateUnkid: String(r.roomRateUnkid || ''),
+        availableRooms: Number(r.availableRooms ?? 0),
+        stayPrice: Number(r.price?.stayPrice ?? 0),
+        stayPriceAfterTax: Number(r.price?.stayPriceAfterTax ?? 0),
+        totalTaxes: Number(r.price?.totalTaxes ?? 0),
+        maxAdults: Number(r.maxAdults ?? 2),
+        maxChildren: Number(r.maxChildren ?? 1),
+      }));
+
+      return res.json({
+        success: true,
+        slug: session.slug,
+        hotelCode: session.hotelCode,
+        hotelName: session.hotelName,
+        rooms,
+      });
+    } catch (err: any) {
+      return res.status(502).json({
+        success: false,
+        error: err?.message || 'Failed to fetch live availability from Yanolja link.',
+      });
+    }
+  });
+
+  app.post('/api/yanolja/link-book', async (req, res) => {
+    try {
+      const {
+        bookingUrl,
+        checkInDate,
+        checkOutDate,
+        adults,
+        children,
+        guestName,
+        guestEmail,
+        guestPhone,
+        specialRequests,
+        categoryName,
+        roomRateUnkid,
+        roomTypeUnkid,
+        totalAmount,
+      } = req.body || {};
+
+      const session = await getYanoljaLinkSession(
+        bookingUrl || 'https://letsbook.me/booking/sunmoonsuites',
+        true
+      );
+
+      let resolvedRoomRateUnkid = roomRateUnkid ? String(roomRateUnkid) : '';
+
+      // If roomRateUnkid wasn't passed, resolve it dynamically from Yanolja availability by matching room category name
+      if (!resolvedRoomRateUnkid) {
+        const availParams = new URLSearchParams({
+          hotelCode: session.hotelCode,
+          checkinDate: String(checkInDate || ''),
+          checkoutDate: String(checkOutDate || ''),
+          adults: String(adults || 2),
+          child: String(children || 0),
+          rooms: '1',
+          refresh: 'false',
+          languageCode: 'en',
+        });
+        const availResp = await fetch(
+          `${YANOLJA_SERVICE_BASE}/getAvailability?${availParams.toString()}`,
+          {
+            headers: {
+              'User-Agent': YANOLJA_BROWSER_UA,
+              Accept: 'application/json',
+              Authorization: `Bearer ${session.bearerToken}`,
+              Origin: 'https://letsbook.me',
+              Referer: `https://letsbook.me/booking/${session.slug}`,
+            },
+          }
+        );
+        const availJson: any = availResp.ok ? await availResp.json() : null;
+        if (Array.isArray(availJson?.data) && availJson.data.length > 0) {
+          const normTarget = String(categoryName || '')
+            .toLowerCase()
+            .replace(/room/g, '')
+            .trim();
+          const matched =
+            availJson.data.find((r: any) => {
+              if (roomTypeUnkid && String(r.roomTypeUnkid) === String(roomTypeUnkid)) return true;
+              const rt = String(r.roomType || '').toLowerCase().trim();
+              const rn = String(r.roomName || '').toLowerCase().trim();
+              return rt === normTarget || rn.startsWith(normTarget);
+            }) || availJson.data[0];
+
+          resolvedRoomRateUnkid = String(matched?.roomRateUnkid || '');
+        }
+      }
+
+      if (!resolvedRoomRateUnkid) {
+        return res.status(400).json({
+          success: false,
+          error: 'Could not match room category in Yanolja availability.',
+        });
+      }
+
+      const rawDigits = String(guestPhone || '').replace(/\D/g, '');
+      const cleanMobile =
+        rawDigits.length > 10 ? rawDigits.slice(rawDigits.length - 10) : rawDigits || '9999999999';
+      const formattedMobile = `+91-${cleanMobile}`;
+
+      const insertPayload = {
+        hotelCode: session.hotelCode,
+        guestName: String(guestName || 'Guest').trim(),
+        mobile: formattedMobile,
+        email: String(guestEmail || 'guest@sunmoonsuites.com').trim(),
+        specialRequests: String(specialRequests || '').trim(),
+        remark: String(specialRequests || 'Direct Website Booking').trim(),
+        checkInDate: String(checkInDate),
+        checkOutDate: String(checkOutDate),
+        bookingDetails: [
+          {
+            roomRateUnkId: resolvedRoomRateUnkid,
+            adult: Number(adults || 2),
+            child: Number(children || 0),
+          },
+        ],
+        fromMobile: false,
+        languageCode: 'en',
+        skipPaymentGateway: true,
+        directPaymentToHotel: true,
+      };
+
+      const insertResp = await fetch(
+        `${YANOLJA_SERVICE_BASE}/insertbooking?hotelCode=${encodeURIComponent(session.hotelCode)}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': YANOLJA_BROWSER_UA,
+            Accept: 'application/json',
+            Authorization: `Bearer ${session.bearerToken}`,
+            Origin: 'https://letsbook.me',
+            Referer: `https://letsbook.me/booking/${session.slug}`,
+          },
+          body: JSON.stringify(insertPayload),
+        }
+      );
+
+      const insertJson: any = await insertResp.json().catch(() => ({}));
+      if (insertJson?.status === 'success' && insertJson?.bookingId) {
+        const yanoljaBookingId = String(insertJson.bookingId);
+        // Also call processbooking to finalize status if supported
+        try {
+          await fetch(
+            `${YANOLJA_SERVICE_BASE}/processbooking?hotelCode=${encodeURIComponent(session.hotelCode)}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': YANOLJA_BROWSER_UA,
+                Accept: 'application/json',
+                Authorization: `Bearer ${session.bearerToken}`,
+                Origin: 'https://letsbook.me',
+                Referer: `https://letsbook.me/booking/${session.slug}`,
+              },
+              body: JSON.stringify({
+                reservationNo: yanoljaBookingId,
+                status: 'Confirmed',
+                amount: Number(totalAmount || 0),
+              }),
+            }
+          );
+        } catch {
+          // Ignore secondary status update errors
+        }
+
+        return res.json({
+          success: true,
+          yanoljaBookingId,
+          hotelCode: session.hotelCode,
+          tranIds: insertJson.tranIds || null,
+        });
+      }
+
+      return res.json({
+        success: false,
+        hotelCode: session.hotelCode,
+        error:
+          insertJson?.errorMessage ||
+          insertJson?.message ||
+          insertJson?.error ||
+          'Yanolja booking endpoint requires gateway completion or returned an error.',
+        raw: insertJson,
+      });
+    } catch (err: any) {
+      return res.status(502).json({
+        success: false,
+        error: err?.message || 'Failed to push booking to Yanolja link service.',
+      });
+    }
+  });
+
   // 4. Get SQL Migration Content
   app.get('/api/migrations/sql', (req, res) => {
     try {

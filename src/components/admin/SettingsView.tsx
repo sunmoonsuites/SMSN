@@ -188,15 +188,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Yanolja Cloud PMS & Razorpay Payment Gateway State
   const initialEngine: BookingEngineConfig =
     hotel?.booking_engine_config || DEFAULT_BOOKING_ENGINE_CONFIG;
-  const [engineEnabled, setEngineEnabled] = useState<boolean>(Boolean(initialEngine.is_enabled));
-  const [engineMode, setEngineMode] = useState<'builtin' | 'yanolja_api' | 'yanolja_redirect'>(
-    initialEngine.mode || 'builtin'
+  const [engineEnabled, setEngineEnabled] = useState<boolean>(
+    initialEngine.is_enabled !== false
   );
+  const [engineMode, setEngineMode] = useState<
+    'builtin' | 'yanolja_link_inbuilt' | 'yanolja_api' | 'yanolja_redirect'
+  >(initialEngine.mode || 'yanolja_link_inbuilt');
   const [yanoljaBookingUrl, setYanoljaBookingUrl] = useState<string>(
     initialEngine.yanolja_booking_url || 'https://letsbook.me/booking/sunmoonsuites'
   );
   const [yanoljaHotelCode, setYanoljaHotelCode] = useState<string>(
-    initialEngine.yanolja_hotel_code || ''
+    initialEngine.yanolja_hotel_code || '63594'
   );
   const [yanoljaApiKey, setYanoljaApiKey] = useState<string>(
     initialEngine.yanolja_api_key || ''
@@ -217,6 +219,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [paymentCollectionMode, setPaymentCollectionMode] = useState<
     'pay_at_hotel' | 'both' | 'online_only'
   >(initialEngine.payment_collection_mode || 'pay_at_hotel');
+  const [isTestingYanoljaLink, setIsTestingYanoljaLink] = useState(false);
+  const [yanoljaLinkTestResult, setYanoljaLinkTestResult] = useState<{
+    success: boolean;
+    hotelCode?: string;
+    hotelName?: string;
+    roomsCount?: number;
+    rooms?: Array<{ roomType: string; availableRooms: number; stayPriceAfterTax: number }>;
+    error?: string;
+  } | null>(null);
 
   // Operation state
   const [isSaving, setIsSaving] = useState(false);
@@ -295,13 +306,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setGoogleBusinessUrl(hotel.social_links.google_business || '');
       }
       if (hotel.booking_engine_config) {
-        setEngineEnabled(Boolean(hotel.booking_engine_config.is_enabled));
-        setEngineMode(hotel.booking_engine_config.mode || 'builtin');
+        setEngineEnabled(hotel.booking_engine_config.is_enabled !== false);
+        setEngineMode(hotel.booking_engine_config.mode || 'yanolja_link_inbuilt');
         setYanoljaBookingUrl(
           hotel.booking_engine_config.yanolja_booking_url ||
             'https://letsbook.me/booking/sunmoonsuites'
         );
-        setYanoljaHotelCode(hotel.booking_engine_config.yanolja_hotel_code || '');
+        setYanoljaHotelCode(hotel.booking_engine_config.yanolja_hotel_code || '63594');
         setYanoljaApiKey(hotel.booking_engine_config.yanolja_api_key || '');
         setYanoljaApiEndpoint(
           hotel.booking_engine_config.yanolja_api_endpoint ||
@@ -2027,7 +2038,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     const next = !engineEnabled;
                     setEngineEnabled(next);
                     if (next && engineMode === 'builtin') {
-                      setEngineMode('yanolja_api');
+                      setEngineMode('yanolja_link_inbuilt');
                     }
                   }}
                   className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider cursor-pointer transition-colors shrink-0 ${
@@ -2045,6 +2056,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => {
+                    setEngineMode('yanolja_link_inbuilt');
+                    setEngineEnabled(true);
+                  }}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    engineEnabled &&
+                    (engineMode === 'yanolja_link_inbuilt' || engineMode === 'yanolja_api')
+                      ? 'border-amber-700 bg-white ring-2 ring-amber-600/20'
+                      : 'border-stone-200 bg-white/70 hover:border-stone-300'
+                  }`}
+                >
+                  <div className="font-bold text-stone-900 flex items-center justify-between gap-1">
+                    <span>Mode A: Inbuilt Link Engine</span>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px] font-extrabold">
+                      Active • No Redirect
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Feeds your <code className="font-mono">letsbook.me/booking/sunmoonsuites</code> link internally. Guests book inside your own website modal while availability &amp; bookings process internally with Yanolja (#63594).
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
                     setEngineMode('builtin');
                     setEngineEnabled(false);
                   }}
@@ -2055,36 +2090,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   }`}
                 >
                   <div className="font-bold text-stone-900 flex items-center justify-between">
-                    <span>Mode A: Website Built-in</span>
+                    <span>Mode B: Website Local Only</span>
                     <span className="px-2 py-0.5 bg-stone-100 text-stone-700 rounded text-[10px]">
-                      Default
+                      Standalone PMS
                     </span>
                   </div>
                   <p className="text-[11px] text-stone-500 mt-1">
-                    Uses your website's built-in booking modal and saves reservations directly in your Staff PMS &amp; Supabase database.
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEngineMode('yanolja_api');
-                    setEngineEnabled(true);
-                  }}
-                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                    engineEnabled && engineMode === 'yanolja_api'
-                      ? 'border-amber-700 bg-white ring-2 ring-amber-600/20'
-                      : 'border-stone-200 bg-white/70 hover:border-stone-300'
-                  }`}
-                >
-                  <div className="font-bold text-stone-900 flex items-center justify-between">
-                    <span>Mode B: Standalone API</span>
-                    <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded text-[10px] font-bold">
-                      MakeMyTrip Style
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-stone-500 mt-1">
-                    Guests stay 100% on your website. Availability &amp; bookings sync with Yanolja in the background using Hotel Code &amp; API Key.
+                    Uses only your website's internal database (Supabase / Staff Portal PMS) without connecting to Yanolja.
                   </p>
                 </button>
 
@@ -2101,26 +2113,107 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   }`}
                 >
                   <div className="font-bold text-stone-900 flex items-center justify-between">
-                    <span>Mode C: Direct Link</span>
+                    <span>Mode C: External Redirect</span>
                     <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px] font-bold">
-                      letsbook.me
+                      Optional
                     </span>
                   </div>
                   <p className="text-[11px] text-stone-500 mt-1">
-                    Redirects "Book Now" &amp; "Check Availability" with selected dates directly to your Yanolja booking link.
+                    Redirects "Book Now" &amp; "Check Availability" with selected dates externally to your Yanolja booking link.
                   </p>
                 </button>
               </div>
 
-              {/* Yanolja Credential Fields */}
+              {/* Yanolja Credential Fields + Live Inbuilt Link Verifier */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-amber-200/80">
+                <div className="sm:col-span-2">
+                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
+                    Fed Yanolja Booking Link (Inbuilt Internal Feed URL)
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://letsbook.me/booking/sunmoonsuites"
+                      value={yanoljaBookingUrl}
+                      onChange={(e) => setYanoljaBookingUrl(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
+                    />
+                    <button
+                      type="button"
+                      disabled={isTestingYanoljaLink}
+                      onClick={async () => {
+                        setIsTestingYanoljaLink(true);
+                        setYanoljaLinkTestResult(null);
+                        try {
+                          const q = new URLSearchParams({
+                            bookingUrl:
+                              yanoljaBookingUrl.trim() ||
+                              'https://letsbook.me/booking/sunmoonsuites',
+                          });
+                          const resp = await fetch(`/api/yanolja/link-status?${q.toString()}`);
+                          const data = await resp.json();
+                          if (data?.success && data?.hotelCode) {
+                            setYanoljaHotelCode(String(data.hotelCode));
+                          }
+                          setYanoljaLinkTestResult(data);
+                        } catch (err: any) {
+                          setYanoljaLinkTestResult({
+                            success: false,
+                            error: err?.message || 'Connection test failed',
+                          });
+                        } finally {
+                          setIsTestingYanoljaLink(false);
+                        }
+                      }}
+                      className="px-4 py-2 bg-stone-900 hover:bg-amber-800 text-white font-bold rounded-lg text-xs cursor-pointer shrink-0 transition-colors"
+                    >
+                      {isTestingYanoljaLink
+                        ? 'Checking Yanolja Link...'
+                        : 'Test Inbuilt Link Connection'}
+                    </button>
+                  </div>
+
+                  {yanoljaLinkTestResult && (
+                    <div
+                      className={`mt-2 p-3 rounded-lg border text-xs ${
+                        yanoljaLinkTestResult.success
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                          : 'bg-rose-50 border-rose-200 text-rose-800'
+                      }`}
+                    >
+                      {yanoljaLinkTestResult.success ? (
+                        <div className="space-y-1">
+                          <div className="font-bold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>
+                              Inbuilt Link Connected: {yanoljaLinkTestResult.hotelName} (Yanolja Property Code #{yanoljaLinkTestResult.hotelCode})
+                            </span>
+                          </div>
+                          {yanoljaLinkTestResult.rooms && yanoljaLinkTestResult.rooms.length > 0 && (
+                            <p className="text-[11px] text-emerald-800">
+                              Live Rooms Mapped ({yanoljaLinkTestResult.roomsCount}):{' '}
+                              {yanoljaLinkTestResult.rooms
+                                .map((r) => `${r.roomType} (${r.availableRooms} Avail)`)
+                                .join(' • ')}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span>
+                          Could not reach live Yanolja link ({yanoljaLinkTestResult.error}). System will safely use internal database fallback.
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
-                    Yanolja / eZee Hotel Code (Property ID)
+                    Yanolja / eZee Hotel Code (Auto-Detected from Link)
                   </label>
                   <input
                     type="text"
-                    placeholder="Enter Hotel Code provided by Yanolja (e.g. 48291)"
+                    placeholder="63594"
                     value={yanoljaHotelCode}
                     onChange={(e) => setYanoljaHotelCode(e.target.value)}
                     className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
@@ -2129,39 +2222,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 <div>
                   <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
-                    Yanolja / eZee API Key (Auth Code)
+                    Yanolja API Key (Optional — Not Needed for Inbuilt Link Mode)
                   </label>
                   <input
                     type="password"
-                    placeholder="Enter API Key / Auth Code provided by Yanolja"
+                    placeholder="Optional (Inbuilt Link works automatically without API Key)"
                     value={yanoljaApiKey}
                     onChange={(e) => setYanoljaApiKey(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
-                    Yanolja Direct Booking URL (letsbook.me Link)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://letsbook.me/booking/sunmoonsuites"
-                    value={yanoljaBookingUrl}
-                    onChange={(e) => setYanoljaBookingUrl(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-stone-700 mb-1">
-                    Yanolja REST API Endpoint URL
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://live.ipms247.com/booking/reservation_api/listing.php"
-                    value={yanoljaApiEndpoint}
-                    onChange={(e) => setYanoljaApiEndpoint(e.target.value)}
                     className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-white font-mono text-xs"
                   />
                 </div>

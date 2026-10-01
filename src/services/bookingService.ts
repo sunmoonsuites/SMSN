@@ -21,6 +21,9 @@ export interface AvailabilityResult {
   subtotal: number;
   tax: number;
   total: number;
+  yanoljaRoomTypeUnkid?: string;
+  yanoljaRoomRateUnkid?: string;
+  yanoljaSynced?: boolean;
 }
 
 function getLocalBookings(hotelId: string): Booking[] {
@@ -330,12 +333,68 @@ export async function checkRoomAvailability(
     }
   });
 
-  // Optional Yanolja / eZee Live API Availability Sync (when enabled in Settings)
+  // Optional Yanolja / eZee Live Availability Sync (Inbuilt letsbook.me Link or REST API)
   const localHotel = getStoredLocalConfig();
   const engineCfg = localHotel?.booking_engine_config ?? DEFAULT_BOOKING_ENGINE_CONFIG;
-  const yanoljaAvailabilityMap: Record<string, { available?: number; rate?: number }> = {};
+  const yanoljaAvailabilityMap: Record<
+    string,
+    {
+      available?: number;
+      rate?: number;
+      roomTypeUnkid?: string;
+      roomRateUnkid?: string;
+      synced?: boolean;
+    }
+  > = {};
 
-  if (
+  const activeMode = engineCfg?.mode || 'yanolja_link_inbuilt';
+  const isLinkInbuiltActive =
+    engineCfg?.is_enabled !== false &&
+    (activeMode === 'yanolja_link_inbuilt' ||
+      (activeMode === 'yanolja_api' && !engineCfg?.yanolja_api_key?.trim()));
+
+  if (isLinkInbuiltActive) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4500);
+      const query = new URLSearchParams({
+        bookingUrl:
+          engineCfg?.yanolja_booking_url?.trim() || 'https://letsbook.me/booking/sunmoonsuites',
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        adults: '2',
+        children: '0',
+      });
+      const resp = await fetch(`/api/yanolja/link-availability?${query.toString()}`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (resp.ok) {
+        const linkData = await resp.json();
+        const rooms = Array.isArray(linkData?.rooms) ? linkData.rooms : [];
+        rooms.forEach((item: any) => {
+          const rType = String(item?.roomType || item?.roomName || '')
+            .toLowerCase()
+            .replace(/-ep$/i, '')
+            .replace(/room/gi, '')
+            .trim();
+          const avail = Number(item?.availableRooms ?? -1);
+          const rate = Number(item?.stayPriceAfterTax || item?.stayPrice || 0);
+          if (rType) {
+            yanoljaAvailabilityMap[rType] = {
+              available: avail >= 0 ? avail : undefined,
+              rate: rate > 0 ? rate : undefined,
+              roomTypeUnkid: item?.roomTypeUnkid ? String(item.roomTypeUnkid) : undefined,
+              roomRateUnkid: item?.roomRateUnkid ? String(item.roomRateUnkid) : undefined,
+              synced: true,
+            };
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Yanolja inbuilt link availability fallback to local database:', e);
+    }
+  } else if (
     engineCfg?.is_enabled &&
     engineCfg.mode === 'yanolja_api' &&
     engineCfg.yanolja_hotel_code?.trim() &&
@@ -359,13 +418,19 @@ export async function checkRoomAvailability(
         const yData = await resp.json();
         const roomList = Array.isArray(yData) ? yData : yData?.RoomList || [];
         roomList.forEach((item: any) => {
-          const rName = String(item?.Room_Name || item?.Roomtype_Name || '').toLowerCase();
-          const avail = Number(item?. min_ava_rooms ?? item?.Available_Rooms ?? -1);
-          const rate = Number(item?.room_rates_info?.avg_per_night_without_tax ?? item?.Base_Price ?? 0);
+          const rName = String(item?.Room_Name || item?.Roomtype_Name || '')
+            .toLowerCase()
+            .replace(/room/gi, '')
+            .trim();
+          const avail = Number(item?.min_ava_rooms ?? item?.Available_Rooms ?? -1);
+          const rate = Number(
+            item?.room_rates_info?.avg_per_night_without_tax ?? item?.Base_Price ?? 0
+          );
           if (rName) {
             yanoljaAvailabilityMap[rName] = {
               available: avail >= 0 ? avail : undefined,
               rate: rate > 0 ? rate : undefined,
+              synced: true,
             };
           }
         });
@@ -384,13 +449,17 @@ export async function checkRoomAvailability(
         ? availableRooms.length
         : Math.max(1, 10 - (bookedCategoryCounts[cat.id] || 0));
 
-    const catKey = cat.name.toLowerCase();
-    const matchedYanolja = Object.entries(yanoljaAvailabilityMap).find(
-      ([k]) => k.includes(catKey) || catKey.includes(k)
-    )?.[1];
+    const normCatName = cat.name
+      .toLowerCase()
+      .replace(/room/gi, '')
+      .trim();
+    const matchedYanolja =
+      yanoljaAvailabilityMap[normCatName] ||
+      Object.entries(yanoljaAvailabilityMap).find(([k]) => k === normCatName)?.[1];
 
     if (matchedYanolja?.available !== undefined) {
-      count = matchedYanolja.available;
+      const localBookedCount = bookedCategoryCounts[cat.id] || 0;
+      count = Math.max(0, matchedYanolja.available - localBookedCount);
     }
 
     const { effectivePrice, isInauguralActive } = getEffectiveRoomPrice(cat);
@@ -409,6 +478,9 @@ export async function checkRoomAvailability(
       subtotal,
       tax,
       total,
+      yanoljaRoomTypeUnkid: matchedYanolja?.roomTypeUnkid,
+      yanoljaRoomRateUnkid: matchedYanolja?.roomRateUnkid,
+      yanoljaSynced: Boolean(matchedYanolja?.synced),
     });
   }
 
@@ -425,6 +497,9 @@ export interface CreateBookingParams {
   adults: number;
   children: number;
   categoryId?: string;
+  categoryName?: string;
+  yanoljaRoomTypeUnkid?: string;
+  yanoljaRoomRateUnkid?: string;
   roomId?: string;
   ratePerNight: number;
   source?: 'Website' | 'Walk-in' | 'Phone' | 'OTA';
@@ -440,46 +515,96 @@ async function syncBookingToYanoljaApi(
   params: CreateBookingParams,
   bookingRef: string,
   totalAmount: number
-): Promise<void> {
+): Promise<{ synced: boolean; yanoljaBookingId?: string }> {
   const localHotel = getStoredLocalConfig();
   const engineCfg = localHotel?.booking_engine_config ?? DEFAULT_BOOKING_ENGINE_CONFIG;
+  if (engineCfg?.is_enabled === false || engineCfg?.mode === 'builtin') {
+    return { synced: false };
+  }
+
+  const activeMode = engineCfg?.mode || 'yanolja_link_inbuilt';
+
+  // 1. Inbuilt letsbook.me Link Internal Booking Processing
   if (
-    !engineCfg?.is_enabled ||
-    engineCfg.mode !== 'yanolja_api' ||
-    !engineCfg.yanolja_hotel_code?.trim() ||
-    !engineCfg.yanolja_api_key?.trim()
+    activeMode === 'yanolja_link_inbuilt' ||
+    (activeMode === 'yanolja_api' && !engineCfg?.yanolja_api_key?.trim())
   ) {
-    return;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const resp = await fetch('/api/yanolja/link-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          bookingUrl:
+            engineCfg?.yanolja_booking_url?.trim() || 'https://letsbook.me/booking/sunmoonsuites',
+          checkInDate: params.checkInDate,
+          checkOutDate: params.checkOutDate,
+          adults: params.adults,
+          children: params.children,
+          guestName: params.guestName,
+          guestEmail: params.guestEmail,
+          guestPhone: params.guestPhone,
+          specialRequests: params.specialRequests,
+          categoryName: params.categoryName,
+          roomTypeUnkid: params.yanoljaRoomTypeUnkid,
+          roomRateUnkid: params.yanoljaRoomRateUnkid,
+          totalAmount,
+          bookingReference: bookingRef,
+        }),
+      });
+      clearTimeout(timer);
+      if (resp.ok) {
+        const resJson = await resp.json();
+        if (resJson?.success && resJson?.yanoljaBookingId) {
+          return { synced: true, yanoljaBookingId: String(resJson.yanoljaBookingId) };
+        }
+      }
+    } catch (err) {
+      console.warn('Yanolja inbuilt link booking sync skipped:', err);
+    }
+    return { synced: false };
   }
 
-  try {
-    const apiBase =
-      engineCfg.yanolja_api_endpoint?.trim() ||
-      'https://live.ipms247.com/booking/reservation_api/listing.php';
-    const nameParts = params.guestName.trim().split(' ');
-    const firstName = nameParts[0] || 'Guest';
-    const lastName = nameParts.slice(1).join(' ') || 'Guest';
+  // 2. Direct REST API Key Mode (if API Key provided)
+  if (
+    activeMode === 'yanolja_api' &&
+    engineCfg.yanolja_hotel_code?.trim() &&
+    engineCfg.yanolja_api_key?.trim()
+  ) {
+    try {
+      const apiBase =
+        engineCfg.yanolja_api_endpoint?.trim() ||
+        'https://live.ipms247.com/booking/reservation_api/listing.php';
+      const nameParts = params.guestName.trim().split(' ');
+      const firstName = nameParts[0] || 'Guest';
+      const lastName = nameParts.slice(1).join(' ') || 'Guest';
 
-    const payload = new URLSearchParams({
-      request_type: 'InsertBooking',
-      HotelCode: engineCfg.yanolja_hotel_code.trim(),
-      APIKey: engineCfg.yanolja_api_key.trim(),
-      check_in_date: params.checkInDate,
-      check_out_date: params.checkOutDate,
-      First_Name: firstName,
-      Last_Name: lastName,
-      Email_Address: params.guestEmail.trim(),
-      Mobile_No: params.guestPhone.trim(),
-      booking_reference: bookingRef,
-      total_amount: String(totalAmount),
-      payment_type: params.paymentReference ? 'Prepaid_Razorpay' : 'Pay_At_Hotel',
-      payment_id: params.paymentReference || '',
-    });
+      const payload = new URLSearchParams({
+        request_type: 'InsertBooking',
+        HotelCode: engineCfg.yanolja_hotel_code.trim(),
+        APIKey: engineCfg.yanolja_api_key.trim(),
+        check_in_date: params.checkInDate,
+        check_out_date: params.checkOutDate,
+        First_Name: firstName,
+        Last_Name: lastName,
+        Email_Address: params.guestEmail.trim(),
+        Mobile_No: params.guestPhone.trim(),
+        booking_reference: bookingRef,
+        total_amount: String(totalAmount),
+        payment_type: params.paymentReference ? 'Prepaid_Razorpay' : 'Pay_At_Hotel',
+        payment_id: params.paymentReference || '',
+      });
 
-    await fetch(`${apiBase}?${payload.toString()}`, { method: 'POST' });
-  } catch (err) {
-    console.warn('Yanolja InsertBooking sync queued/skipped:', err);
+      await fetch(`${apiBase}?${payload.toString()}`, { method: 'POST' });
+      return { synced: true };
+    } catch (err) {
+      console.warn('Yanolja InsertBooking sync queued/skipped:', err);
+    }
   }
+
+  return { synced: false };
 }
 
 /**
