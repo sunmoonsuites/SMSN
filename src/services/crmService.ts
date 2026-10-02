@@ -135,177 +135,35 @@ export const DEFAULT_AGENT_PERMISSIONS: CRMUserPermissions = {
   leadsSettings: false,
 };
 
-const SEED_LEADS: CRMLead[] = [
-  {
-    id: 'c01a8b10-1111-4444-8888-000000000001',
-    name: 'Aarav Singhania',
-    email: 'aarav.singhania@corpvenue.in',
-    phone: '+91 98114 52019',
-    source: 'website',
-    status: 'new',
-    score: 'HOT',
-    budget: '₹45,000',
-    guests: '35 Guests (Banquet + 4 Rooms)',
-    city: 'Noida Sector 62',
-    booking_date: getNextDayLocalDateStr(getTodayLocalDateStr()),
-    booking_time: '18:30',
-    remarks: 'Looking for ground-floor banquet hall for corporate dinner plus 4 Super Deluxe rooms.',
-    tags: ['Relevent', 'Corporate', 'Banquet'],
-    meta_lead_id: null,
-    sync_hash: 'seed-hash-1',
-    follow_up_date: getTodayLocalDateStr(),
-    follow_up_time: '16:00',
-    follow_up_remarks: 'Share corporate banquet package PDF and menu options.',
-    assigned_agent: null,
-    assigned_agent_name: 'Priya Verma',
-    email_sent: false,
-    whatsapp_sent: true,
-    history: [
-      {
-        id: 'act-seed-1',
-        type: 'automated',
-        content: 'Lead captured via Direct Website Enquiry.',
-        user: 'System',
-        outcome: 'neutral',
-        timestamp: new Date(Date.now() - 1000 * 60 * 95).toISOString(),
-      },
-      {
-        id: 'act-seed-2',
-        type: 'whatsapp',
-        content: 'Sent initial brochure & tariff welcome message on WhatsApp.',
-        user: 'Priya Verma',
-        outcome: 'positive',
-        timestamp: new Date(Date.now() - 1000 * 60 * 40).toISOString(),
-      },
-    ],
-    created_at: new Date(Date.now() - 1000 * 60 * 95).toISOString(),
-    status_updated_at: new Date(Date.now() - 1000 * 60 * 40).toISOString(),
-  },
-  {
-    id: 'c01a8b10-2222-4444-8888-000000000002',
-    name: 'Dr. Meera Kapoor',
-    email: 'drmeerakapoor@medantacare.org',
-    phone: '+91 98732 10488',
-    source: 'direct',
-    status: 'followup',
-    score: 'HOT',
-    budget: '₹18,000',
-    guests: '2 Adults',
-    city: 'New Delhi',
-    booking_date: getNextDayLocalDateStr(getTodayLocalDateStr()),
-    booking_time: '14:00',
-    remarks: '7-night medical conference stay near Medanta Hospital Noida. Prefers quiet 2nd floor Suite.',
-    tags: ['Relevent', 'VIP', 'Long Stay'],
-    meta_lead_id: null,
-    sync_hash: 'seed-hash-2',
-    follow_up_date: getTodayLocalDateStr(),
-    follow_up_time: '18:00',
-    follow_up_remarks: 'Confirm airport pickup timing and doctor corporate discount.',
-    assigned_agent: null,
-    assigned_agent_name: 'Rohit Sharma',
-    email_sent: true,
-    whatsapp_sent: true,
-    history: [
-      {
-        id: 'act-seed-3',
-        type: 'call',
-        content: 'Spoke with Dr. Kapoor regarding 7-night Suite tariff.',
-        user: 'Rohit Sharma',
-        outcome: 'positive',
-        timestamp: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-      },
-    ],
-    created_at: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
-    status_updated_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-  },
-  {
-    id: 'c01a8b10-3333-4444-8888-000000000003',
-    name: 'Siddharth Malhotra',
-    email: 'siddharth.m@gmail.com',
-    phone: '+91 99102 88341',
-    source: 'meta',
-    status: 'contacted',
-    score: 'WARM',
-    budget: '₹12,500',
-    guests: '6 Adults (3 Deluxe Rooms)',
-    city: 'Gurgaon',
-    booking_date: getNextDayLocalDateStr(getNextDayLocalDateStr(getTodayLocalDateStr())),
-    booking_time: '13:00',
-    remarks: 'Family wedding group attending function at Tivoli Lotus Court nearby.',
-    tags: ['Relevent', 'Wedding Group'],
-    meta_lead_id: 'meta_998172635',
-    sync_hash: 'seed-hash-3',
-    follow_up_date: getNextDayLocalDateStr(getTodayLocalDateStr()),
-    follow_up_time: '11:30',
-    follow_up_remarks: 'Follow up for advance payment link.',
-    assigned_agent: null,
-    assigned_agent_name: 'Priya Verma',
-    email_sent: true,
-    whatsapp_sent: false,
-    history: [
-      {
-        id: 'act-seed-4',
-        type: 'automated',
-        content: 'Synced from Meta (Instagram Lead Ad Campaign).',
-        user: 'Meta Sync',
-        outcome: 'none',
-        timestamp: new Date(Date.now() - 1000 * 60 * 320).toISOString(),
-      },
-    ],
-    created_at: new Date(Date.now() - 1000 * 60 * 320).toISOString(),
-    status_updated_at: new Date(Date.now() - 1000 * 60 * 200).toISOString(),
-  },
-  {
-    id: 'c01a8b10-4444-4444-8888-000000000004',
-    name: 'Karanveer Arora',
-    email: 'karan.arora@outlook.com',
-    phone: '+91 97170 44912',
-    source: 'google_sheets',
-    status: 'converted',
-    score: 'HOT',
-    budget: '₹8,500',
-    guests: '4 Adults (2 Rooms)',
-    city: 'Greater Noida',
-    booking_date: getTodayLocalDateStr(),
-    booking_time: '14:00',
-    remarks: 'Converted to confirmed booking. Early check-in requested.',
-    tags: ['Relevent', 'Repeat Guest'],
-    meta_lead_id: null,
-    sync_hash: 'seed-hash-4',
-    follow_up_date: null,
-    follow_up_time: '',
-    follow_up_remarks: '',
-    assigned_agent: null,
-    assigned_agent_name: 'Rohit Sharma',
-    email_sent: true,
-    whatsapp_sent: true,
-    history: [
-      {
-        id: 'act-seed-5',
-        type: 'status',
-        content: 'Converted lead to confirmed hotel reservation.',
-        user: 'Rohit Sharma',
-        outcome: 'positive',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-      },
-    ],
-    created_at: new Date(Date.now() - 1000 * 60 * 600).toISOString(),
-    status_updated_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-  },
-];
+// Pure production CRM: Zero mock leads by default.
+// Leads arrive strictly via Google Sheets Sync, Meta Lead Ads, Direct Website Intake, or Manual Entry.
+const SEED_LEADS: CRMLead[] = [];
 
 function getLocalLeads(): CRMLead[] {
   try {
     const raw = localStorage.getItem(LOCAL_LEADS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        // Cleanse any legacy mock leads from previous sessions
+        const cleaned = parsed.filter(
+          (l) =>
+            !String(l.id || '').startsWith('c01a8b10-') &&
+            l.name !== 'Aarav Singhania' &&
+            l.name !== 'Dr. Meera Kapoor' &&
+            l.name !== 'Siddharth Malhotra' &&
+            l.name !== 'Karanveer Arora'
+        );
+        if (cleaned.length !== parsed.length) {
+          saveLocalLeads(cleaned);
+        }
+        return cleaned;
+      }
     }
   } catch {
     // ignore
   }
-  localStorage.setItem(LOCAL_LEADS_KEY, JSON.stringify(SEED_LEADS));
-  return SEED_LEADS;
+  return [];
 }
 
 function saveLocalLeads(leads: CRMLead[]): void {
@@ -348,7 +206,7 @@ function normalizeLeadRow(row: any): CRMLead {
 }
 
 /**
- * Fetch all leads from Supabase `public.leads` (with automatic fallback & seeding)
+ * Fetch all leads from Supabase `public.leads` (with zero mock data)
  */
 export async function fetchCRMLeads(): Promise<{
   leads: CRMLead[];
@@ -366,26 +224,38 @@ export async function fetchCRMLeads(): Promise<{
       .order('created_at', { ascending: false });
 
     if (error) {
-      // If table `public.leads` does not exist yet in Supabase, fallback gracefully
+      // If table `public.leads` does not exist yet in Supabase, fallback gracefully to local mirror
       console.warn('Supabase leads query warning (using local mirror):', error.message);
       return { leads: getLocalLeads(), supabaseTableReady: false };
     }
 
     if (!data || data.length === 0) {
-      // Seed initial sample leads into Supabase once
-      const { data: seeded, error: seedErr } = await supabase
-        .from('leads')
-        .insert(SEED_LEADS)
-        .select('*');
-      if (!seedErr && seeded && seeded.length > 0) {
-        const normalized = seeded.map(normalizeLeadRow);
-        saveLocalLeads(normalized);
-        return { leads: normalized, supabaseTableReady: true };
-      }
-      return { leads: getLocalLeads(), supabaseTableReady: !seedErr };
+      saveLocalLeads([]);
+      return { leads: [], supabaseTableReady: true };
     }
 
-    const normalized = data.map(normalizeLeadRow);
+    // Purge legacy mock leads if they were previously inserted into Supabase
+    const mockIds = data
+      .filter(
+        (r: any) =>
+          String(r.id || '').startsWith('c01a8b10-') ||
+          r.name === 'Aarav Singhania' ||
+          r.name === 'Dr. Meera Kapoor' ||
+          r.name === 'Siddharth Malhotra' ||
+          r.name === 'Karanveer Arora'
+      )
+      .map((r: any) => r.id);
+
+    if (mockIds.length > 0) {
+      try {
+        await supabase.from('leads').delete().in('id', mockIds);
+      } catch {
+        // ignore
+      }
+    }
+
+    const realData = data.filter((r: any) => !mockIds.includes(r.id));
+    const normalized = realData.map(normalizeLeadRow);
     saveLocalLeads(normalized);
     return { leads: normalized, supabaseTableReady: true };
   } catch (err) {

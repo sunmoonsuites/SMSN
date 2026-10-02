@@ -58,6 +58,7 @@ import {
   Database,
   History,
   UserCheck,
+  Users,
   BellRing,
   Building2,
   ExternalLink,
@@ -852,6 +853,46 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
           </div>
         )}
 
+        {/* ZERO-LEADS EMPTY BANNER (When no leads exist) */}
+        {leads.length === 0 && !isLoading && (
+          <div className="bg-gradient-to-r from-[#0F172A] to-slate-900 text-white p-6 rounded-2xl border-2 border-[#C8A45D] shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="space-y-1 text-center md:text-left">
+              <h3 className="font-serif font-bold text-base text-[#C8A45D] flex items-center justify-center md:justify-start gap-2">
+                <Users className="w-5 h-5 text-[#C8A45D]" />
+                Luxury CRM Pipeline Ready (0 Active Leads)
+              </h3>
+              <p className="text-xs text-slate-300">
+                Mock data has been removed. All new leads will be captured directly from your website, Google Sheets sync, or Meta Ads.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {canAdd && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(true)}
+                  className="px-4 py-2 bg-[#C8A45D] hover:bg-[#b59049] text-slate-950 font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Add Real Lead</span>
+                </button>
+              )}
+              {canManageSettings && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSyncFeedback('');
+                    setIntegrationModal('sheets');
+                  }}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                  <span>Sync Google Sheets</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* VIEW 1: KANBAN PIPELINE BOARD */}
         {!canView ? (
           <div className="p-12 bg-white rounded-2xl border border-stone-200 text-center text-sm text-slate-600">
@@ -1190,7 +1231,20 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200">
-                  {filteredLeads.map((lead) => {
+                  {filteredLeads.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 px-4 text-center text-stone-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Users className="w-8 h-8 text-stone-300 stroke-1" />
+                          <p className="font-semibold text-slate-700 text-sm">No leads found in this view</p>
+                          <p className="text-[11px] text-stone-400">
+                            Click &ldquo;+ Add Lead&rdquo; above, sync public Google Sheets, or import from Meta Ads.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredLeads.map((lead) => {
                     const isSelected = selectedIds.includes(lead.id);
                     return (
                       <tr
@@ -1342,7 +1396,8 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
                         </td>
                       </tr>
                     );
-                  })}
+                  })
+                )}
                 </tbody>
               </table>
             </div>
