@@ -10,6 +10,7 @@ import {
   GmailCrmConfig,
   ReplyTemplatesConfig,
   CRMUserPermissions,
+  CRMAgent,
   convertGoogleSheetToCsvUrl,
 } from '../../services/crmService';
 import { getTodayLocalDateStr, getNextDayLocalDateStr } from '../../lib/utils';
@@ -45,9 +46,10 @@ interface AddLeadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (lead: Partial<CRMLead>) => Promise<void> | void;
+  agents?: CRMAgent[];
 }
 
-export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose, onSave }) => {
+export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose, onSave, agents = [] }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -58,7 +60,9 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose, onS
   const [city, setCity] = useState('Noida');
   const [bookingDate, setBookingDate] = useState(getTodayLocalDateStr());
   const [bookingTime, setBookingTime] = useState('14:00');
-  const [assignedAgentName, setAssignedAgentName] = useState('Priya Verma');
+  const activeAgents = agents.filter((a) => a.is_active);
+  const defaultAgentName = activeAgents.length > 0 ? activeAgents[0].full_name : 'Priya Verma';
+  const [assignedAgentName, setAssignedAgentName] = useState(defaultAgentName);
   const [relevancy, setRelevancy] = useState<'Relevent' | 'Non Relevent'>('Relevent');
   const [extraTags, setExtraTags] = useState('VIP');
   const [remarks, setRemarks] = useState('');
@@ -213,10 +217,20 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose, onS
                 onChange={(e) => setAssignedAgentName(e.target.value)}
                 className="w-full px-3 py-2 border border-stone-300 rounded-xl bg-white"
               >
-                <option value="Priya Verma">Priya Verma</option>
-                <option value="Rohit Sharma">Rohit Sharma</option>
-                <option value="Vikramaditya Singh">Vikramaditya Singh</option>
-                <option value="Front Desk Team">Front Desk Team</option>
+                {activeAgents.length > 0 ? (
+                  activeAgents.map((ag) => (
+                    <option key={ag.id} value={ag.full_name}>
+                      👤 {ag.full_name} ({ag.role})
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Priya Verma">Priya Verma</option>
+                    <option value="Rohit Sharma">Rohit Sharma</option>
+                    <option value="Hotel Owner (Super Admin)">Hotel Owner (Super Admin)</option>
+                    <option value="Front Desk Team">Front Desk Team</option>
+                  </>
+                )}
               </select>
             </div>
           </div>

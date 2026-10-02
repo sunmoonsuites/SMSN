@@ -15,6 +15,8 @@ import {
   DEFAULT_GMAIL_CRM_CONFIG,
   DEFAULT_REPLY_TEMPLATES,
   DEFAULT_AGENT_PERMISSIONS,
+  CRMAgent,
+  getCRMAgents,
   fetchCRMLeads,
   subscribeToLeadsRealtime,
   createCRMLead,
@@ -36,6 +38,7 @@ import {
   CRMIntegrationsModal,
   ConvertToBookingModal,
 } from './CRMModals';
+import { CRMAgentsModal } from './CRMAgentsModal';
 import { formatDate, getTodayLocalDateStr } from '../../lib/utils';
 import {
   LayoutGrid,
@@ -63,6 +66,7 @@ import {
   Building2,
   ExternalLink,
   Tag,
+  LogOut,
   X,
 } from 'lucide-react';
 
@@ -71,6 +75,7 @@ interface CRMDashboardProps {
   currentUser: StaffUser | null;
   onNavigateToPMS: () => void;
   onNavigateToWebsite: () => void;
+  onLogout?: () => void;
 }
 
 const PIPELINE_COLUMNS: Array<{ id: LeadStatus; label: string; accent: string }> = [
@@ -88,6 +93,7 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
   currentUser,
   onNavigateToPMS,
   onNavigateToWebsite,
+  onLogout,
 }) => {
   const [leads, setLeads] = useState<CRMLead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,6 +106,7 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
   const [followUpFilter, setFollowUpFilter] = useState<'all' | 'overdue' | 'today' | 'upcoming'>('all');
   const [selectedTagFilter, setSelectedTagFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
+  const [agentFilter, setAgentFilter] = useState<string>('ALL');
   const [rawSearch, setRawSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -109,6 +116,8 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
   );
 
   // Settings & Sync Configs
+  const [agents, setAgents] = useState<CRMAgent[]>([]);
+  const [showAgentsModal, setShowAgentsModal] = useState(false);
   const [leadSync, setLeadSync] = useState<LeadSyncConfig>(DEFAULT_LEAD_SYNC_CONFIG);
   const [metaSync, setMetaSync] = useState<MetaSyncConfig>(DEFAULT_META_SYNC_CONFIG);
   const [gmailConfig, setGmailConfig] = useState<GmailCrmConfig>(DEFAULT_GMAIL_CRM_CONFIG);
@@ -158,9 +167,14 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
 
   // Initial Load + Realtime Subscription
   const loadAllData = async () => {
-    const [leadsRes, settingsRes] = await Promise.all([fetchCRMLeads(), getCRMAppSettings()]);
+    const [leadsRes, settingsRes, agentsRes] = await Promise.all([
+      fetchCRMLeads(),
+      getCRMAppSettings(),
+      getCRMAgents(),
+    ]);
     setLeads(leadsRes.leads);
     setSupabaseReady(leadsRes.supabaseTableReady);
+    setAgents(agentsRes);
     setLeadSync(settingsRes.lead_sync);
     setMetaSync(settingsRes.meta_sync);
 
@@ -281,6 +295,14 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
       }
       if (dateFilter && lead.booking_date !== dateFilter) return false;
 
+      if (agentFilter !== 'ALL') {
+        if (agentFilter === 'Unassigned') {
+          if (lead.assigned_agent_name && lead.assigned_agent_name !== 'Unassigned') return false;
+        } else {
+          if (lead.assigned_agent_name !== agentFilter) return false;
+        }
+      }
+
       if (followUpFilter !== 'all') {
         if (!lead.follow_up_date) return false;
         if (followUpFilter === 'overdue' && lead.follow_up_date >= todayStr) return false;
@@ -303,6 +325,7 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
     scoreFilter,
     selectedTagFilter,
     dateFilter,
+    agentFilter,
     followUpFilter,
     debouncedSearch,
     todayStr,
@@ -468,6 +491,19 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
               <>
                 <button
                   type="button"
+                  onClick={() => setShowAgentsModal(true)}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer"
+                  title="Manage CRM Sales Agents, Roles & Permissions"
+                >
+                  <Users className="w-3.5 h-3.5 text-[#C8A45D]" />
+                  <span>Agents &amp; Roles</span>
+                  <span className="ml-0.5 px-1.5 py-0.2 bg-[#C8A45D]/20 text-[#C8A45D] font-bold text-[10px] rounded-full border border-[#C8A45D]/40">
+                    {agents.filter((a) => a.is_active).length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => {
                     setSyncFeedback('');
                     setIntegrationModal('sheets');
@@ -550,6 +586,17 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
+
+            {currentUser && onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                title="Log out from CRM"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -662,15 +709,35 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
         <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center text-xs">
             {/* 500ms Debounced Search */}
-            <div className="md:col-span-4 relative">
+            <div className="md:col-span-3 relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
               <input
                 type="text"
                 value={rawSearch}
                 onChange={(e) => setRawSearch(e.target.value)}
-                placeholder="Search name, phone, email, city, remarks..."
+                placeholder="Search name, phone, email, remarks..."
                 className="w-full pl-9 pr-3 py-2 border border-stone-300 rounded-xl text-xs focus:outline-none focus:border-[#C8A45D]"
               />
+            </div>
+
+            {/* Agent Filter */}
+            <div className="md:col-span-2">
+              <select
+                value={agentFilter}
+                onChange={(e) => setAgentFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-stone-300 rounded-xl bg-white font-semibold"
+                title="Filter Leads by Assigned Agent"
+              >
+                <option value="ALL">All Agents ({leads.length})</option>
+                {agents.map((ag) => (
+                  <option key={ag.id} value={ag.full_name}>
+                    👤 {ag.full_name} ({leads.filter((l) => l.assigned_agent_name === ag.full_name).length})
+                  </option>
+                ))}
+                <option value="Unassigned">
+                  Unassigned ({leads.filter((l) => !l.assigned_agent_name || l.assigned_agent_name === 'Unassigned').length})
+                </option>
+              </select>
             </div>
 
             {/* Score Filter */}
@@ -688,7 +755,7 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
             </div>
 
             {/* Follow-up Urgency Filter Tabs */}
-            <div className="md:col-span-4 flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200">
+            <div className="md:col-span-3 flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200">
               {(
                 [
                   ['all', 'All Follow-Ups'],
@@ -849,46 +916,6 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
               >
                 Clear
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* ZERO-LEADS EMPTY BANNER (When no leads exist) */}
-        {leads.length === 0 && !isLoading && (
-          <div className="bg-gradient-to-r from-[#0F172A] to-slate-900 text-white p-6 rounded-2xl border-2 border-[#C8A45D] shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="space-y-1 text-center md:text-left">
-              <h3 className="font-serif font-bold text-base text-[#C8A45D] flex items-center justify-center md:justify-start gap-2">
-                <Users className="w-5 h-5 text-[#C8A45D]" />
-                Luxury CRM Pipeline Ready (0 Active Leads)
-              </h3>
-              <p className="text-xs text-slate-300">
-                Mock data has been removed. All new leads will be captured directly from your website, Google Sheets sync, or Meta Ads.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              {canAdd && (
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(true)}
-                  className="px-4 py-2 bg-[#C8A45D] hover:bg-[#b59049] text-slate-950 font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Add Real Lead</span>
-                </button>
-              )}
-              {canManageSettings && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSyncFeedback('');
-                    setIntegrationModal('sheets');
-                  }}
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer"
-                >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                  <span>Sync Google Sheets</span>
-                </button>
-              )}
             </div>
           </div>
         )}
@@ -1119,6 +1146,42 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
                               </select>
                             </div>
 
+                            {/* Assigned Agent Reassign Selector */}
+                            <div className="flex items-center justify-between text-[10px] text-slate-600 pt-1 border-t border-stone-100">
+                              <div className="flex items-center gap-1">
+                                <UserCheck className="w-3 h-3 text-[#C8A45D] shrink-0" />
+                                <span className="text-stone-400 font-medium">Agent:</span>
+                              </div>
+                              <select
+                                value={lead.assigned_agent_name || 'Unassigned'}
+                                onChange={(e) => {
+                                  const newAgent = e.target.value;
+                                  handleQuickUpdate(
+                                    lead.id,
+                                    { assigned_agent_name: newAgent },
+                                    {
+                                      type: 'assignment',
+                                      content: `Assigned lead to agent ${newAgent}`,
+                                      user: currentUser?.full_name || 'Admin',
+                                      outcome: 'neutral',
+                                    }
+                                  );
+                                  showToast(`Lead assigned to ${newAgent}`);
+                                }}
+                                className="bg-transparent text-[10px] font-semibold text-slate-800 hover:text-slate-950 border-0 cursor-pointer max-w-[140px] truncate focus:outline-none"
+                                title="Click to Reassign Agent"
+                              >
+                                <option value="Unassigned">Unassigned</option>
+                                {agents
+                                  .filter((a) => a.is_active)
+                                  .map((ag) => (
+                                    <option key={ag.id} value={ag.full_name}>
+                                      {ag.full_name}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+
                             {/* Quick Action Suite Bar */}
                             <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-1">
                               <div className="flex items-center gap-1">
@@ -1271,9 +1334,17 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
                           <div className="font-serif font-bold text-sm text-slate-900">
                             {lead.name}
                           </div>
-                          <div className="text-[11px] text-stone-500">
-                            {lead.phone} &middot; {lead.email || 'No email'} &middot;{' '}
-                            <span className="uppercase">{lead.source}</span>
+                          <div className="text-[11px] text-stone-500 flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <span>{lead.phone}</span>
+                            <span>&middot;</span>
+                            <span>{lead.email || 'No email'}</span>
+                            <span>&middot;</span>
+                            <span className="uppercase font-semibold">{lead.source}</span>
+                            <span>&middot;</span>
+                            <span className="inline-flex items-center gap-1 text-[#C8A45D] font-medium bg-[#0F172A] px-1.5 py-0.2 rounded text-[10px]">
+                              <UserCheck className="w-2.5 h-2.5" />
+                              {lead.assigned_agent_name || 'Unassigned'}
+                            </span>
                           </div>
                         </td>
                         <td className="py-3 px-3 space-y-1">
@@ -1410,6 +1481,7 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSave={handleCreateLead}
+        agents={agents}
       />
 
       <ActivityTimelineDrawer
@@ -1539,6 +1611,22 @@ export const CRMDashboard: React.FC<CRMDashboardProps> = ({
             saveCRMAppSetting('crm_permissions', permsCfg),
           ]);
           showToast('CRM Settings & Templates saved to Supabase!');
+        }}
+      />
+
+      <CRMAgentsModal
+        isOpen={showAgentsModal}
+        onClose={() => setShowAgentsModal(false)}
+        agents={agents}
+        currentUser={currentUser}
+        onRefreshAgents={async () => {
+          const ags = await getCRMAgents();
+          setAgents(ags);
+        }}
+        onAgentSaved={async (msg) => {
+          const ags = await getCRMAgents();
+          setAgents(ags);
+          showToast(msg);
         }}
       />
     </div>

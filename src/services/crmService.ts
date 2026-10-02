@@ -97,8 +97,104 @@ export interface CRMUserPermissions {
   leadsSettings: boolean;
 }
 
+export type CRMAgentRole = 'ADMIN' | 'AGENT' | 'MANAGER';
+
+export interface CRMAgent {
+  id: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+  role: CRMAgentRole;
+  designation?: string;
+  is_active: boolean;
+  permissions: CRMUserPermissions;
+  password?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const ROLE_PRESET_PERMISSIONS: Record<CRMAgentRole, CRMUserPermissions> = {
+  ADMIN: {
+    viewLeads: true,
+    addLeads: true,
+    editLeads: true,
+    deleteLeads: true,
+    leadsSettings: true,
+  },
+  MANAGER: {
+    viewLeads: true,
+    addLeads: true,
+    editLeads: true,
+    deleteLeads: false,
+    leadsSettings: true,
+  },
+  AGENT: {
+    viewLeads: true,
+    addLeads: true,
+    editLeads: true,
+    deleteLeads: false,
+    leadsSettings: false,
+  },
+};
+
 const LOCAL_LEADS_KEY = 'sms_luxury_crm_leads_v1';
 const LOCAL_SETTINGS_KEY = 'sms_luxury_crm_settings_v1';
+const LOCAL_AGENTS_KEY = 'sms_luxury_crm_agents_v1';
+
+export const DEFAULT_CRM_AGENTS: CRMAgent[] = [
+  {
+    id: 'crm-agent-admin-1',
+    full_name: 'Hotel Owner (Super Admin)',
+    email: 'sunmoonsuites@gmail.com',
+    phone: '+91 96678 13353',
+    role: 'ADMIN',
+    designation: 'Managing Director / Owner',
+    is_active: true,
+    permissions: ROLE_PRESET_PERMISSIONS.ADMIN,
+    password: 'admin123',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'crm-agent-priya',
+    full_name: 'Priya Verma',
+    email: 'priya@sunmoonsuites.in',
+    phone: '+91 98110 12345',
+    role: 'AGENT',
+    designation: 'Senior Sales & Reservations Specialist',
+    is_active: true,
+    permissions: ROLE_PRESET_PERMISSIONS.AGENT,
+    password: 'agent123',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'crm-agent-rohit',
+    full_name: 'Rohit Sharma',
+    email: 'rohit@sunmoonsuites.in',
+    phone: '+91 98110 54321',
+    role: 'AGENT',
+    designation: 'Lead Relationship Executive',
+    is_active: true,
+    permissions: ROLE_PRESET_PERMISSIONS.AGENT,
+    password: 'agent123',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'crm-agent-frontdesk',
+    full_name: 'Front Desk Reception',
+    email: 'reception@sunmoonsuites.in',
+    phone: '+91 96678 13353',
+    role: 'AGENT',
+    designation: 'Guest Relations & Front Desk Team',
+    is_active: true,
+    permissions: ROLE_PRESET_PERMISSIONS.AGENT,
+    password: 'staff123',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
 
 export const DEFAULT_LEAD_SYNC_CONFIG: LeadSyncConfig = {
   csvUrls: [],
@@ -545,6 +641,255 @@ export async function saveCRMAppSetting(key: string, value: any): Promise<boolea
     }
   }
   return true;
+}
+
+/**
+ * Agent Management Functions (CRUD & RBAC)
+ */
+export async function getCRMAgents(): Promise<CRMAgent[]> {
+  let agents: CRMAgent[] = [];
+  try {
+    const raw = localStorage.getItem(LOCAL_AGENTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        agents = parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('*')
+        .eq('key', 'crm_agents')
+        .maybeSingle();
+
+      if (!error && data?.value && Array.isArray(data.value) && data.value.length > 0) {
+        agents = data.value;
+        localStorage.setItem(LOCAL_AGENTS_KEY, JSON.stringify(agents));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (agents.length === 0) {
+    agents = DEFAULT_CRM_AGENTS;
+    try {
+      localStorage.setItem(LOCAL_AGENTS_KEY, JSON.stringify(agents));
+    } catch {
+      // ignore
+    }
+  }
+
+  return agents;
+}
+
+export async function saveCRMAgent(
+  agentData: Partial<CRMAgent> & { full_name: string; email: string }
+): Promise<{ success: boolean; agent: CRMAgent; error?: string }> {
+  const cleanEmail = agentData.email.trim().toLowerCase();
+  const cleanName = agentData.full_name.trim();
+
+  if (!cleanName) {
+    return { success: false, agent: {} as CRMAgent, error: 'Agent full name is required.' };
+  }
+  if (!cleanEmail) {
+    return { success: false, agent: {} as CRMAgent, error: 'Agent email address is required.' };
+  }
+
+  const currentAgents = await getCRMAgents();
+  const nowIso = new Date().toISOString();
+
+  const targetId = agentData.id;
+  const existingIndex = targetId
+    ? currentAgents.findIndex((a) => a.id === targetId)
+    : currentAgents.findIndex((a) => a.email.toLowerCase() === cleanEmail);
+
+  let updatedAgent: CRMAgent;
+
+  const role = agentData.role || 'AGENT';
+  const permissions: CRMUserPermissions =
+    agentData.permissions || ROLE_PRESET_PERMISSIONS[role] || ROLE_PRESET_PERMISSIONS.AGENT;
+
+  if (existingIndex >= 0) {
+    const existing = currentAgents[existingIndex];
+    updatedAgent = {
+      ...existing,
+      ...agentData,
+      id: existing.id,
+      full_name: cleanName,
+      email: cleanEmail,
+      role,
+      permissions,
+      updated_at: nowIso,
+    };
+    currentAgents[existingIndex] = updatedAgent;
+  } else {
+    updatedAgent = {
+      id: `crm-agent-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      full_name: cleanName,
+      email: cleanEmail,
+      phone: agentData.phone?.trim() || '',
+      role,
+      designation:
+        agentData.designation?.trim() ||
+        (role === 'ADMIN' ? 'CRM Administrator' : 'Sales & Lead Specialist'),
+      is_active: agentData.is_active ?? true,
+      permissions,
+      password: agentData.password?.trim() || 'agent123',
+      created_at: nowIso,
+      updated_at: nowIso,
+    };
+    currentAgents.push(updatedAgent);
+  }
+
+  // 1. Save locally
+  try {
+    localStorage.setItem(LOCAL_AGENTS_KEY, JSON.stringify(currentAgents));
+  } catch {
+    // ignore
+  }
+
+  // 2. Persist to Supabase app_settings
+  await saveCRMAppSetting('crm_agents', currentAgents);
+
+  // 3. Synchronize with Staff Accounts for Portal Login
+  try {
+    const LOCAL_STAFF_KEY = 'pms_custom_staff_users';
+    const rawStaff = localStorage.getItem(LOCAL_STAFF_KEY);
+    let staffList: any[] = [];
+    if (rawStaff) {
+      try {
+        staffList = JSON.parse(rawStaff);
+      } catch {
+        staffList = [];
+      }
+    }
+    const staffRole = role === 'ADMIN' ? 'ADMIN' : 'FRONT DESK';
+    const existingStaffIdx = staffList.findIndex(
+      (s: any) => (s.email || '').toLowerCase() === cleanEmail
+    );
+
+    if (existingStaffIdx >= 0) {
+      staffList[existingStaffIdx] = {
+        ...staffList[existingStaffIdx],
+        full_name: cleanName,
+        phone: updatedAgent.phone,
+        password: updatedAgent.password || staffList[existingStaffIdx].password || 'agent123',
+        is_active: updatedAgent.is_active,
+        updated_at: nowIso,
+      };
+    } else {
+      staffList.push({
+        id: `staff-${Date.now()}`,
+        hotel_id: 'default-hotel-id',
+        email: cleanEmail,
+        full_name: cleanName,
+        phone: updatedAgent.phone || '',
+        role: staffRole,
+        is_active: updatedAgent.is_active,
+        password: updatedAgent.password || 'agent123',
+        created_at: nowIso,
+        updated_at: nowIso,
+      });
+    }
+    localStorage.setItem(LOCAL_STAFF_KEY, JSON.stringify(staffList));
+  } catch {
+    // ignore
+  }
+
+  return { success: true, agent: updatedAgent };
+}
+
+export async function deleteCRMAgent(
+  agentId: string
+): Promise<{ success: boolean; error?: string }> {
+  const currentAgents = await getCRMAgents();
+  const target = currentAgents.find((a) => a.id === agentId);
+
+  if (!target) {
+    return { success: false, error: 'Agent not found.' };
+  }
+
+  if (target.email === 'sunmoonsuites@gmail.com') {
+    return { success: false, error: 'Super Admin owner account cannot be deleted.' };
+  }
+
+  const filtered = currentAgents.filter((a) => a.id !== agentId);
+
+  try {
+    localStorage.setItem(LOCAL_AGENTS_KEY, JSON.stringify(filtered));
+  } catch {
+    // ignore
+  }
+
+  await saveCRMAppSetting('crm_agents', filtered);
+
+  // Clean up from staff accounts if needed
+  try {
+    const LOCAL_STAFF_KEY = 'pms_custom_staff_users';
+    const rawStaff = localStorage.getItem(LOCAL_STAFF_KEY);
+    if (rawStaff) {
+      const staffList = JSON.parse(rawStaff);
+      if (Array.isArray(staffList)) {
+        const updatedStaff = staffList.filter(
+          (s: any) => (s.email || '').toLowerCase() !== target.email.toLowerCase()
+        );
+        localStorage.setItem(LOCAL_STAFF_KEY, JSON.stringify(updatedStaff));
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return { success: true };
+}
+
+export async function toggleAgentStatus(
+  agentId: string,
+  isActive: boolean
+): Promise<{ success: boolean }> {
+  const currentAgents = await getCRMAgents();
+  const targetIndex = currentAgents.findIndex((a) => a.id === agentId);
+  if (targetIndex >= 0) {
+    currentAgents[targetIndex].is_active = isActive;
+    currentAgents[targetIndex].updated_at = new Date().toISOString();
+
+    try {
+      localStorage.setItem(LOCAL_AGENTS_KEY, JSON.stringify(currentAgents));
+    } catch {
+      // ignore
+    }
+    await saveCRMAppSetting('crm_agents', currentAgents);
+
+    // Sync active state in staff accounts
+    try {
+      const LOCAL_STAFF_KEY = 'pms_custom_staff_users';
+      const rawStaff = localStorage.getItem(LOCAL_STAFF_KEY);
+      if (rawStaff) {
+        const staffList = JSON.parse(rawStaff);
+        if (Array.isArray(staffList)) {
+          const sIdx = staffList.findIndex(
+            (s: any) =>
+              (s.email || '').toLowerCase() === currentAgents[targetIndex].email.toLowerCase()
+          );
+          if (sIdx >= 0) {
+            staffList[sIdx].is_active = isActive;
+            localStorage.setItem(LOCAL_STAFF_KEY, JSON.stringify(staffList));
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return { success: true };
 }
 
 /**

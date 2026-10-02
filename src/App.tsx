@@ -68,6 +68,7 @@ const StaffManagementView = lazyWithRetry(() => import('./components/admin/Staff
 const AuditTrailView = lazyWithRetry(() => import('./components/admin/AuditTrailView').then((m) => ({ default: m.AuditTrailView })));
 const SettingsView = lazyWithRetry(() => import('./components/admin/SettingsView').then((m) => ({ default: m.SettingsView })));
 const CRMDashboard = lazyWithRetry(() => import('./components/crm/CRMDashboard').then((m) => ({ default: m.CRMDashboard })));
+const CRMLoginScreen = lazyWithRetry(() => import('./components/crm/CRMLoginScreen').then((m) => ({ default: m.CRMLoginScreen })));
 
 // Common Modals
 const SupabaseConfigModal = lazyWithRetry(() => import('./components/common/SupabaseConfigModal').then((m) => ({ default: m.SupabaseConfigModal })));
@@ -146,7 +147,9 @@ export function MainApp() {
     } else if (
       (hash.includes('type=recovery') || search.includes('reset_password=true')) &&
       !location.pathname.toLowerCase().startsWith('/pms') &&
-      !location.pathname.toLowerCase().startsWith('/admin')
+      !location.pathname.toLowerCase().startsWith('/admin') &&
+      !location.pathname.toLowerCase().startsWith('/crm') &&
+      !location.pathname.toLowerCase().startsWith('/leads')
     ) {
       navigate(`/PMS${window.location.search}${window.location.hash}`, { replace: true });
     }
@@ -249,7 +252,14 @@ export function MainApp() {
     const { signOut } = await import('./services/staffService');
     await signOut();
     setCurrentUser(null);
-    navigate('/PMS');
+    if (
+      location.pathname.toLowerCase().startsWith('/crm') ||
+      location.pathname.toLowerCase().startsWith('/leads')
+    ) {
+      navigate('/CRM');
+    } else {
+      navigate('/PMS');
+    }
   };
 
   const handleNavigateSection = (sectionId: string) => {
@@ -427,6 +437,33 @@ export function MainApp() {
     </Suspense>
   );
 
+  const crmPortalElement = currentUser ? (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-stone-50">
+          <LoadingSpinner message="Loading Luxury CRM & Leads..." />
+        </div>
+      }
+    >
+      <CRMDashboard
+        hotel={hotel}
+        currentUser={currentUser}
+        onNavigateToPMS={() => navigate('/PMS')}
+        onNavigateToWebsite={() => navigate('/')}
+        onLogout={handleLogout}
+      />
+    </Suspense>
+  ) : (
+    <Suspense fallback={null}>
+      <CRMLoginScreen
+        hotel={hotel}
+        onAuthenticated={handleAuthenticated}
+        onReturnToWebsite={() => navigate('/')}
+        onNavigateToPMS={() => navigate('/PMS')}
+      />
+    </Suspense>
+  );
+
   const publicWebsiteContent = (
     <>
       <Navbar
@@ -563,44 +600,8 @@ export function MainApp() {
         <Route path="/admin/*" element={pmsPortalElement} />
 
         {/* DEDICATED LUXURY CRM & LEADS PORTAL ROUTES (/CRM, /crm, /leads) */}
-        <Route
-          path="/crm/*"
-          element={
-            <Suspense
-              fallback={
-                <div className="min-h-screen flex items-center justify-center bg-stone-50">
-                  <LoadingSpinner message="Loading Luxury CRM & Leads..." />
-                </div>
-              }
-            >
-              <CRMDashboard
-                hotel={hotel}
-                currentUser={currentUser}
-                onNavigateToPMS={() => navigate('/PMS')}
-                onNavigateToWebsite={() => navigate('/')}
-              />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/leads/*"
-          element={
-            <Suspense
-              fallback={
-                <div className="min-h-screen flex items-center justify-center bg-stone-50">
-                  <LoadingSpinner message="Loading Luxury CRM & Leads..." />
-                </div>
-              }
-            >
-              <CRMDashboard
-                hotel={hotel}
-                currentUser={currentUser}
-                onNavigateToPMS={() => navigate('/PMS')}
-                onNavigateToWebsite={() => navigate('/')}
-              />
-            </Suspense>
-          }
-        />
+        <Route path="/crm/*" element={crmPortalElement} />
+        <Route path="/leads/*" element={crmPortalElement} />
 
         {/* FALLBACK ROUTE: Render Public Website for any other path */}
         <Route path="*" element={publicWebsiteContent} />
