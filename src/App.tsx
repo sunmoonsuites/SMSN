@@ -67,6 +67,7 @@ const ReportsView = lazyWithRetry(() => import('./components/admin/ReportsView')
 const StaffManagementView = lazyWithRetry(() => import('./components/admin/StaffManagementView').then((m) => ({ default: m.StaffManagementView })));
 const AuditTrailView = lazyWithRetry(() => import('./components/admin/AuditTrailView').then((m) => ({ default: m.AuditTrailView })));
 const SettingsView = lazyWithRetry(() => import('./components/admin/SettingsView').then((m) => ({ default: m.SettingsView })));
+const CRMDashboard = lazyWithRetry(() => import('./components/crm/CRMDashboard').then((m) => ({ default: m.CRMDashboard })));
 
 // Common Modals
 const SupabaseConfigModal = lazyWithRetry(() => import('./components/common/SupabaseConfigModal').then((m) => ({ default: m.SupabaseConfigModal })));
@@ -136,6 +137,13 @@ export function MainApp() {
     ) {
       navigate('/PMS', { replace: true });
     } else if (
+      hash === '#crm' ||
+      hash === '#/crm' ||
+      search.includes('crm=1') ||
+      search.includes('crm=true')
+    ) {
+      navigate('/CRM', { replace: true });
+    } else if (
       (hash.includes('type=recovery') || search.includes('reset_password=true')) &&
       !location.pathname.toLowerCase().startsWith('/pms') &&
       !location.pathname.toLowerCase().startsWith('/admin')
@@ -146,8 +154,11 @@ export function MainApp() {
     const isPMSRoute =
       location.pathname.toLowerCase().startsWith('/pms') ||
       location.pathname.toLowerCase().startsWith('/admin');
+    const isCRMRoute =
+      location.pathname.toLowerCase().startsWith('/crm') ||
+      location.pathname.toLowerCase().startsWith('/leads');
     applyPMSThemeToDocument(getPMSTheme(), isPMSRoute);
-    if (!isPMSRoute) {
+    if (!isPMSRoute && !isCRMRoute) {
       applyRouteSeoToDocument(location.pathname);
       const sectionRoutes: Record<string, string> = {
         '/rooms': 'rooms',
@@ -551,6 +562,46 @@ export function MainApp() {
         <Route path="/pms/*" element={pmsPortalElement} />
         <Route path="/admin/*" element={pmsPortalElement} />
 
+        {/* DEDICATED LUXURY CRM & LEADS PORTAL ROUTES (/CRM, /crm, /leads) */}
+        <Route
+          path="/crm/*"
+          element={
+            <Suspense
+              fallback={
+                <div className="min-h-screen flex items-center justify-center bg-stone-50">
+                  <LoadingSpinner message="Loading Luxury CRM & Leads..." />
+                </div>
+              }
+            >
+              <CRMDashboard
+                hotel={hotel}
+                currentUser={currentUser}
+                onNavigateToPMS={() => navigate('/PMS')}
+                onNavigateToWebsite={() => navigate('/')}
+              />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/leads/*"
+          element={
+            <Suspense
+              fallback={
+                <div className="min-h-screen flex items-center justify-center bg-stone-50">
+                  <LoadingSpinner message="Loading Luxury CRM & Leads..." />
+                </div>
+              }
+            >
+              <CRMDashboard
+                hotel={hotel}
+                currentUser={currentUser}
+                onNavigateToPMS={() => navigate('/PMS')}
+                onNavigateToWebsite={() => navigate('/')}
+              />
+            </Suspense>
+          }
+        />
+
         {/* FALLBACK ROUTE: Render Public Website for any other path */}
         <Route path="*" element={publicWebsiteContent} />
       </Routes>
@@ -587,7 +638,9 @@ export function MainApp() {
 
       {/* Floating WhatsApp Button (Public Website Only) */}
       {!location.pathname.toLowerCase().startsWith('/pms') &&
-        !location.pathname.toLowerCase().startsWith('/admin') && (
+        !location.pathname.toLowerCase().startsWith('/admin') &&
+        !location.pathname.toLowerCase().startsWith('/crm') &&
+        !location.pathname.toLowerCase().startsWith('/leads') && (
           <FloatingWhatsAppButton hotel={hotel} />
         )}
 

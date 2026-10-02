@@ -751,6 +751,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </span>
           </div>
 
+          {/* Luxury CRM & Leads Portal Button */}
+          <a
+            href="/CRM"
+            title="Open Luxury CRM & Leads Dashboard (/CRM)"
+            className="px-3 py-1.5 bg-[#0F172A] hover:bg-slate-800 text-[#C8A45D] border border-[#C8A45D]/60 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Users className="w-3.5 h-3.5 text-[#C8A45D]" />
+            <span className="hidden sm:inline">Luxury CRM</span>
+          </a>
+
           {/* Public Website Button */}
           <button
             type="button"

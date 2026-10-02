@@ -772,6 +772,204 @@ async function startServer() {
     }
   });
 
+  // 5a. Get CRM & Leads SQL Migration Content
+  app.get('/api/migrations/crm-sql', (req, res) => {
+    try {
+      const sqlPath = path.join(
+        process.cwd(),
+        'supabase',
+        'migrations',
+        '20261001010000_create_crm_leads_tables.sql'
+      );
+      if (fs.existsSync(sqlPath)) {
+        const content = fs.readFileSync(sqlPath, 'utf8');
+        res.setHeader('Content-Type', 'text/plain');
+        return res.send(content);
+      }
+      return res.status(404).send('-- CRM migration file not found on server.');
+    } catch (err: any) {
+      return res.status(500).send(`-- Error reading CRM migration file: ${err.message}`);
+    }
+  });
+
+  // 5a-2. CRM Google Sheets CSV Proxy (Prevents CORS blocks when fetching Google Sheets CSVs)
+  app.post('/api/crm/fetch-sheet-csv', async (req, res) => {
+    try {
+      const { url } = req.body || {};
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ success: false, error: 'Sheet URL is required.' });
+      }
+
+      const resp = await fetch(url.trim(), {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          Accept: 'text/csv,text/plain,*/*',
+        },
+      });
+
+      if (!resp.ok) {
+        return res.status(resp.status).json({
+          success: false,
+          error: `Google Sheets returned HTTP ${resp.status}. Ensure the sheet is shared as "Anyone with the link" or Published to the web.`,
+        });
+      }
+
+      const csvText = await resp.text();
+      return res.json({ success: true, csvText });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Failed to fetch Google Sheet CSV.',
+      });
+    }
+  });
+
+  // 5a-3. CRM Direct Gmail SMTP & Cloudflare Worker Relay Email Dispatch
+  const handleCrmEmailSend = async (req: express.Request, res: express.Response) => {
+    try {
+      const {
+        to,
+        leadName,
+        subject,
+        message,
+        gmailUser,
+        gmailPass,
+        workerUrl,
+        workerSecret,
+        senderName,
+      } = req.body || {};
+
+      if (!to || typeof to !== 'string' || !to.includes('@')) {
+        return res.status(400).json({ success: false, error: 'Valid recipient email is required.' });
+      }
+
+      const cleanRecipient = to.trim();
+      const resolvedLeadName = (leadName || 'Valued Guest').trim();
+      const resolvedSenderName = (senderName || 'Sun Moon Suites CRM').trim();
+      const resolvedSubject = String(
+        subject || `Greetings from ${resolvedSenderName}`
+      ).replace(/\{name\}/gi, resolvedLeadName);
+      const resolvedMessage = String(message || '').replace(/\{name\}/gi, resolvedLeadName);
+
+      // Mode 1: Cloudflare Worker Relay if configured and no direct Gmail App Password provided
+      const cleanWorkerUrl = (workerUrl || '').trim();
+      const cleanGmailUser = (gmailUser || process.env.GMAIL_USER || 'sunmoonsuites@gmail.com').trim();
+      const cleanGmailPass = String(gmailPass || process.env.GMAIL_APP_PASSWORD || '')
+        .trim()
+        .replace(/\s+/g, '');
+
+      if (cleanWorkerUrl && !cleanGmailPass) {
+        const workerResp = await fetch(cleanWorkerUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(workerSecret ? { Authorization: `Bearer ${workerSecret}`, 'X-Worker-Secret': workerSecret } : {}),
+          },
+          body: JSON.stringify({
+            to: cleanRecipient,
+            subject: resolvedSubject,
+            text: resolvedMessage,
+            html: `<div style="font-family: Georgia, serif; line-height: 1.6; color: #1e293b;">${resolvedMessage.replace(/\n/g, '<br/>')}</div>`,
+          }),
+        });
+
+        if (!workerResp.ok) {
+          const errText = await workerResp.text().catch(() => '');
+          return res.status(400).json({
+            success: false,
+            error: `Cloudflare Worker Relay returned HTTP ${workerResp.status}: ${errText}`,
+          });
+        }
+
+        return res.json({
+          success: true,
+          mode: 'cloudflare_worker',
+          message: `Email dispatched via Cloudflare Worker Relay to ${cleanRecipient}.`,
+        });
+      }
+
+      // Mode 2: Direct Node.js Gmail SMTP (Nodemailer)
+      if (!cleanGmailPass) {
+        return res.status(400).json({
+          success: false,
+          error:
+            'Gmail App Password (or Cloudflare Worker URL) is not configured yet. Please open CRM Settings > Gmail & Templates to save your credentials.',
+        });
+      }
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: cleanGmailUser,
+          pass: cleanGmailPass,
+        },
+      });
+
+      const htmlBody = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Georgia, serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+          <div style="background: #0F172A; padding: 22px 24px; border-bottom: 3px solid #C8A45D;">
+            <h2 style="margin: 0; color: #C8A45D; font-family: Georgia, serif; font-size: 20px; letter-spacing: 0.5px;">${resolvedSenderName}</h2>
+            <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 12px;">Sector 117, Noida &bull; Guest Relations &amp; Reservations</p>
+          </div>
+          <div style="padding: 28px 24px; color: #1e293b; font-size: 14px; line-height: 1.7;">
+            ${resolvedMessage.replace(/\n/g, '<br/>')}
+          </div>
+          <div style="background: #f8fafc; padding: 14px 24px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; text-align: center;">
+            Sun Moon Suites &bull; GT-20, Sector 117, Noida, Uttar Pradesh 201316 &bull; +91 8586868442
+          </div>
+        </div>
+      `;
+
+      await transporter.sendMail({
+        from: `"${resolvedSenderName}" <${cleanGmailUser}>`,
+        to: cleanRecipient,
+        subject: resolvedSubject,
+        text: resolvedMessage,
+        html: htmlBody,
+      });
+
+      return res.json({
+        success: true,
+        mode: 'gmail_smtp',
+        message: `Email delivered to ${cleanRecipient} via Gmail SMTP.`,
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Failed to send CRM email.',
+      });
+    }
+  };
+
+  app.post('/api/crm/send-email', handleCrmEmailSend);
+  app.post('/api/communications/reply', handleCrmEmailSend);
+
+  app.post('/api/crm/test-email', async (req, res) => {
+    try {
+      const { gmailUser, gmailPass, workerUrl, workerSecret, testRecipient } = req.body || {};
+      const targetEmail = (testRecipient || gmailUser || 'sunmoonsuites@gmail.com').trim();
+      req.body = {
+        ...req.body,
+        to: targetEmail,
+        leadName: 'Admin Test',
+        subject: '[CRM Test] Sun Moon Suites Luxury CRM Email Connected!',
+        message:
+          'Hello {name},\n\nYour Luxury CRM & Leads Dashboard email integration is active and verified.\n\nWarm Regards,\nSun Moon Suites CRM',
+        gmailUser,
+        gmailPass,
+        workerUrl,
+        workerSecret,
+      };
+      return handleCrmEmailSend(req, res);
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'CRM email connection test failed.',
+      });
+    }
+  });
+
   // 5b. AI Vision SEO Photo Category, Name & Caption Optimizer for Hotel Gallery
   app.post('/api/gallery/ai-seo-optimize', async (req, res) => {
     try {
@@ -1141,6 +1339,108 @@ For each photo, return an object with:
     notificationsStore.length = 0;
     broadcastSSE('notifications:cleared', {});
     return res.json({ success: true });
+  });
+
+  // 6b. Luxury CRM & Leads Server Endpoints (Google Sheets CSV Proxy & Email Dispatch)
+  app.post('/api/crm/fetch-sheet-csv', async (req, res) => {
+    try {
+      const { url } = req.body || {};
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ success: false, error: 'Missing Google Sheet CSV URL' });
+      }
+      const resp = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          Accept: 'text/csv,text/plain,*/*',
+        },
+      });
+      if (!resp.ok) {
+        return res.status(resp.status).json({
+          success: false,
+          error: `Google Sheets returned HTTP ${resp.status}. Make sure the sheet is shared as "Anyone with the link can view" or published to web.`,
+        });
+      }
+      const csvText = await resp.text();
+      return res.json({ success: true, csvText });
+    } catch (err: any) {
+      return res.status(502).json({
+        success: false,
+        error: err?.message || 'Failed to fetch Google Sheet CSV.',
+      });
+    }
+  });
+
+  app.post('/api/crm/send-email', async (req, res) => {
+    try {
+      const { to, subject, body, gmailConfig } = req.body || {};
+      if (!to || !subject || !body) {
+        return res.status(400).json({
+          success: false,
+          error: 'Recipient email, subject, and body are required.',
+        });
+      }
+
+      const workerUrl = String(gmailConfig?.workerUrl || '').trim();
+      const workerSecret = String(gmailConfig?.workerSecret || '').trim();
+      const senderUser = String(gmailConfig?.user || process.env.GMAIL_USER || 'sunmoonsuites@gmail.com').trim();
+      const senderPass = String(gmailConfig?.pass || process.env.GMAIL_APP_PASSWORD || '')
+        .trim()
+        .replace(/\s+/g, '');
+      const senderName = String(gmailConfig?.senderName || 'Sun Moon Suites CRM').trim();
+
+      // Option 1: Cloudflare / Custom Worker Relay
+      if (workerUrl) {
+        const wResp = await fetch(workerUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(workerSecret ? { Authorization: `Bearer ${workerSecret}`, 'x-worker-secret': workerSecret } : {}),
+          },
+          body: JSON.stringify({
+            to,
+            subject,
+            text: body,
+            user: senderUser,
+            pass: senderPass,
+          }),
+        });
+        if (wResp.ok) {
+          return res.json({ success: true });
+        }
+      }
+
+      // Option 2: Direct Gmail SMTP via Nodemailer
+      if (!senderPass) {
+        return res.status(400).json({
+          success: false,
+          error:
+            'Google 16-Character App Password is not configured yet in CRM Settings. Please add it in CRM Settings or use "Open Default Mail App".',
+        });
+      }
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: senderUser,
+          pass: senderPass,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"${senderName}" <${senderUser}>`,
+        to,
+        subject,
+        text: body,
+      });
+
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Failed to send email via Gmail SMTP.',
+      });
+    }
   });
 
   // 7. Server-Side Supabase Proxy (Ensures 100% reliability on Indian ISPs like Jio/Airtel where *.supabase.co may time out)
