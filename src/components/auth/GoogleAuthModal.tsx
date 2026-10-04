@@ -34,17 +34,39 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authStatusText, setAuthStatusText] = useState('Connecting to Google Account...');
 
-  // Default quick accounts
-  const sampleAccounts: GoogleUserProfile[] = [
-    {
-      email: currentEmail || 'guest.noida@gmail.com',
-      name: `${currentFirstName || 'Aarav'} ${currentLastName || 'Sharma'}`.trim(),
-      given_name: currentFirstName || 'Aarav',
-      family_name: currentLastName || 'Sharma',
-      phone: currentPhone || '9876543210',
+  // Dynamic quick accounts based on current session and demo
+  const sampleAccounts: GoogleUserProfile[] = [];
+  if (
+    currentEmail &&
+    currentEmail.includes('@') &&
+    currentEmail.toLowerCase().trim() !== 'guest.noida@gmail.com'
+  ) {
+    const cleanMail = currentEmail.toLowerCase().trim();
+    const localPart = cleanMail.split('@')[0];
+    const words = localPart.replace(/[._-]+/g, ' ').trim().split(/\s+/);
+    const capitalizedName = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const fName = currentFirstName || (words[0] ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : 'Guest');
+    const lName = currentLastName || (words.length > 1 ? words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '');
+    const fullName = `${fName} ${lName}`.trim() || capitalizedName;
+    sampleAccounts.push({
+      email: cleanMail,
+      name: fullName,
+      given_name: fName,
+      family_name: lName,
+      phone: currentPhone || '',
       picture: 'https://lh3.googleusercontent.com/a/default-user',
-    },
-  ];
+    });
+  }
+
+  // Always offer the 1-Click verified Google guest account
+  sampleAccounts.push({
+    email: 'guest.noida@gmail.com',
+    name: 'Aarav Sharma',
+    given_name: 'Aarav',
+    family_name: 'Sharma',
+    phone: '9876543210',
+    picture: 'https://lh3.googleusercontent.com/a/default-user',
+  });
 
   const handleSelectAccount = (account: GoogleUserProfile) => {
     setIsAuthenticating(true);
@@ -55,7 +77,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
       setIsAuthenticating(false);
       onSuccess(account);
       onClose();
-    }, 500);
+    }, 400);
   };
 
   const handleCustomAccountSubmit = (e: React.FormEvent) => {

@@ -7,6 +7,8 @@ import {
   getEffectiveRoomPrice,
   DEFAULT_BOOKING_ENGINE_CONFIG,
   buildYanoljaBookingUrl,
+  updateHotelSettings,
+  updateHotel,
 } from '../../services/hotelService';
 import {
   formatINR,
@@ -18,10 +20,10 @@ import {
 } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { sendVerificationOtp, verifyOtp } from '../../services/emailVerificationService';
-import { GoogleAuthModal } from '../auth/GoogleAuthModal';
 import {
   getExistingGoogleUser,
   triggerGoogleSignIn,
+  saveVerifiedGoogleGuest,
   GoogleUserProfile,
 } from '../../services/googleAuthService';
 import {
@@ -104,7 +106,10 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [verifiedEmail, setVerifiedEmail] = useState('');
   const [verifiedVia, setVerifiedVia] = useState<'otp' | 'google' | ''>('');
-  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
+  const [showGoogleConfigModal, setShowGoogleConfigModal] = useState(false);
+  const [googleClientIdInput, setGoogleClientIdInput] = useState('');
+  const [googleAuthError, setGoogleAuthError] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
@@ -175,10 +180,74 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
     setOtpSuccessMessage(`Logged in with Google as ${cleanEmail}`);
     setOtpError('');
-    setIsGoogleModalOpen(false);
+    setGoogleAuthError('');
 
     // After verification, advance directly to Guest details
     setStep('guest');
+  };
+
+  const handleDirectGoogleSignIn = async (overrideClientId?: string) => {
+    setGoogleAuthError('');
+    setOtpError('');
+    setIsGoogleSigningIn(true);
+
+    const effectiveId = (
+      overrideClientId ||
+      hotel?.email_verification_config?.google_client_id ||
+      (typeof localStorage !== 'undefined'
+        ? localStorage.getItem('sms_google_client_id') || ''
+        : '') ||
+      import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+      ''
+    ).trim();
+
+    if (!effectiveId) {
+      setIsGoogleSigningIn(false);
+      setShowGoogleConfigModal(true);
+      return;
+    }
+
+    try {
+      const res = await triggerGoogleSignIn(effectiveId);
+      setIsGoogleSigningIn(false);
+
+      if (res.success && res.user) {
+        handleGoogleVerified(res.user);
+      } else if (res.error === 'CLIENT_ID_REQUIRED' || res.error === 'GOOGLE_CONFIG_NEEDED') {
+        setShowGoogleConfigModal(true);
+      } else if (res.error) {
+        setGoogleAuthError(res.error);
+      }
+    } catch (err: any) {
+      setIsGoogleSigningIn(false);
+      setGoogleAuthError(err?.message || 'Google Sign-In failed to initialize.');
+    }
+  };
+
+  const handleSaveGoogleClientId = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanId = googleClientIdInput.trim();
+    if (!cleanId) return;
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sms_google_client_id', cleanId);
+    }
+
+    if (hotel?.id) {
+      try {
+        await updateHotel(hotel.id, {
+          email_verification_config: {
+            ...hotel.email_verification_config,
+            google_client_id: cleanId,
+          },
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    setShowGoogleConfigModal(false);
+    await handleDirectGoogleSignIn(cleanId);
   };
 
   // Promo Code
@@ -541,7 +610,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       subtitle={
         step === 'confirmed'
           ? `Booking Reference: ${confirmedBookingRef}`
-          : 'Direct Booking Guarantee &bull; Instant Confirmation'
+          : 'Direct Booking Guarantee • Instant Confirmation'
       }
       maxWidth="3xl"
     >
@@ -744,24 +813,41 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     </p>
                   </div>
 
-                  <div className="pt-2">
+                  <div className="pt-2 space-y-3">
                     <button
                       type="button"
-                      onClick={() => setIsGoogleModalOpen(true)}
-                      className="w-full py-3 px-4 bg-white hover:bg-stone-50 border border-stone-300 hover:border-amber-700 rounded-xl font-bold text-xs text-stone-800 flex items-center justify-center gap-2.5 shadow-2xs transition-all cursor-pointer group"
+                      disabled={isGoogleSigningIn}
+                      onClick={() => handleDirectGoogleSignIn()}
+                      className="w-full py-3.5 px-4 bg-white hover:bg-stone-50 border-2 border-stone-300 hover:border-amber-700 rounded-xl font-bold text-sm text-stone-900 flex items-center justify-center gap-3 shadow-2xs transition-all cursor-pointer group disabled:opacity-60"
                     >
-                      <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
-                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.93H1.21v3.15C3.25 21.43 7.31 24 12 24z"/>
-                        <path fill="#FBBC05" d="M5.32 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.21C.44 8.11 0 9.99 0 12s.44 3.89 1.21 5.42l4.11-3.15z"/>
-                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.57 1.21 6.58l4.11 3.15c.94-2.83 3.58-4.98 6.68-4.98z"/>
-                      </svg>
-                      <span className="text-stone-900 group-hover:text-amber-900">
-                        Continue with Google
-                      </span>
+                      {isGoogleSigningIn ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-amber-800" />
+                          <span>Connecting to Google Accounts...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.93H1.21v3.15C3.25 21.43 7.31 24 12 24z"/>
+                            <path fill="#FBBC05" d="M5.32 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.21C.44 8.11 0 9.99 0 12s.44 3.89 1.21 5.42l4.11-3.15z"/>
+                            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.57 1.21 6.58l4.11 3.15c.94-2.83 3.58-4.98 6.68-4.98z"/>
+                          </svg>
+                          <span className="text-stone-900 group-hover:text-amber-950 font-bold">
+                            Sign in with Google
+                          </span>
+                        </>
+                      )}
                     </button>
-                    <p className="text-[10px] text-stone-400 text-center mt-2">
-                      Secure Google Identity Verification
+
+                    {googleAuthError && (
+                      <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-[11px] font-medium leading-relaxed text-left">
+                        {googleAuthError}
+                      </div>
+                    )}
+
+                    <p className="text-[11px] text-stone-500 text-center pt-0.5">
+                      Official Google Account Chooser &bull; 1-Click Verification
                     </p>
                   </div>
                 </div>
@@ -1360,21 +1446,78 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       </div>
     </Modal>
 
-    {/* Google Sign-In & Instant Verification Modal */}
-    <GoogleAuthModal
-      isOpen={isGoogleModalOpen}
-      onClose={() => setIsGoogleModalOpen(false)}
-      onSuccess={handleGoogleVerified}
-      onSwitchToOtp={() => {
-        setIsGoogleModalOpen(false);
-        setStep('auth');
-      }}
-      currentEmail={guestEmail}
-      currentFirstName={guestFirstName}
-      currentLastName={guestLastName}
-      currentPhone={guestPhone}
-      googleClientId={hotel?.email_verification_config?.google_client_id}
-    />
+    {/* Google Cloud Console Client ID Setup Modal (Prompted only if Client ID is not configured) */}
+    {showGoogleConfigModal && (
+      <Modal
+        isOpen={showGoogleConfigModal}
+        onClose={() => setShowGoogleConfigModal(false)}
+        title="Google Cloud Console OAuth Setup"
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveGoogleClientId} className="space-y-4 py-2">
+          <div className="flex items-start gap-3 p-3.5 bg-amber-50 rounded-xl border border-amber-200">
+            <svg className="w-8 h-8 shrink-0 mt-0.5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.93H1.21v3.15C3.25 21.43 7.31 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.32 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.21C.44 8.11 0 9.99 0 12s.44 3.89 1.21 5.42l4.11-3.15z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.57 1.21 6.58l4.11 3.15c.94-2.83 3.58-4.98 6.68-4.98z"/>
+            </svg>
+            <div className="text-xs text-amber-950 space-y-1">
+              <p className="font-bold text-sm">Official Google Account Chooser Setup</p>
+              <p className="text-[11px] text-stone-600 leading-relaxed">
+                Google ka live popup (accounts.google.com) open karne ke liye aapka Google Cloud Console ka <strong>OAuth Client ID</strong> zaroori hai.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-stone-800 uppercase tracking-wider">
+              Google OAuth Client ID:
+            </label>
+            <input
+              type="text"
+              required
+              autoFocus
+              value={googleClientIdInput}
+              onChange={(e) => setGoogleClientIdInput(e.target.value)}
+              placeholder="e.g. 811027427015-xxxx.apps.googleusercontent.com"
+              className="w-full px-3 py-2 text-xs font-mono border border-stone-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-700"
+            />
+            <p className="text-[10px] text-stone-500">
+              Google Cloud Console &gt; APIs &amp; Services &gt; Credentials se mila Client ID yahan paste karein.
+            </p>
+          </div>
+
+          <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-[11px] text-stone-600 space-y-1">
+            <span className="font-bold text-stone-800 block">Authorized JavaScript Origins check:</span>
+            <p className="text-[10px]">
+              Google Cloud Console me Authorized Origins me current domain add hona chahiye:
+            </p>
+            <code className="block bg-amber-50 border border-amber-200 text-amber-900 p-1.5 rounded font-mono text-[10px] select-all">
+              {typeof window !== 'undefined' ? window.location.origin : 'https://...'}
+            </code>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-200">
+            <button
+              type="button"
+              onClick={() => setShowGoogleConfigModal(false)}
+              className="px-4 py-2 text-xs text-stone-600 hover:text-stone-800 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!googleClientIdInput.trim()}
+              className="px-5 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer shadow-2xs"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Save &amp; Open Google Sign-In</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+    )}
   </>
   );
 };

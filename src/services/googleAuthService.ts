@@ -147,7 +147,32 @@ export function clearVerifiedGoogleGuest(): void {
 export async function triggerGoogleSignIn(googleClientId?: string): Promise<GoogleAuthResult> {
   const effectiveClientId =
     (googleClientId || '').trim() ||
+    (typeof localStorage !== 'undefined'
+      ? (localStorage.getItem('sms_google_client_id') || '').trim()
+      : '') ||
     (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
+
+  // If no client ID provided yet
+  if (!effectiveClientId) {
+    return {
+      success: false,
+      error: 'CLIENT_ID_REQUIRED',
+    };
+  }
+
+  // Ensure Google Identity Services (GIS) script is loaded
+  if (typeof window !== 'undefined' && !(window as any).google?.accounts) {
+    await new Promise((resolve) => {
+      let tries = 0;
+      const t = setInterval(() => {
+        tries++;
+        if ((window as any).google?.accounts || tries > 25) {
+          clearInterval(t);
+          resolve(true);
+        }
+      }, 100);
+    });
+  }
 
   // Try Google Identity Services (GIS) if available and client ID is provided
   if (typeof window !== 'undefined' && (window as any).google?.accounts && effectiveClientId) {
@@ -158,6 +183,7 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
           const client = google.accounts.oauth2.initTokenClient({
             client_id: effectiveClientId,
             scope: 'openid email profile',
+            prompt: 'select_account',
             callback: async (tokenResponse: any) => {
               if (tokenResponse?.access_token) {
                 try {
@@ -168,11 +194,22 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
                   });
                   if (res.ok) {
                     const data = await res.json();
+                    const firstName = (
+                      data.given_name ||
+                      (data.name ? data.name.split(' ')[0] : '')
+                    ).trim();
+                    const lastName = (
+                      data.family_name ||
+                      (data.name && data.name.split(' ').length > 1
+                        ? data.name.split(' ').slice(1).join(' ')
+                        : '')
+                    ).trim();
+
                     const user: GoogleUserProfile = {
                       email: data.email.toLowerCase().trim(),
-                      name: data.name || `${data.given_name || ''} ${data.family_name || ''}`.trim(),
-                      given_name: data.given_name || (data.name ? data.name.split(' ')[0] : ''),
-                      family_name: data.family_name || '',
+                      name: data.name || `${firstName} ${lastName}`.trim(),
+                      given_name: firstName,
+                      family_name: lastName,
                       picture: data.picture,
                       phone: '',
                     };
@@ -184,16 +221,42 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
                   console.warn('Google userinfo fetch failed:', e);
                 }
               }
+
+              if (tokenResponse?.error === 'popup_closed_by_user') {
+                resolve({
+                  success: false,
+                  error: 'Google Sign-In popup was closed.',
+                });
+              } else if (tokenResponse?.error) {
+                resolve({
+                  success: false,
+                  error: `Google error: ${tokenResponse.error_description || tokenResponse.error}`,
+                });
+              } else {
+                resolve({
+                  success: false,
+                  error: 'Google authentication was cancelled or failed.',
+                });
+              }
+            },
+            error_callback: (err: any) => {
+              console.warn('GIS error callback:', err);
               resolve({
                 success: false,
-                error: tokenResponse?.error || 'Google authentication was cancelled or failed.',
+                error: err?.message || 'Google popup was blocked or failed to load.',
               });
             },
           });
-          client.requestAccessToken();
+
+          client.requestAccessToken({ prompt: 'select_account' });
         } catch (initErr: any) {
           console.warn('GIS TokenClient init error:', initErr);
-          resolve({ success: false, error: initErr.message });
+          resolve({
+            success: false,
+            error:
+              initErr?.message ||
+              'Could not open Google Sign-In. Please check Authorized JavaScript Origins in Google Cloud Console.',
+          });
         }
       });
     } catch (gisErr: any) {
@@ -211,13 +274,12 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
           redirectTo: typeof window !== 'undefined' ? window.location.href : undefined,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'select_account',
           },
         },
       });
 
       if (!error && data?.url) {
-        // Redirecting or opening OAuth
         if (typeof window !== 'undefined') {
           window.location.href = data.url;
           return { success: true };
