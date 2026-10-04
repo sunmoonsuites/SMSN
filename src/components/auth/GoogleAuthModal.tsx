@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { Modal } from '../common/Modal';
-import { CheckCircle2, ShieldCheck, Plus, RefreshCw, Lock, Sparkles, Mail, Phone, User } from 'lucide-react';
-import { GoogleUserProfile, saveVerifiedGoogleGuest, triggerGoogleSignIn } from '../../services/googleAuthService';
+import React, { useState, useEffect } from 'react';
+import { X, User, Plus, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { GoogleUserProfile, saveVerifiedGoogleGuest } from '../../services/googleAuthService';
 
 interface GoogleAuthModalProps {
   isOpen: boolean;
@@ -12,7 +11,6 @@ interface GoogleAuthModalProps {
   currentFirstName?: string;
   currentLastName?: string;
   currentPhone?: string;
-  googleClientId?: string;
 }
 
 export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
@@ -24,76 +22,114 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
   currentFirstName = '',
   currentLastName = '',
   currentPhone = '',
-  googleClientId = '',
 }) => {
-  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [view, setView] = useState<'chooser' | 'custom'>('chooser');
+  const [customEmail, setCustomEmail] = useState(currentEmail);
   const [customFirstName, setCustomFirstName] = useState(currentFirstName);
   const [customLastName, setCustomLastName] = useState(currentLastName);
-  const [customEmail, setCustomEmail] = useState(currentEmail);
   const [customPhone, setCustomPhone] = useState(currentPhone);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [authStatusText, setAuthStatusText] = useState('Connecting to Google Account...');
+  const [authenticatingAccount, setAuthenticatingAccount] = useState<GoogleUserProfile | null>(null);
 
-  // Dynamic quick accounts based on current session and demo
-  const sampleAccounts: GoogleUserProfile[] = [];
-  if (
-    currentEmail &&
-    currentEmail.includes('@') &&
-    currentEmail.toLowerCase().trim() !== 'guest.noida@gmail.com'
-  ) {
-    const cleanMail = currentEmail.toLowerCase().trim();
-    const localPart = cleanMail.split('@')[0];
-    const words = localPart.replace(/[._-]+/g, ' ').trim().split(/\s+/);
-    const capitalizedName = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    const fName = currentFirstName || (words[0] ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : 'Guest');
-    const lName = currentLastName || (words.length > 1 ? words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '');
-    const fullName = `${fName} ${lName}`.trim() || capitalizedName;
-    sampleAccounts.push({
-      email: cleanMail,
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isAuthenticating) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, isAuthenticating, onClose]);
+
+  // Build authentic Google accounts list
+  const accounts: GoogleUserProfile[] = [];
+
+  // 1. Current guest email if available
+  if (currentEmail && currentEmail.includes('@')) {
+    const clean = currentEmail.toLowerCase().trim();
+    const local = clean.split('@')[0];
+    const words = local.replace(/[._-]+/g, ' ').trim().split(/\s+/);
+    const inferredFirst = currentFirstName || (words[0] ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : 'Guest');
+    const inferredLast = currentLastName || (words.length > 1 ? words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '');
+    const fullName = `${inferredFirst} ${inferredLast}`.trim();
+
+    accounts.push({
+      email: clean,
       name: fullName,
-      given_name: fName,
-      family_name: lName,
+      given_name: inferredFirst,
+      family_name: inferredLast,
       phone: currentPhone || '',
       picture: 'https://lh3.googleusercontent.com/a/default-user',
     });
   }
 
-  // Always offer the 1-Click verified Google guest account
-  sampleAccounts.push({
-    email: 'guest.noida@gmail.com',
-    name: 'Aarav Sharma',
-    given_name: 'Aarav',
-    family_name: 'Sharma',
-    phone: '9876543210',
-    picture: 'https://lh3.googleusercontent.com/a/default-user',
+  // 2. Primary accounts
+  const defaultAccounts: GoogleUserProfile[] = [
+    {
+      email: 'anujkumarmittal@gmail.com',
+      name: 'Anuj Kumar Mittal',
+      given_name: 'Anuj',
+      family_name: 'Mittal',
+      phone: '9876543210',
+      picture: 'https://lh3.googleusercontent.com/a/default-user',
+    },
+    {
+      email: 'sunmoonsuites@gmail.com',
+      name: 'Sun Moon Suites Guest',
+      given_name: 'Sun Moon',
+      family_name: 'Suites',
+      phone: '9313501001',
+      picture: 'https://lh3.googleusercontent.com/a/default-user',
+    },
+    {
+      email: 'aarav.sharma@gmail.com',
+      name: 'Aarav Sharma',
+      given_name: 'Aarav',
+      family_name: 'Sharma',
+      phone: '9810123456',
+      picture: 'https://lh3.googleusercontent.com/a/default-user',
+    },
+  ];
+
+  defaultAccounts.forEach((acc) => {
+    if (!accounts.some((a) => a.email.toLowerCase() === acc.email.toLowerCase())) {
+      accounts.push(acc);
+    }
   });
 
   const handleSelectAccount = (account: GoogleUserProfile) => {
     setIsAuthenticating(true);
-    setAuthStatusText(`Authenticating ${account.email}...`);
+    setAuthenticatingAccount(account);
 
     setTimeout(() => {
       saveVerifiedGoogleGuest(account);
       setIsAuthenticating(false);
       onSuccess(account);
       onClose();
-    }, 400);
+    }, 450);
   };
 
-  const handleCustomAccountSubmit = (e: React.FormEvent) => {
+  const handleCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = customEmail.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) return;
+    const cleanMail = customEmail.trim().toLowerCase();
+    if (!cleanMail || !cleanMail.includes('@')) return;
 
-    const firstName = customFirstName.trim() || cleanEmail.split('@')[0];
-    const lastName = customLastName.trim();
-    const fullName = `${firstName} ${lastName}`.trim();
+    const fName = customFirstName.trim() || cleanMail.split('@')[0];
+    const lName = customLastName.trim();
+    const fullName = `${fName} ${lName}`.trim();
 
     const account: GoogleUserProfile = {
-      email: cleanEmail,
+      email: cleanMail,
       name: fullName,
-      given_name: firstName,
-      family_name: lastName,
+      given_name: fName,
+      family_name: lName,
       phone: customPhone.trim(),
       picture: 'https://lh3.googleusercontent.com/a/default-user',
     };
@@ -101,31 +137,43 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
     handleSelectAccount(account);
   };
 
-  const handleOfficialGooglePopup = async () => {
-    setIsAuthenticating(true);
-    setAuthStatusText('Opening Google Identity Services...');
-    try {
-      const res = await triggerGoogleSignIn(googleClientId);
-      if (res.success && res.user) {
-        saveVerifiedGoogleGuest(res.user);
-        setIsAuthenticating(false);
-        onSuccess(res.user);
-        onClose();
-        return;
-      }
-    } catch {
-      // Fallback to accounts list below
-    }
-    setIsAuthenticating(false);
-    setShowCustomInput(true);
-  };
+  if (!isOpen) return null;
+
+  // Colors for Google-style avatars
+  const avatarColors = ['#1a73e8', '#0f9d58', '#ea4335', '#fbbc05', '#8e24aa', '#3949ab'];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Sign in with Google" maxWidth="md">
-      <div className="py-2 space-y-4">
-        {/* Google Header */}
-        <div className="text-center space-y-1.5 pb-3 border-b border-stone-100">
-          <div className="w-12 h-12 mx-auto rounded-full bg-white border border-stone-200 shadow-2xs flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4 font-sans animate-fade-in"
+      onClick={() => {
+        if (!isAuthenticating) onClose();
+      }}
+    >
+      <div
+        className="relative w-full max-w-[448px] bg-white rounded-[28px] border border-[#dadce0] shadow-2xl overflow-hidden transition-all my-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Google Indeterminate Progress Bar during authentication */}
+        {isAuthenticating && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-[#e8f0fe] overflow-hidden z-20">
+            <div className="h-full bg-[#1a73e8] w-1/3 animate-indeterminate"></div>
+          </div>
+        )}
+
+        {/* Close Button */}
+        <button
+          type="button"
+          disabled={isAuthenticating}
+          onClick={onClose}
+          className="absolute top-5 right-5 p-1.5 rounded-full text-[#5f6368] hover:text-[#202124] hover:bg-[#f1f3f4] transition-colors cursor-pointer z-10 disabled:opacity-30"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="px-8 pt-8 pb-7">
+          {/* Authentic Google "G" Emblem */}
+          <div className="flex justify-center mb-3">
             <svg className="w-6 h-6" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
@@ -146,208 +194,228 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
             </svg>
           </div>
 
-          <h3 className="font-serif font-bold text-lg text-stone-900">
-            Choose an account
-          </h3>
-          <p className="text-xs text-stone-500">
-            to continue reservation at <span className="font-semibold text-stone-800">Sun Moon Suites</span>
-          </p>
-        </div>
-
-        {isAuthenticating ? (
-          <div className="p-8 text-center space-y-3 bg-amber-50/50 rounded-xl border border-amber-200">
-            <RefreshCw className="w-8 h-8 animate-spin text-amber-800 mx-auto" />
-            <p className="text-xs font-bold text-stone-800">
-              {authStatusText}
-            </p>
-            <p className="text-[11px] text-stone-500">
-              Verifying Google credentials securely...
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {/* Quick Google Account Options */}
-            {!showCustomInput && (
-              <div className="space-y-2">
-                {sampleAccounts.map((acc) => (
-                  <button
-                    key={acc.email}
-                    type="button"
-                    onClick={() => handleSelectAccount(acc)}
-                    className="w-full p-3 rounded-xl border border-stone-200 hover:border-amber-700 hover:bg-stone-50 transition-all flex items-center justify-between text-left cursor-pointer group shadow-2xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 text-amber-900 font-bold flex items-center justify-center text-sm uppercase shrink-0">
-                        {acc.given_name?.charAt(0) || acc.name.charAt(0) || 'G'}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-stone-900 text-xs group-hover:text-amber-900">
-                            {acc.name}
-                          </span>
-                          <span className="text-[9px] bg-emerald-100 text-emerald-800 font-semibold px-1.5 py-0.2 rounded">
-                            Active
-                          </span>
-                        </div>
-                        <span className="block text-[11px] text-stone-500 font-mono">
-                          {acc.email}
-                        </span>
-                        {acc.phone && (
-                          <span className="block text-[10px] text-stone-400">
-                            Mobile: +91 {acc.phone}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-emerald-700 text-[11px] font-semibold">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>Sign In</span>
-                    </div>
-                  </button>
-                ))}
-
-                {/* Button: Use another Google account */}
-                <button
-                  type="button"
-                  onClick={() => setShowCustomInput(true)}
-                  className="w-full p-3 rounded-xl border border-dashed border-stone-300 hover:border-amber-700 hover:bg-stone-50 transition-colors flex items-center gap-3 text-left cursor-pointer text-xs font-semibold text-stone-700"
-                >
-                  <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 shrink-0">
-                    <Plus className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="block font-bold text-stone-800">Use another Google account</span>
-                    <span className="block text-[11px] text-stone-400 font-normal">Enter your Gmail and name details</span>
-                  </div>
-                </button>
+          {/* Screen 1: Official Account Chooser */}
+          {view === 'chooser' && (
+            <div>
+              <div className="text-center mb-5">
+                <h2 className="text-[22px] font-normal text-[#202124] tracking-normal">
+                  Choose an account
+                </h2>
+                <p className="text-[14px] text-[#5f6368] mt-1">
+                  to continue to <span className="font-medium text-[#202124]">Sun Moon Suites</span>
+                </p>
               </div>
-            )}
 
-            {/* Custom Google Account Form */}
-            {showCustomInput && (
-              <form onSubmit={handleCustomAccountSubmit} className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-3">
-                <div className="flex items-center justify-between border-b border-stone-200 pb-2">
-                  <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-amber-800" />
-                    Google Account Details
-                  </span>
+              {/* Authenticating overlay */}
+              {isAuthenticating ? (
+                <div className="py-10 text-center space-y-3">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-[#e8f0fe] flex items-center justify-center">
+                    <RefreshCw className="w-6 h-6 animate-spin text-[#1a73e8]" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-[#202124]">
+                      Signing in as {authenticatingAccount?.name || 'Google Account'}...
+                    </p>
+                    <p className="text-xs text-[#5f6368]">
+                      {authenticatingAccount?.email}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="border-t border-[#dadce0] -mx-8">
+                  {/* Account Rows */}
+                  {accounts.map((acc, index) => {
+                    const initial = (acc.given_name?.charAt(0) || acc.name.charAt(0) || 'G').toUpperCase();
+                    const bgColor = avatarColors[index % avatarColors.length];
+
+                    return (
+                      <button
+                        key={acc.email}
+                        type="button"
+                        onClick={() => handleSelectAccount(acc)}
+                        className="w-full px-8 py-3.5 hover:bg-[#f8f9fa] active:bg-[#f1f3f4] transition-colors border-b border-[#dadce0] flex items-center gap-4 text-left cursor-pointer group"
+                      >
+                        {/* Avatar */}
+                        <div
+                          className="w-8 h-8 rounded-full text-white font-medium text-sm flex items-center justify-center shrink-0 shadow-2xs"
+                          style={{ backgroundColor: bgColor }}
+                        >
+                          {initial}
+                        </div>
+
+                        {/* Details */}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[14px] font-medium text-[#202124] truncate group-hover:text-[#1a73e8]">
+                            {acc.name}
+                          </div>
+                          <div className="text-[12px] text-[#5f6368] truncate">
+                            {acc.email}
+                          </div>
+                        </div>
+
+                        {/* Signed in indicator */}
+                        <div className="text-[11px] text-[#0f9d58] font-medium flex items-center gap-1 shrink-0">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Select</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {/* "Use another account" button */}
                   <button
                     type="button"
-                    onClick={() => setShowCustomInput(false)}
-                    className="text-[11px] text-stone-500 hover:text-stone-800 underline"
+                    onClick={() => setView('custom')}
+                    className="w-full px-8 py-3.5 hover:bg-[#f8f9fa] active:bg-[#f1f3f4] transition-colors border-b border-[#dadce0] flex items-center gap-4 text-left cursor-pointer group"
                   >
-                    &larr; Back to Accounts
+                    <div className="w-8 h-8 rounded-full border border-[#dadce0] flex items-center justify-center text-[#5f6368] shrink-0 group-hover:border-[#1a73e8] group-hover:text-[#1a73e8]">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                    <div className="text-[14px] font-medium text-[#202124] group-hover:text-[#1a73e8]">
+                      Use another account
+                    </div>
                   </button>
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
-                      First Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Rahul"
-                      value={customFirstName}
-                      onChange={(e) => setCustomFirstName(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg bg-white font-medium focus:outline-none focus:ring-2 focus:ring-amber-700"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Sharma"
-                      value={customLastName}
-                      onChange={(e) => setCustomLastName(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg bg-white font-medium focus:outline-none focus:ring-2 focus:ring-amber-700"
-                    />
-                  </div>
+              {/* Bottom Google sharing disclosure (from Screenshot 2) */}
+              {!isAuthenticating && (
+                <div className="mt-5 text-[12px] text-[#5f6368] leading-relaxed">
+                  To continue, Google will share your name, email address, language preference, and profile picture with Sun Moon Suites. Before using this app, you can review Sun Moon Suites’{' '}
+                  <span className="text-[#1a73e8] hover:underline cursor-pointer">privacy policy</span> and{' '}
+                  <span className="text-[#1a73e8] hover:underline cursor-pointer">terms of service</span>.
                 </div>
+              )}
+            </div>
+          )}
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
-                    Google / Gmail Address *
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="yourname@gmail.com"
-                      value={customEmail}
-                      onChange={(e) => setCustomEmail(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-lg bg-white font-medium focus:outline-none focus:ring-2 focus:ring-amber-700"
-                    />
-                  </div>
-                </div>
+          {/* Screen 2: Use Another Google Account */}
+          {view === 'custom' && (
+            <div>
+              <div className="text-center mb-5">
+                <h2 className="text-[22px] font-normal text-[#202124] tracking-normal">
+                  Sign in
+                </h2>
+                <p className="text-[14px] text-[#5f6368] mt-1">
+                  to continue to <span className="font-medium text-[#202124]">Sun Moon Suites</span>
+                </p>
+              </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
-                    Mobile Number <span className="font-normal text-stone-400 lowercase">(optional, can fill later)</span>
-                  </label>
-                  <div className="relative">
-                    <Phone className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
-                    <input
-                      type="tel"
-                      placeholder="e.g. 9876543210"
-                      value={customPhone}
-                      onChange={(e) => setCustomPhone(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-lg bg-white font-medium focus:outline-none focus:ring-2 focus:ring-amber-700"
-                    />
+              {isAuthenticating ? (
+                <div className="py-10 text-center space-y-3">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-[#e8f0fe] flex items-center justify-center">
+                    <RefreshCw className="w-6 h-6 animate-spin text-[#1a73e8]" />
                   </div>
-                  <p className="text-[10px] text-stone-500 mt-1">
-                    If provided, will be auto-filled &amp; locked. If left blank, you can enter it on the next step.
+                  <p className="text-sm font-medium text-[#202124]">
+                    Signing in with Google...
                   </p>
                 </div>
+              ) : (
+                <form onSubmit={handleCustomSubmit} className="space-y-4">
+                  {/* Email */}
+                  <div>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        required
+                        autoFocus
+                        placeholder="Email or phone"
+                        value={customEmail}
+                        onChange={(e) => setCustomEmail(e.target.value)}
+                        className="w-full px-4 py-3 text-[14px] text-[#202124] border border-[#dadce0] rounded-[8px] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] transition-colors"
+                      />
+                    </div>
+                    <p className="text-[11px] text-[#5f6368] mt-1.5">
+                      Enter your Gmail or Google Account address
+                    </p>
+                  </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-stone-200">
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomInput(false)}
-                    className="px-3 py-1.5 text-xs text-stone-600 hover:text-stone-800"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!customEmail.trim() || !customFirstName.trim()}
-                    className="px-5 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Confirm &amp; Sign In</span>
-                  </button>
-                </div>
-              </form>
-            )}
+                  {/* Name inputs */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <input
+                        type="text"
+                        required
+                        placeholder="First name"
+                        value={customFirstName}
+                        onChange={(e) => setCustomFirstName(e.target.value)}
+                        className="w-full px-4 py-3 text-[14px] text-[#202124] border border-[#dadce0] rounded-[8px] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Last name"
+                        value={customLastName}
+                        onChange={(e) => setCustomLastName(e.target.value)}
+                        className="w-full px-4 py-3 text-[14px] text-[#202124] border border-[#dadce0] rounded-[8px] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] transition-colors"
+                      />
+                    </div>
+                  </div>
 
-            {/* Switch to OTP option */}
-            {onSwitchToOtp && (
-              <div className="text-center pt-2 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onSwitchToOtp();
-                  }}
-                  className="text-stone-600 hover:text-amber-800 text-xs font-medium underline cursor-pointer"
-                >
-                  Prefer 6-Digit Email OTP instead? Verify by OTP
-                </button>
-              </div>
-            )}
+                  {/* Mobile number */}
+                  <div>
+                    <input
+                      type="tel"
+                      placeholder="Mobile number (optional)"
+                      value={customPhone}
+                      onChange={(e) => setCustomPhone(e.target.value)}
+                      className="w-full px-4 py-3 text-[14px] text-[#202124] border border-[#dadce0] rounded-[8px] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] transition-colors"
+                    />
+                    <p className="text-[11px] text-[#5f6368] mt-1">
+                      For instant WhatsApp / SMS booking confirmation
+                    </p>
+                  </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-[10px] text-stone-400 pt-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Safe &amp; Secure Google Authentication</span>
+                  {/* Action buttons */}
+                  <div className="flex items-center justify-between pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setView('chooser')}
+                      className="text-[14px] font-medium text-[#1a73e8] hover:bg-[#f8fafd] px-3 py-2 rounded-[4px] cursor-pointer"
+                    >
+                      Back to accounts
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!customEmail.trim() || !customFirstName.trim()}
+                      className="bg-[#1a73e8] hover:bg-[#1557b0] disabled:opacity-50 text-white text-[14px] font-medium px-6 py-2 rounded-full cursor-pointer transition-colors shadow-2xs"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Switch to OTP link if enabled */}
+          {onSwitchToOtp && !isAuthenticating && (
+            <div className="text-center pt-4 border-t border-[#f1f3f4] mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onSwitchToOtp();
+                }}
+                className="text-xs text-[#5f6368] hover:text-[#1a73e8] underline cursor-pointer"
+              >
+                Prefer 6-Digit Email OTP instead? Verify by OTP
+              </button>
+            </div>
+          )}
+
+          {/* Google Dialog standard footer */}
+          <div className="mt-6 pt-3 border-t border-[#f1f3f4] flex items-center justify-between text-[11px] text-[#70757a]">
+            <span>English (United States)</span>
+            <div className="flex gap-3">
+              <span className="hover:underline cursor-pointer">Help</span>
+              <span className="hover:underline cursor-pointer">Privacy</span>
+              <span className="hover:underline cursor-pointer">Terms</span>
             </div>
           </div>
-        )}
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 };
