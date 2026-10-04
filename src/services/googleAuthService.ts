@@ -150,15 +150,10 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
     (typeof localStorage !== 'undefined'
       ? (localStorage.getItem('sms_google_client_id') || '').trim()
       : '') ||
+    (typeof sessionStorage !== 'undefined'
+      ? (sessionStorage.getItem('sms_google_client_id') || '').trim()
+      : '') ||
     (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
-
-  // If no client ID provided yet
-  if (!effectiveClientId) {
-    return {
-      success: false,
-      error: 'CLIENT_ID_REQUIRED',
-    };
-  }
 
   // Ensure Google Identity Services (GIS) script is loaded
   if (typeof window !== 'undefined' && !(window as any).google?.accounts) {
@@ -174,7 +169,7 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
     });
   }
 
-  // Try Google Identity Services (GIS) if available and client ID is provided
+  // 1. If Google Identity Services (GIS) is available and client ID is provided
   if (typeof window !== 'undefined' && (window as any).google?.accounts && effectiveClientId) {
     try {
       const google = (window as any).google;
@@ -264,34 +259,34 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
     }
   }
 
-  // Fallback to Supabase Google OAuth if configured
-  const supabase = getSupabase();
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.href : undefined,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'select_account',
-          },
-        },
-      });
+  // 2. Open live Google Account Chooser popup window directly (accounts.google.com)
+  if (typeof window !== 'undefined') {
+    const width = 520;
+    const height = 650;
+    const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
+    const top = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
 
-      if (!error && data?.url) {
-        if (typeof window !== 'undefined') {
-          window.location.href = data.url;
-          return { success: true };
-        }
-      }
-    } catch {
-      // ignore
+    const googleChooserUrl = effectiveClientId
+      ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+          effectiveClientId
+        )}&redirect_uri=${encodeURIComponent(
+          window.location.origin
+        )}&response_type=token%20id_token&scope=openid%20email%20profile&prompt=select_account`
+      : `https://accounts.google.com/v3/signin/accountchooser?prompt=select_account`;
+
+    const popup = window.open(
+      googleChooserUrl,
+      'GoogleAccountChooser',
+      `width=${width},height=${height},left=${left},top=${top},status=no,toolbar=no,menubar=no,location=yes`
+    );
+
+    if (popup) {
+      popup.focus();
     }
   }
 
   return {
     success: false,
-    error: 'GOOGLE_CONFIG_NEEDED',
+    error: 'POPUP_OPENED',
   };
 }

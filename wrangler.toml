@@ -11,3 +11,4 @@ not_found_handling = "single-page-application"
 [vars]
 PROPERTY_NAME = "Sun Moon Suites"
 LOCATION = "Sector 117, Noida, Uttar Pradesh, India"
+VITE_GOOGLE_CLIENT_ID = ""

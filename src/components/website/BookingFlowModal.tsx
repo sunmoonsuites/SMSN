@@ -19,7 +19,6 @@ import {
   getNextDayLocalDateStr,
 } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
-import { GoogleAuthModal } from '../auth/GoogleAuthModal';
 import { sendVerificationOtp, verifyOtp } from '../../services/emailVerificationService';
 import {
   getExistingGoogleUser,
@@ -108,7 +107,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [verifiedEmail, setVerifiedEmail] = useState('');
   const [verifiedVia, setVerifiedVia] = useState<'otp' | 'google' | ''>('');
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
-  const [isGoogleAuthModalOpen, setIsGoogleAuthModalOpen] = useState(false);
   const [googleAuthError, setGoogleAuthError] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -186,10 +184,33 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     setStep('guest');
   };
 
-  const handleDirectGoogleSignIn = () => {
+  const handleDirectGoogleSignIn = async () => {
     setGoogleAuthError('');
     setOtpError('');
-    setIsGoogleAuthModalOpen(true);
+    setIsGoogleSigningIn(true);
+
+    const effectiveId = (
+      hotel?.email_verification_config?.google_client_id ||
+      (typeof localStorage !== 'undefined'
+        ? localStorage.getItem('sms_google_client_id') || ''
+        : '') ||
+      import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+      ''
+    ).trim();
+
+    try {
+      const res = await triggerGoogleSignIn(effectiveId);
+      setIsGoogleSigningIn(false);
+
+      if (res.success && res.user) {
+        handleGoogleVerified(res.user);
+      } else if (res.error && res.error !== 'POPUP_OPENED') {
+        setGoogleAuthError(res.error);
+      }
+    } catch (err: any) {
+      setIsGoogleSigningIn(false);
+      setGoogleAuthError(err?.message || 'Google Sign-In popup could not be opened.');
+    }
   };
 
   // Promo Code
@@ -1388,19 +1409,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       </div>
     </Modal>
 
-    {/* Authentic Google Account Chooser Modal (Matches Google's official OAuth account chooser) */}
-    <GoogleAuthModal
-      isOpen={isGoogleAuthModalOpen}
-      onClose={() => setIsGoogleAuthModalOpen(false)}
-      onSuccess={handleGoogleVerified}
-      currentEmail={guestEmail}
-      currentFirstName={guestFirstName}
-      currentLastName={guestLastName}
-      currentPhone={guestPhone}
-      onSwitchToOtp={() => {
-        setIsGoogleAuthModalOpen(false);
-      }}
-    />
   </>
   );
 };
