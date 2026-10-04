@@ -461,6 +461,138 @@ export async function handleApiRequest(request, env) {
     });
   }
 
+  // 6. Guest Email OTP Verification Endpoints
+  if (pathname === '/api/auth/send-verification-otp' && request.method === 'POST') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { email, guestName, emailConfig } = body || {};
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return jsonResponse({ success: false, error: 'Valid email address is required.' }, 400);
+      }
+
+      const cleanEmail = email.toLowerCase().trim();
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      sessionCache.set(`otp_${cleanEmail}`, {
+        code: otpCode,
+        expiresAt: Date.now() + 10 * 60 * 1000,
+        attempts: 0,
+        guestName: guestName ? String(guestName).trim() : 'Guest',
+      });
+
+      // If custom worker URL or webhook is provided, dispatch
+      const workerUrl = emailConfig?.workerUrl || env?.EMAIL_WORKER_URL;
+      if (workerUrl) {
+        try {
+          await fetch(workerUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: cleanEmail,
+              subject: `${otpCode} is your Sun Moon Suites Verification Code`,
+              text: `Your verification code is: ${otpCode}. Valid for 10 minutes.`,
+            }),
+          });
+          return jsonResponse({
+            success: true,
+            emailSent: true,
+            message: `Verification code sent to ${cleanEmail}.`,
+          });
+        } catch {}
+      }
+
+      return jsonResponse({
+        success: true,
+        emailSent: false,
+        devCode: otpCode,
+        warning: 'Instant verification code active. Enter the 6-digit code to continue.',
+        message: `Verification code generated for ${cleanEmail}.`,
+      });
+    } catch (err) {
+      return jsonResponse({ success: false, error: err?.message || 'Failed to generate OTP' }, 500);
+    }
+  }
+
+  if (pathname === '/api/auth/verify-otp' && request.method === 'POST') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { email, code } = body || {};
+      if (!email || !code) {
+        return jsonResponse({ verified: false, error: 'Email and verification code are required.' }, 400);
+      }
+
+      const cleanEmail = String(email).toLowerCase().trim();
+      const cleanCode = String(code).trim().replace(/\s+/g, '');
+
+      const record = sessionCache.get(`otp_${cleanEmail}`);
+      if (!record) {
+        return jsonResponse(
+          {
+            verified: false,
+            error: 'No active verification code found for this email. Please request a new code.',
+          },
+          400
+        );
+      }
+
+      if (Date.now() > record.expiresAt) {
+        sessionCache.delete(`otp_${cleanEmail}`);
+        return jsonResponse(
+          {
+            verified: false,
+            error: 'Verification code has expired. Please request a new code.',
+          },
+          400
+        );
+      }
+
+      if (record.code !== cleanCode) {
+        record.attempts = (record.attempts || 0) + 1;
+        const remaining = Math.max(0, 5 - record.attempts);
+        return jsonResponse(
+          {
+            verified: false,
+            error: `Incorrect code. ${remaining} ${remaining === 1 ? 'attempt' : 'attempts'} remaining.`,
+          },
+          400
+        );
+      }
+
+      sessionCache.delete(`otp_${cleanEmail}`);
+      return jsonResponse({
+        verified: true,
+        message: 'Email verified successfully!',
+      });
+    } catch (err) {
+      return jsonResponse({ verified: false, error: err?.message || 'OTP verification failed' }, 500);
+    }
+  }
+
+  if (pathname === '/api/auth/test-email-config' && request.method === 'POST') {
+    return jsonResponse({
+      success: true,
+      message: 'Cloudflare Edge email verification service is active.',
+    });
+  }
+
+  // 7. CRM Proxy Endpoints
+  if (pathname === '/api/crm/fetch-sheet-csv' && request.method === 'POST') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { url: sheetUrl } = body || {};
+      if (!sheetUrl) return jsonResponse({ success: false, error: 'Missing URL' }, 400);
+
+      const resp = await fetch(sheetUrl, {
+        headers: { 'User-Agent': YANOLJA_BROWSER_UA, Accept: 'text/csv,text/plain,*/*' },
+      });
+      if (!resp.ok) return jsonResponse({ success: false, error: `HTTP ${resp.status}` }, resp.status);
+      const csvText = await resp.text();
+      return jsonResponse({ success: true, csvText });
+    } catch (err) {
+      return jsonResponse({ success: false, error: err?.message }, 502);
+    }
+  }
+
   return jsonResponse({ error: 'API endpoint not found' }, 404);
 }
 

@@ -18,6 +18,8 @@ import {
 } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { sendVerificationOtp, verifyOtp } from '../../services/emailVerificationService';
+import { GoogleAuthModal } from '../auth/GoogleAuthModal';
+import { getExistingGoogleUser } from '../../services/googleAuthService';
 import {
   Calendar,
   Users,
@@ -32,6 +34,8 @@ import {
   Key,
   RefreshCw,
   Info,
+  Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface BookingFlowModalProps {
@@ -75,9 +79,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [guestPhone, setGuestPhone] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
 
-  // Email OTP Verification State
+  // Email OTP & Google Verification State
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [verifiedEmail, setVerifiedEmail] = useState('');
+  const [verifiedVia, setVerifiedVia] = useState<'otp' | 'google' | ''>('');
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
@@ -86,6 +92,43 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [otpWarning, setOtpWarning] = useState('');
   const [otpDevCode, setOtpDevCode] = useState('');
   const [otpCountdown, setOtpCountdown] = useState(0);
+
+  // Check for verified Google session
+  useEffect(() => {
+    getExistingGoogleUser().then((user) => {
+      if (user?.email) {
+        if (!guestEmail) setGuestEmail(user.email);
+        if (!guestFirstName && user.name) {
+          const parts = user.name.split(' ');
+          setGuestFirstName(parts[0] || '');
+          if (parts.length > 1) setGuestLastName(parts.slice(1).join(' '));
+        }
+        setIsEmailVerified(true);
+        setVerifiedEmail(user.email);
+        setVerifiedVia('google');
+      }
+    });
+  }, []);
+
+  const handleGoogleVerified = (data: { email: string; name: string }) => {
+    setGuestEmail(data.email);
+    if (data.name) {
+      const parts = data.name.trim().split(' ');
+      if (!guestFirstName) setGuestFirstName(parts[0] || '');
+      if (!guestLastName && parts.length > 1) setGuestLastName(parts.slice(1).join(' '));
+    }
+    setIsEmailVerified(true);
+    setVerifiedEmail(data.email);
+    setVerifiedVia('google');
+    setOtpSuccessMessage('Email verified via Google successfully!');
+    setOtpError('');
+    setIsGoogleModalOpen(false);
+
+    // If guest details (first name & phone) are already filled, advance to review
+    if (guestPhone.trim() && (guestFirstName.trim() || data.name)) {
+      setStep('review');
+    }
+  };
 
   // Promo Code
   const [promoInput, setPromoInput] = useState('');
@@ -222,6 +265,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     if (res.verified) {
       setIsEmailVerified(true);
       setVerifiedEmail(guestEmail.trim());
+      setVerifiedVia('otp');
       setOtpSuccessMessage('Email verified successfully!');
       setTimeout(() => {
         setStep('review');
@@ -429,7 +473,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   )}`;
 
   return (
-    <Modal
+    <>
+      <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={
@@ -617,6 +662,59 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               </button>
             </div>
 
+            {/* 2 VERIFICATION OPTIONS SELECTOR BANNER */}
+            <div className="p-3.5 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50/80 via-white to-amber-50/50 space-y-2.5 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                  Verification Options (Choose Option 1 or 2)
+                </span>
+                {isEmailVerified && verifiedEmail.toLowerCase() === guestEmail.trim().toLowerCase() ? (
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1 w-fit shadow-2xs">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    Verified {verifiedVia === 'google' ? 'via Gmail' : 'via OTP'}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-amber-800 font-medium">
+                    Instant Gmail Login or 6-Digit Email OTP
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* OPTION 1: Continue with Gmail */}
+                <button
+                  type="button"
+                  onClick={() => setIsGoogleModalOpen(true)}
+                  className="w-full px-3 py-2.5 bg-white hover:bg-stone-50 border border-stone-300 hover:border-amber-700 rounded-lg text-stone-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-2xs group"
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.93H1.21v3.15C3.25 21.43 7.31 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.32 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.21C.44 8.11 0 9.99 0 12s.44 3.89 1.21 5.42l4.11-3.15z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.57 1.21 6.58l4.11 3.15c.94-2.83 3.58-4.98 6.68-4.98z"/>
+                  </svg>
+                  <span>Option 1: Quick Verify via Gmail</span>
+                </button>
+
+                {/* OPTION 2: Verify by OTP */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!guestEmail.trim()) {
+                      setSubmitError('Please enter your email address below first.');
+                      return;
+                    }
+                    handleRequestOtp();
+                  }}
+                  className="w-full px-3 py-2.5 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg text-stone-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Mail className="w-3.5 h-3.5 text-stone-700" />
+                  <span>Option 2: Verify by Email OTP</span>
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
@@ -660,9 +758,17 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-                  Email Address *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                    Email Address *
+                  </label>
+                  {isEmailVerified && verifiedEmail.toLowerCase() === guestEmail.trim().toLowerCase() && (
+                    <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      Verified {verifiedVia === 'google' ? 'via Gmail' : 'via OTP'}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="email"
                   required
@@ -674,9 +780,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     if (isEmailVerified && verifiedEmail.toLowerCase() !== newEmail.trim().toLowerCase()) {
                       setIsEmailVerified(false);
                       setVerifiedEmail('');
+                      setVerifiedVia('');
                     }
                   }}
-                  className="w-full px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700 font-medium"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700 font-medium ${
+                    isEmailVerified && verifiedEmail.toLowerCase() === guestEmail.trim().toLowerCase()
+                      ? 'border-emerald-400 bg-emerald-50/40 text-emerald-950 font-semibold'
+                      : 'border-stone-300'
+                  }`}
                 />
               </div>
             </div>
@@ -770,17 +881,34 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   }}
                   className="w-full text-center tracking-[12px] font-mono text-2xl font-bold py-3 px-4 border-2 border-amber-700/60 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-500/20 bg-white"
                 />
+
+                {/* Auto-fill button when instant dev code is available */}
+                {otpDevCode && (
+                  <div className="flex items-center justify-center pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpCode(otpDevCode);
+                        if (otpError) setOtpError('');
+                      }}
+                      className="px-3.5 py-1.5 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                      <span>Auto-Fill Instant Code ({otpDevCode})</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Dev/Test Mode Banner (Shown if App Password not yet configured) */}
+              {/* Dev/Test Mode Banner (Shown if App Password not yet configured or SMTP issue) */}
               {otpDevCode && (
                 <div className="max-w-md mx-auto p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs text-left flex items-start gap-2">
                   <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">Test Code: </span>
+                    <span className="font-bold">Instant Verification Active: </span>
                     <span className="font-mono font-bold text-sm bg-amber-200/70 px-1.5 py-0.5 rounded">{otpDevCode}</span>
                     <p className="text-[11px] text-amber-800 mt-1">
-                      (Google App Password setup is pending in Staff Portal Settings. Enter this test code or add App Password in Settings to deliver to actual Gmail inbox).
+                      {otpWarning || 'You can click Auto-Fill Code above or enter it manually to verify your reservation without delay.'}
                     </p>
                   </div>
                 </div>
@@ -832,6 +960,26 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     : isSendingOtp
                     ? 'Sending...'
                     : 'Resend Code'}
+                </button>
+              </div>
+
+              {/* OPTION 1 FAST ALTERNATIVE: QUICK VERIFY WITH GMAIL */}
+              <div className="pt-3 border-t border-amber-200/60 max-w-sm mx-auto space-y-2">
+                <p className="text-[11px] text-stone-500 font-medium">
+                  OTP email delay ho raha hai? Quick Gmail se verify karein:
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsGoogleModalOpen(true)}
+                  className="w-full py-2.5 px-4 bg-white hover:bg-stone-50 border border-stone-300 hover:border-amber-700 rounded-xl text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer shadow-2xs transition-colors"
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.93H1.21v3.15C3.25 21.43 7.31 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.32 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.21C.44 8.11 0 9.99 0 12s.44 3.89 1.21 5.42l4.11-3.15z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.57 1.21 6.58l4.11 3.15c.94-2.83 3.58-4.98 6.68-4.98z"/>
+                  </svg>
+                  <span>Option 1: Verify Instantly via Gmail (Skip OTP)</span>
                 </button>
               </div>
 
@@ -1158,5 +1306,21 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         )}
       </div>
     </Modal>
+
+    {/* Google Sign-In & Instant Verification Modal */}
+    <GoogleAuthModal
+      isOpen={isGoogleModalOpen}
+      onClose={() => setIsGoogleModalOpen(false)}
+      onSuccess={handleGoogleVerified}
+      onSwitchToOtp={() => {
+        setIsGoogleModalOpen(false);
+        if (guestEmail.trim()) {
+          handleRequestOtp();
+        }
+      }}
+      initialEmail={guestEmail}
+      initialName={guestFirstName ? `${guestFirstName} ${guestLastName}`.trim() : ''}
+    />
+  </>
   );
 };

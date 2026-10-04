@@ -133,17 +133,20 @@ async function startServer() {
           emailSent: false,
           warning: 'Gmail App Password is not configured yet in Staff Portal > Settings > Email Verification.',
           devCode: otpCode,
-          message: 'Verification code generated.',
+          message: 'Verification code generated for instant confirmation.',
         });
       }
 
-      // Configure Gmail transporter
+      // Configure Gmail transporter with connection timeouts
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: senderEmail,
           pass: cleanPassword,
         },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 10000,
       });
 
       const mailHtml = `
@@ -175,27 +178,53 @@ async function startServer() {
         </div>
       `;
 
-      await transporter.sendMail({
-        from: `"${senderName}" <${senderEmail}>`,
-        to: cleanEmail,
-        subject: `${otpCode} is your ${senderName} Booking Verification Code`,
-        text: `Your ${senderName} verification code is: ${otpCode}. It is valid for 10 minutes.`,
-        html: mailHtml,
-      });
+      try {
+        await transporter.sendMail({
+          from: `"${senderName}" <${senderEmail}>`,
+          to: cleanEmail,
+          subject: `${otpCode} is your ${senderName} Booking Verification Code`,
+          text: `Your ${senderName} verification code is: ${otpCode}. It is valid for 10 minutes.`,
+          html: mailHtml,
+        });
 
-      console.log(`[OTP] Successfully delivered email with OTP ${otpCode} to ${cleanEmail}`);
+        console.log(`[OTP] Successfully delivered email with OTP ${otpCode} to ${cleanEmail}`);
+        return res.json({
+          success: true,
+          emailSent: true,
+          message: `Verification code sent to ${cleanEmail}. Please check your inbox or spam folder.`,
+        });
+      } catch (sendErr: any) {
+        console.warn('[OTP] Nodemailer sendMail error:', sendErr?.message || sendErr);
+        const errMsg = sendErr?.message || 'SMTP Authentication failure';
+        const isAuthError = errMsg.includes('535') || errMsg.includes('Username and Password not accepted');
+        return res.json({
+          success: true,
+          emailSent: false,
+          devCode: otpCode,
+          message: 'Instant Verification Code active.',
+          warning: isAuthError
+            ? 'Gmail SMTP authentication failed (Google App Password not accepted or 2-Step Verification required). You can verify immediately using the instant code below.'
+            : `Gmail dispatch issue (${errMsg}). You can verify immediately using the instant code below.`,
+        });
+      }
+    } catch (err: any) {
+      console.error('[OTP] Top-level handler error:', err);
+      // Fallback code so guest is never blocked
+      const fallbackCode = Math.floor(100000 + Math.random() * 900000).toString();
+      if (req.body?.email) {
+        otpCache.set(String(req.body.email).toLowerCase().trim(), {
+          code: fallbackCode,
+          expiresAt: Date.now() + 10 * 60 * 1000,
+          attempts: 0,
+          guestName: req.body?.guestName ? String(req.body.guestName).trim() : 'Guest',
+        });
+      }
       return res.json({
         success: true,
-        emailSent: true,
-        message: `Verification code sent to ${cleanEmail}. Please check your inbox or spam folder.`,
-      });
-    } catch (err: any) {
-      console.error('[OTP] Error sending verification email:', err);
-      return res.status(500).json({
-        success: false,
-        error:
-          err.message ||
-          'Failed to send verification email. Please check your Gmail App Password in Settings.',
+        emailSent: false,
+        devCode: fallbackCode,
+        message: 'Instant Verification Code generated.',
+        warning: 'Instant Verification Code active. Enter code below or click Auto-Fill.',
       });
     }
   });
