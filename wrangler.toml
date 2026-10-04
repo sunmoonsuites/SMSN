@@ -1,10 +1,10 @@
 name = "sunmoonsuites"
-main = "./public/_worker.js"
+main = "worker.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [assets]
-directory = "./dist"
+directory = "dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
