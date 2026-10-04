@@ -2602,6 +2602,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <span className="text-[11px] text-stone-500 mt-1 block">
                     Google Cloud Console &gt; APIs &amp; Services &gt; Credentials me jakar Web Application Client ID banayein.
                   </span>
+
+                  <div className="mt-2.5 p-3 bg-amber-50 rounded-lg border border-amber-200 text-[11px] text-amber-950 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold flex items-center gap-1 text-amber-900">
+                        <Info className="w-3.5 h-3.5 text-amber-700" />
+                        Authorized JavaScript Origins (Google Cloud Console):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof navigator !== 'undefined') {
+                            navigator.clipboard.writeText(window.location.origin);
+                          }
+                        }}
+                        className="px-2 py-0.5 bg-amber-800 text-white rounded text-[10px] font-bold hover:bg-amber-900 cursor-pointer shadow-2xs"
+                      >
+                        Copy Domain
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-stone-600 leading-relaxed">
+                      Cloudflare ya Custom Domain per "Error 400: origin_mismatch" se bachne ke liye Google Cloud Console ke <strong>Authorized JavaScript origins</strong> me ye URL add karein:
+                    </p>
+                    <code className="block bg-white p-1.5 rounded border border-amber-200 font-mono text-[10px] select-all text-amber-900 truncate">
+                      {typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com'}
+                    </code>
+                  </div>
                 </div>
               </div>
             </div>

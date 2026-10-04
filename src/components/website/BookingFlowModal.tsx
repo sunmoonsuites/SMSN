@@ -804,9 +804,38 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     </button>
 
                     {googleAuthError && (
-                      <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-[11px] font-medium leading-relaxed text-left">
-                        {googleAuthError}
-                      </div>
+                      googleAuthError.includes('ORIGIN_MISMATCH') || googleAuthError.includes('origins') ? (
+                        <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 text-xs space-y-2 text-left shadow-2xs">
+                          <div className="font-bold flex items-center gap-1.5 text-amber-900">
+                            <Info className="w-4 h-4 text-amber-700 shrink-0" />
+                            <span>Cloudflare Origin Registration (Required):</span>
+                          </div>
+                          <p className="text-[11px] text-stone-700 leading-relaxed">
+                            Google OAuth policy ke anusaar aapka current Cloudflare domain Google Cloud Console me <strong>Authorized JavaScript origins</strong> me add hona zaroori hai.
+                          </p>
+                          <div className="bg-white p-2 rounded-lg border border-amber-200 text-[11px] font-mono select-all flex items-center justify-between gap-2">
+                            <span className="truncate">{typeof window !== 'undefined' ? window.location.origin : ''}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (typeof navigator !== 'undefined') {
+                                  navigator.clipboard.writeText(window.location.origin);
+                                }
+                              }}
+                              className="px-2.5 py-1 bg-amber-800 text-white rounded text-[10px] font-sans font-bold hover:bg-amber-900 shrink-0 cursor-pointer shadow-2xs"
+                            >
+                              Copy Domain
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-stone-500">
+                            Google Cloud Console &gt; APIs &amp; Services &gt; Credentials &gt; OAuth 2.0 Client ID me jakar <strong>Authorized JavaScript origins</strong> me ise add karke Save karein.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-[11px] font-medium leading-relaxed text-left">
+                          {googleAuthError}
+                        </div>
+                      )
                     )}
 
                     <p className="text-[11px] text-stone-500 text-center pt-0.5">

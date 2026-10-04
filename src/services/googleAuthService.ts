@@ -236,6 +236,20 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
             },
             error_callback: (err: any) => {
               console.warn('GIS error callback:', err);
+              const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+              const errStr = JSON.stringify(err || '');
+              if (
+                err?.type === 'origin_mismatch' ||
+                err?.message?.includes('origin') ||
+                errStr.includes('origin') ||
+                errStr.includes('mismatch')
+              ) {
+                resolve({
+                  success: false,
+                  error: `ORIGIN_MISMATCH: Google Cloud Console me '${currentOrigin}' ko Authorized JavaScript origins me add karein.`,
+                });
+                return;
+              }
               resolve({
                 success: false,
                 error: err?.message || 'Google popup was blocked or failed to load.',
@@ -246,11 +260,11 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
           client.requestAccessToken({ prompt: 'select_account' });
         } catch (initErr: any) {
           console.warn('GIS TokenClient init error:', initErr);
+          const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
           resolve({
             success: false,
             error:
-              initErr?.message ||
-              'Could not open Google Sign-In. Please check Authorized JavaScript Origins in Google Cloud Console.',
+              `ORIGIN_MISMATCH: Google Cloud Console me '${currentOrigin}' ko Authorized JavaScript origins me add karein.`,
           });
         }
       });
@@ -265,12 +279,13 @@ export async function triggerGoogleSignIn(googleClientId?: string): Promise<Goog
     const height = 650;
     const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
     const top = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
+    const cleanOrigin = window.location.origin.replace(/\/+$/, '');
 
     const googleChooserUrl = effectiveClientId
       ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
           effectiveClientId
         )}&redirect_uri=${encodeURIComponent(
-          window.location.origin
+          cleanOrigin
         )}&response_type=token%20id_token&scope=openid%20email%20profile&prompt=select_account`
       : `https://accounts.google.com/v3/signin/accountchooser?prompt=select_account`;
 
