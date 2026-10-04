@@ -173,6 +173,7 @@ export const DEFAULT_EMAIL_VERIFICATION_CONFIG: EmailVerificationConfig = {
   sender_email: 'sunmoonsuites@gmail.com',
   gmail_app_password: '',
   sender_name: 'Sun Moon Suites',
+  google_client_id: '',
 };
 
 export function normalizeEmailVerificationConfig(
@@ -186,6 +187,7 @@ export function normalizeEmailVerificationConfig(
     sender_email: raw.sender_email?.trim() || DEFAULT_EMAIL_VERIFICATION_CONFIG.sender_email,
     gmail_app_password: raw.gmail_app_password?.trim() || '',
     sender_name: raw.sender_name?.trim() || DEFAULT_EMAIL_VERIFICATION_CONFIG.sender_name,
+    google_client_id: raw.google_client_id?.trim() || '',
   };
 }
 

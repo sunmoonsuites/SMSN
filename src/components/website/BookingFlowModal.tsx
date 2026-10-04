@@ -19,7 +19,11 @@ import {
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { sendVerificationOtp, verifyOtp } from '../../services/emailVerificationService';
 import { GoogleAuthModal } from '../auth/GoogleAuthModal';
-import { getExistingGoogleUser } from '../../services/googleAuthService';
+import {
+  getExistingGoogleUser,
+  triggerGoogleSignIn,
+  GoogleUserProfile,
+} from '../../services/googleAuthService';
 import {
   Calendar,
   Users,
@@ -36,6 +40,7 @@ import {
   Info,
   Sparkles,
   ShieldCheck,
+  Lock,
 } from 'lucide-react';
 
 interface BookingFlowModalProps {
@@ -59,7 +64,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   initialSearch,
   onBookingSuccess,
 }) => {
-  const [step, setStep] = useState<'search' | 'rooms' | 'guest' | 'verify_email' | 'review' | 'confirmed'>('search');
+  const [step, setStep] = useState<'search' | 'rooms' | 'auth' | 'guest' | 'verify_email' | 'review' | 'confirmed'>('search');
 
   // Dates & Guests
   const [checkIn, setCheckIn] = useState('');
@@ -79,6 +84,22 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [guestPhone, setGuestPhone] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
 
+  // Lock status of fields:
+  // Google login: all fetched fields (First Name, Last Name, Mobile, Email) are auto-filled and locked (not editable).
+  // Unfetched fields remain editable.
+  // OTP verify: only Email is auto-filled and locked; First Name, Last Name, Mobile remain editable.
+  const [lockedFields, setLockedFields] = useState<{
+    email: boolean;
+    firstName: boolean;
+    lastName: boolean;
+    phone: boolean;
+  }>({
+    email: false,
+    firstName: false,
+    lastName: false,
+    phone: false,
+  });
+
   // Email OTP & Google Verification State
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [verifiedEmail, setVerifiedEmail] = useState('');
@@ -97,37 +118,67 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   useEffect(() => {
     getExistingGoogleUser().then((user) => {
       if (user?.email) {
-        if (!guestEmail) setGuestEmail(user.email);
-        if (!guestFirstName && user.name) {
-          const parts = user.name.split(' ');
-          setGuestFirstName(parts[0] || '');
-          if (parts.length > 1) setGuestLastName(parts.slice(1).join(' '));
-        }
+        const cleanEmail = user.email.toLowerCase().trim();
+        const firstName = user.given_name || (user.name ? user.name.split(' ')[0] : '');
+        const lastName =
+          user.family_name ||
+          (user.name && user.name.split(' ').length > 1
+            ? user.name.split(' ').slice(1).join(' ')
+            : '');
+        const phone = user.phone || '';
+
+        if (!guestEmail) setGuestEmail(cleanEmail);
+        if (!guestFirstName && firstName) setGuestFirstName(firstName);
+        if (!guestLastName && lastName) setGuestLastName(lastName);
+        if (!guestPhone && phone) setGuestPhone(phone);
+
         setIsEmailVerified(true);
-        setVerifiedEmail(user.email);
+        setVerifiedEmail(cleanEmail);
         setVerifiedVia('google');
+        setLockedFields({
+          email: true,
+          firstName: !!firstName,
+          lastName: !!lastName,
+          phone: !!phone,
+        });
       }
     });
   }, []);
 
-  const handleGoogleVerified = (data: { email: string; name: string }) => {
-    setGuestEmail(data.email);
-    if (data.name) {
-      const parts = data.name.trim().split(' ');
-      if (!guestFirstName) setGuestFirstName(parts[0] || '');
-      if (!guestLastName && parts.length > 1) setGuestLastName(parts.slice(1).join(' '));
-    }
+  const handleGoogleVerified = (user: GoogleUserProfile) => {
+    const cleanEmail = (user.email || '').toLowerCase().trim();
+    const firstName = user.given_name || (user.name ? user.name.split(' ')[0] : '');
+    const lastName =
+      user.family_name ||
+      (user.name && user.name.split(' ').length > 1
+        ? user.name.split(' ').slice(1).join(' ')
+        : '');
+    const phone = user.phone || '';
+
+    setGuestEmail(cleanEmail);
+    if (firstName) setGuestFirstName(firstName);
+    if (lastName) setGuestLastName(lastName);
+    if (phone) setGuestPhone(phone);
+
     setIsEmailVerified(true);
-    setVerifiedEmail(data.email);
+    setVerifiedEmail(cleanEmail);
     setVerifiedVia('google');
-    setOtpSuccessMessage('Email verified via Google successfully!');
+
+    // As requested:
+    // "Agar Wo Google Se Login Karta Hai To Sari Details Jaise First Name, Last Name, Mobile No., Email Address Automatically Fill Ho Jayenge Not Editable. Agar Koi Field Fetch Nahi Hui Hai To Wo Editable Rahegi Usme Guest Apni Detail Dal Payega."
+    setLockedFields({
+      email: !!cleanEmail,
+      firstName: !!firstName,
+      lastName: !!lastName,
+      phone: !!phone,
+    });
+
+    setOtpSuccessMessage(`Logged in with Google as ${cleanEmail}`);
     setOtpError('');
     setIsGoogleModalOpen(false);
 
-    // If guest details (first name & phone) are already filled, advance to review
-    if (guestPhone.trim() && (guestFirstName.trim() || data.name)) {
-      setStep('review');
-    }
+    // After verification, advance directly to Guest details
+    setStep('guest');
   };
 
   // Promo Code
@@ -223,8 +274,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   }, [otpCountdown]);
 
   const handleRequestOtp = async () => {
-    if (!guestEmail.trim()) {
-      setSubmitError('Please enter a valid email address.');
+    if (!guestEmail.trim() || !guestEmail.includes('@')) {
+      setOtpError('Please enter a valid email address.');
       return;
     }
     setIsSendingOtp(true);
@@ -244,14 +295,16 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       if (res.devCode) setOtpDevCode(res.devCode);
       if (res.warning) setOtpWarning(res.warning);
       setOtpCountdown(30);
-      setStep('verify_email');
     } else {
       setOtpError(res.error || 'Failed to send verification email. Please check your connection.');
-      setStep('verify_email');
     }
   };
 
   const handleVerifyOtpCode = async () => {
+    if (!guestEmail.trim()) {
+      setOtpError('Please enter your email address first.');
+      return;
+    }
     if (!otpCode.trim() || otpCode.trim().length !== 6) {
       setOtpError('Please enter the 6-digit code received on your email.');
       return;
@@ -263,13 +316,25 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     setIsVerifyingOtp(false);
 
     if (res.verified) {
+      const cleanEmail = guestEmail.trim().toLowerCase();
       setIsEmailVerified(true);
-      setVerifiedEmail(guestEmail.trim());
+      setVerifiedEmail(cleanEmail);
       setVerifiedVia('otp');
-      setOtpSuccessMessage('Email verified successfully!');
+
+      // Rule:
+      // "Agar Koi OTP Se Verify Karta Hai To Kewal Email Autofill Ho jayegi or Not Editable Rahegi & Baki Sari Fields Editable Hongi."
+      setLockedFields({
+        email: true,
+        firstName: false,
+        lastName: false,
+        phone: false,
+      });
+
+      setOtpSuccessMessage('Email verified successfully via OTP!');
+      setOtpError('');
       setTimeout(() => {
-        setStep('review');
-      }, 500);
+        setStep('guest');
+      }, 400);
     } else {
       setOtpError(res.error || 'Invalid verification code. Please try again.');
     }
@@ -281,16 +346,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       return;
     }
     setSubmitError('');
-    const isVerificationEnabled = hotel?.email_verification_config?.is_enabled !== false;
-    if (isVerificationEnabled) {
-      if (isEmailVerified && verifiedEmail.toLowerCase() === guestEmail.trim().toLowerCase()) {
-        setStep('review');
-      } else {
-        await handleRequestOtp();
-      }
-    } else {
-      setStep('review');
-    }
+    setStep('review');
   };
 
   const priceInfo = selectedResult
@@ -401,8 +457,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       isVerificationEnabled &&
       (!isEmailVerified || verifiedEmail.toLowerCase() !== guestEmail.trim().toLowerCase())
     ) {
-      setSubmitError('Email verification required. Please verify your email before confirming.');
-      setStep('verify_email');
+      setSubmitError('Guest login or verification is required before confirming your booking.');
+      setStep('auth');
       return;
     }
 
@@ -495,21 +551,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
           <div className="flex items-center justify-between border-b border-stone-200 pb-3 text-xs font-semibold uppercase tracking-wider text-stone-500">
             <span className={step === 'rooms' ? 'text-amber-800 font-bold' : ''}>1. Select Room</span>
             <span>&rarr;</span>
-            <span className={step === 'guest' ? 'text-amber-800 font-bold' : ''}>2. Guest Information</span>
-            {hotel?.email_verification_config?.is_enabled !== false && (
-              <>
-                <span>&rarr;</span>
-                <span className={step === 'verify_email' ? 'text-amber-800 font-bold' : ''}>
-                  3. Verify Email
-                </span>
-              </>
-            )}
+            <span className={step === 'auth' ? 'text-amber-800 font-bold' : ''}>2. Login / Verify</span>
             <span>&rarr;</span>
-            <span className={step === 'review' ? 'text-amber-800 font-bold' : ''}>
-              {hotel?.email_verification_config?.is_enabled !== false
-                ? '4. Review & Guarantee'
-                : '3. Review & Guarantee'}
-            </span>
+            <span className={step === 'guest' ? 'text-amber-800 font-bold' : ''}>3. Guest Details</span>
+            <span>&rarr;</span>
+            <span className={step === 'review' ? 'text-amber-800 font-bold' : ''}>4. Review &amp; Confirm</span>
           </div>
         )}
 
@@ -623,7 +669,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                             disabled={!isAvailable}
                             onClick={() => {
                               setSelectedResult(result);
-                              setStep('guest');
+                              if (isEmailVerified && verifiedEmail) {
+                                setStep('guest');
+                              } else {
+                                setStep('auth');
+                              }
                             }}
                             className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
                               isSelected
@@ -633,7 +683,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                                 : 'bg-stone-200 text-stone-400 cursor-not-allowed'
                             }`}
                           >
-                            {isSelected ? 'Selected' : 'Select'}
+                            {isSelected ? 'Selected' : 'Select Room'}
                           </button>
                         </div>
                       </div>
@@ -645,7 +695,197 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
           </div>
         )}
 
-        {/* STEP 2: GUEST DETAILS */}
+        {/* STEP 2: GUEST LOGIN & VERIFICATION */}
+        {step === 'auth' && (
+          <div className="space-y-5">
+            {/* Room Summary Header */}
+            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center justify-between">
+              <div>
+                <span className="font-bold text-amber-950">{selectedResult?.category.name}</span> &bull;{' '}
+                {nights} {nights === 1 ? 'Night' : 'Nights'} ({formatDate(checkIn)} to {formatDate(checkOut)}) &bull;{' '}
+                <span className="font-semibold text-stone-900">{formatINR(grandTotal)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStep('rooms')}
+                className="text-amber-800 underline font-medium hover:text-amber-950 cursor-pointer"
+              >
+                Change Room
+              </button>
+            </div>
+
+            {/* Login Selection Card */}
+            <div className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
+              <div className="text-center space-y-1">
+                <h3 className="font-serif text-xl font-bold text-stone-900">
+                  Guest Verification &amp; Login
+                </h3>
+                <p className="text-xs text-stone-600 max-w-md mx-auto">
+                  Aage badhne ke liye please sign in karein. Google se 1-Click login karein ya Email OTP se verify karein.
+                </p>
+              </div>
+
+              {/* Two Prominent Verification Options */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* OPTION 1: GOOGLE / GMAIL LOGIN */}
+                <div className="p-5 rounded-xl border-2 border-amber-600/40 hover:border-amber-700 bg-amber-50/20 transition-all flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                        Recommended &bull; 1-Click
+                      </span>
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <h4 className="font-bold text-stone-900 text-sm">
+                      Login via Google / Gmail
+                    </h4>
+                    <p className="text-xs text-stone-600 leading-relaxed">
+                      Instant Gmail verification. First Name, Last Name, Mobile &amp; Email automatically fill ho jayenge aur non-editable rahenge.
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsGoogleModalOpen(true)}
+                      className="w-full py-3 px-4 bg-white hover:bg-stone-50 border border-stone-300 hover:border-amber-700 rounded-xl font-bold text-xs text-stone-800 flex items-center justify-center gap-2.5 shadow-2xs transition-all cursor-pointer group"
+                    >
+                      <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.93H1.21v3.15C3.25 21.43 7.31 24 12 24z"/>
+                        <path fill="#FBBC05" d="M5.32 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.21C.44 8.11 0 9.99 0 12s.44 3.89 1.21 5.42l4.11-3.15z"/>
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.57 1.21 6.58l4.11 3.15c.94-2.83 3.58-4.98 6.68-4.98z"/>
+                      </svg>
+                      <span className="text-stone-900 group-hover:text-amber-900">
+                        Continue with Google
+                      </span>
+                    </button>
+                    <p className="text-[10px] text-stone-400 text-center mt-2">
+                      Secure Google Identity Verification
+                    </p>
+                  </div>
+                </div>
+
+                {/* OPTION 2: EMAIL OTP VERIFICATION */}
+                <div className="p-5 rounded-xl border border-stone-200 bg-white transition-all space-y-3 flex flex-col justify-between">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-500 bg-stone-100 px-2 py-0.5 rounded">
+                      Option 2
+                    </span>
+                    <h4 className="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+                      <Mail className="w-4 h-4 text-amber-800" />
+                      Verify via Email OTP
+                    </h4>
+                    <p className="text-xs text-stone-600 leading-relaxed">
+                      Apni email enter kijiye, OTP verify hone par email autofill &amp; locked rahegi, baki sab details editable rahengi.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
+                        Email Address *
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          placeholder="name@gmail.com"
+                          value={guestEmail}
+                          onChange={(e) => {
+                            setGuestEmail(e.target.value);
+                            setOtpError('');
+                          }}
+                          className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700 bg-white"
+                        />
+                        <button
+                          type="button"
+                          disabled={isSendingOtp || !guestEmail.trim()}
+                          onClick={handleRequestOtp}
+                          className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer shadow-2xs"
+                        >
+                          {isSendingOtp ? 'Sending...' : otpCountdown > 0 ? `Resend (${otpCountdown}s)` : 'Send OTP'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Messages */}
+                    {otpSuccessMessage && (
+                      <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{otpSuccessMessage}</span>
+                      </div>
+                    )}
+                    {otpWarning && (
+                      <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
+                        {otpWarning}
+                      </div>
+                    )}
+                    {otpError && (
+                      <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs">
+                        {otpError}
+                      </div>
+                    )}
+
+                    {/* Enter 6-digit OTP code */}
+                    {(otpSuccessMessage || otpDevCode) && (
+                      <div className="pt-2 space-y-2 border-t border-stone-100">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600">
+                          Enter 6-Digit OTP Code:
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            placeholder="123456"
+                            value={otpCode}
+                            onChange={(e) => {
+                              setOtpCode(e.target.value.replace(/\D/g, ''));
+                              setOtpError('');
+                            }}
+                            className="w-full px-3 py-2 text-center tracking-widest text-sm font-mono font-bold border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700 bg-white"
+                          />
+                          <button
+                            type="button"
+                            disabled={isVerifyingOtp || otpCode.trim().length !== 6}
+                            onClick={handleVerifyOtpCode}
+                            className="px-4 py-2 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer shadow-2xs"
+                          >
+                            {isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}
+                          </button>
+                        </div>
+
+                        {otpDevCode && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOtpCode(otpDevCode);
+                            }}
+                            className="w-full py-1 text-center text-[10px] text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded hover:bg-amber-100 font-semibold cursor-pointer"
+                          >
+                            ⚡ Auto-Fill Instant Code: {otpDevCode}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => setStep('rooms')}
+                  className="text-stone-600 hover:text-stone-900 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Back to Room Selection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: GUEST DETAILS */}
         {step === 'guest' && (
           <div className="space-y-4">
             <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center justify-between">
@@ -662,98 +902,109 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               </button>
             </div>
 
-            {/* 2 VERIFICATION OPTIONS SELECTOR BANNER */}
-            <div className="p-3.5 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50/80 via-white to-amber-50/50 space-y-2.5 shadow-2xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                  Verification Options (Choose Option 1 or 2)
+            {/* VERIFIED GUEST BANNER */}
+            <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="text-xs font-bold text-emerald-950">
+                  {verifiedVia === 'google' ? 'Logged in via Google' : 'Verified via Email OTP'}:{' '}
+                  <span className="font-mono font-medium text-emerald-900">{guestEmail}</span>
                 </span>
-                {isEmailVerified && verifiedEmail.toLowerCase() === guestEmail.trim().toLowerCase() ? (
-                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1 w-fit shadow-2xs">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                    Verified {verifiedVia === 'google' ? 'via Gmail' : 'via OTP'}
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-amber-800 font-medium">
-                    Instant Gmail Login or 6-Digit Email OTP
-                  </span>
-                )}
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {/* OPTION 1: Continue with Gmail */}
-                <button
-                  type="button"
-                  onClick={() => setIsGoogleModalOpen(true)}
-                  className="w-full px-3 py-2.5 bg-white hover:bg-stone-50 border border-stone-300 hover:border-amber-700 rounded-lg text-stone-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-2xs group"
-                >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.93H1.21v3.15C3.25 21.43 7.31 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.32 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.21C.44 8.11 0 9.99 0 12s.44 3.89 1.21 5.42l4.11-3.15z"/>
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.57 1.21 6.58l4.11 3.15c.94-2.83 3.58-4.98 6.68-4.98z"/>
-                  </svg>
-                  <span>Option 1: Quick Verify via Gmail</span>
-                </button>
-
-                {/* OPTION 2: Verify by OTP */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!guestEmail.trim()) {
-                      setSubmitError('Please enter your email address below first.');
-                      return;
-                    }
-                    handleRequestOtp();
-                  }}
-                  className="w-full px-3 py-2.5 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg text-stone-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <Mail className="w-3.5 h-3.5 text-stone-700" />
-                  <span>Option 2: Verify by Email OTP</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setStep('auth')}
+                className="text-[11px] text-emerald-800 hover:text-emerald-950 font-semibold underline cursor-pointer self-start sm:self-auto"
+              >
+                Switch Account
+              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-                  First Name *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                    First Name *
+                  </label>
+                  {lockedFields.firstName && (
+                    <span className="text-[10px] text-stone-500 font-semibold flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5 text-stone-400" />
+                      Google Verified (Locked)
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
+                  readOnly={lockedFields.firstName}
+                  disabled={lockedFields.firstName}
                   placeholder="e.g. Rahul"
                   value={guestFirstName}
                   onChange={(e) => setGuestFirstName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700 font-medium"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg font-medium ${
+                    lockedFields.firstName
+                      ? 'bg-stone-100 border-stone-200 text-stone-700 cursor-not-allowed'
+                      : 'bg-white border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-700'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-                  Last Name
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                    Last Name
+                  </label>
+                  {lockedFields.lastName && (
+                    <span className="text-[10px] text-stone-500 font-semibold flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5 text-stone-400" />
+                      Google Verified (Locked)
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
+                  readOnly={lockedFields.lastName}
+                  disabled={lockedFields.lastName}
                   placeholder="e.g. Sharma"
                   value={guestLastName}
                   onChange={(e) => setGuestLastName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700 font-medium"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg font-medium ${
+                    lockedFields.lastName
+                      ? 'bg-stone-100 border-stone-200 text-stone-700 cursor-not-allowed'
+                      : 'bg-white border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-700'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-                  Mobile Number *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                    Mobile Number *
+                  </label>
+                  {lockedFields.phone ? (
+                    <span className="text-[10px] text-stone-500 font-semibold flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5 text-stone-400" />
+                      Google Verified (Locked)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-800 font-medium">
+                      Editable (Please enter mobile)
+                    </span>
+                  )}
+                </div>
                 <input
                   type="tel"
                   required
+                  readOnly={lockedFields.phone}
+                  disabled={lockedFields.phone}
                   placeholder="+91 93135 01001"
                   value={guestPhone}
                   onChange={(e) => setGuestPhone(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700 font-medium"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg font-medium ${
+                    lockedFields.phone
+                      ? 'bg-stone-100 border-stone-200 text-stone-700 cursor-not-allowed'
+                      : 'bg-white border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-700'
+                  }`}
                 />
               </div>
 
@@ -762,32 +1013,19 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
                     Email Address *
                   </label>
-                  {isEmailVerified && verifiedEmail.toLowerCase() === guestEmail.trim().toLowerCase() && (
-                    <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      Verified {verifiedVia === 'google' ? 'via Gmail' : 'via OTP'}
-                    </span>
-                  )}
+                  <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    {verifiedVia === 'google' ? 'Google Verified (Locked)' : 'OTP Verified (Locked)'}
+                  </span>
                 </div>
                 <input
                   type="email"
                   required
+                  readOnly
+                  disabled
                   placeholder="name@example.com"
                   value={guestEmail}
-                  onChange={(e) => {
-                    const newEmail = e.target.value;
-                    setGuestEmail(newEmail);
-                    if (isEmailVerified && verifiedEmail.toLowerCase() !== newEmail.trim().toLowerCase()) {
-                      setIsEmailVerified(false);
-                      setVerifiedEmail('');
-                      setVerifiedVia('');
-                    }
-                  }}
-                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700 font-medium ${
-                    isEmailVerified && verifiedEmail.toLowerCase() === guestEmail.trim().toLowerCase()
-                      ? 'border-emerald-400 bg-emerald-50/40 text-emerald-950 font-semibold'
-                      : 'border-stone-300'
-                  }`}
+                  className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-stone-100 text-stone-700 font-medium cursor-not-allowed font-mono"
                 />
               </div>
             </div>
@@ -808,200 +1046,21 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             <div className="flex items-center justify-between pt-4 border-t border-stone-200">
               <button
                 type="button"
-                onClick={() => setStep('rooms')}
+                onClick={() => setStep('auth')}
                 className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                Back
+                Back to Login
               </button>
 
               <button
                 type="button"
-                disabled={!guestFirstName.trim() || !guestPhone.trim() || !guestEmail.trim() || isSendingOtp}
+                disabled={!guestFirstName.trim() || !guestPhone.trim() || !guestEmail.trim()}
                 onClick={handleProceedFromGuest}
                 className="px-6 py-2.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-xs uppercase tracking-wider font-semibold rounded-lg flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
               >
-                {isSendingOtp ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    Sending Code...
-                  </>
-                ) : hotel?.email_verification_config?.is_enabled !== false &&
-                  (!isEmailVerified || verifiedEmail.toLowerCase() !== guestEmail.trim().toLowerCase()) ? (
-                  <>
-                    Verify Email &amp; Continue
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </>
-                ) : (
-                  <>
-                    Continue to Review
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* STEP: EMAIL VERIFICATION */}
-        {step === 'verify_email' && (
-          <div className="space-y-5">
-            <div className="p-6 bg-gradient-to-b from-amber-50/60 to-white rounded-2xl border border-amber-200/80 text-center space-y-4">
-              <div className="w-12 h-12 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center mx-auto shadow-xs">
-                <Mail className="w-6 h-6" />
-              </div>
-
-              <div className="space-y-1">
-                <h4 className="font-serif font-bold text-lg text-stone-900">
-                  Verify Your Email Address
-                </h4>
-                <p className="text-xs text-stone-600 max-w-md mx-auto">
-                  A 6-digit verification code has been dispatched via Gmail to:
-                </p>
-                <p className="text-sm font-bold text-amber-900 font-mono">
-                  {guestEmail}
-                </p>
-              </div>
-
-              {/* 6-Digit Code Input */}
-              <div className="max-w-xs mx-auto space-y-2">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-700">
-                  Enter 6-Digit Verification Code
-                </label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  autoFocus
-                  placeholder="••••••"
-                  value={otpCode}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    setOtpCode(val);
-                    if (otpError) setOtpError('');
-                  }}
-                  className="w-full text-center tracking-[12px] font-mono text-2xl font-bold py-3 px-4 border-2 border-amber-700/60 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-500/20 bg-white"
-                />
-
-                {/* Auto-fill button when instant dev code is available */}
-                {otpDevCode && (
-                  <div className="flex items-center justify-center pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpCode(otpDevCode);
-                        if (otpError) setOtpError('');
-                      }}
-                      className="px-3.5 py-1.5 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                      <span>Auto-Fill Instant Code ({otpDevCode})</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Dev/Test Mode Banner (Shown if App Password not yet configured or SMTP issue) */}
-              {otpDevCode && (
-                <div className="max-w-md mx-auto p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs text-left flex items-start gap-2">
-                  <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Instant Verification Active: </span>
-                    <span className="font-mono font-bold text-sm bg-amber-200/70 px-1.5 py-0.5 rounded">{otpDevCode}</span>
-                    <p className="text-[11px] text-amber-800 mt-1">
-                      {otpWarning || 'You can click Auto-Fill Code above or enter it manually to verify your reservation without delay.'}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {otpError && (
-                <div className="max-w-xs mx-auto p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
-                  {otpError}
-                </div>
-              )}
-
-              {otpSuccessMessage && !otpError && (
-                <div className="max-w-xs mx-auto p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  {otpSuccessMessage}
-                </div>
-              )}
-
-              {/* Action Buttons: Verify & Resend */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  disabled={isVerifyingOtp || otpCode.trim().length !== 6}
-                  onClick={handleVerifyOtpCode}
-                  className="w-full sm:w-auto px-6 py-2.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {isVerifyingOtp ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      Verifying Code...
-                    </>
-                  ) : (
-                    <>
-                      Verify Code &amp; Continue
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isSendingOtp || otpCountdown > 0}
-                  onClick={handleRequestOtp}
-                  className="w-full sm:w-auto px-4 py-2.5 border border-stone-300 hover:bg-stone-50 disabled:opacity-50 text-stone-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSendingOtp ? 'animate-spin' : ''}`} />
-                  {otpCountdown > 0
-                    ? `Resend in ${otpCountdown}s`
-                    : isSendingOtp
-                    ? 'Sending...'
-                    : 'Resend Code'}
-                </button>
-              </div>
-
-              {/* OPTION 1 FAST ALTERNATIVE: QUICK VERIFY WITH GMAIL */}
-              <div className="pt-3 border-t border-amber-200/60 max-w-sm mx-auto space-y-2">
-                <p className="text-[11px] text-stone-500 font-medium">
-                  OTP email delay ho raha hai? Quick Gmail se verify karein:
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsGoogleModalOpen(true)}
-                  className="w-full py-2.5 px-4 bg-white hover:bg-stone-50 border border-stone-300 hover:border-amber-700 rounded-xl text-xs font-bold text-stone-800 flex items-center justify-center gap-2 cursor-pointer shadow-2xs transition-colors"
-                >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.93H1.21v3.15C3.25 21.43 7.31 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.32 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.21C.44 8.11 0 9.99 0 12s.44 3.89 1.21 5.42l4.11-3.15z"/>
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.57 1.21 6.58l4.11 3.15c.94-2.83 3.58-4.98 6.68-4.98z"/>
-                  </svg>
-                  <span>Option 1: Verify Instantly via Gmail (Skip OTP)</span>
-                </button>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setStep('guest')}
-                  className="text-stone-500 hover:text-amber-800 text-xs underline cursor-pointer"
-                >
-                  Mistyped your email? Change Email Address
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-stone-200">
-              <button
-                type="button"
-                onClick={() => setStep('guest')}
-                className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1.5 cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Back to Guest Info
+                Continue to Review &amp; Guarantee
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -1209,17 +1268,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             <div className="flex items-center justify-between pt-4 border-t border-stone-200">
               <button
                 type="button"
-                onClick={() =>
-                  setStep(
-                    hotel?.email_verification_config?.is_enabled !== false
-                      ? 'verify_email'
-                      : 'guest'
-                  )
-                }
+                onClick={() => setStep('guest')}
                 className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                Back
+                Back to Guest Info
               </button>
 
               <button
@@ -1314,12 +1367,12 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       onSuccess={handleGoogleVerified}
       onSwitchToOtp={() => {
         setIsGoogleModalOpen(false);
-        if (guestEmail.trim()) {
-          handleRequestOtp();
-        }
+        setStep('auth');
       }}
-      initialEmail={guestEmail}
-      initialName={guestFirstName ? `${guestFirstName} ${guestLastName}`.trim() : ''}
+      currentEmail={guestEmail}
+      currentFirstName={guestFirstName}
+      currentLastName={guestLastName}
+      currentPhone={guestPhone}
     />
   </>
   );

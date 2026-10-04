@@ -63,6 +63,7 @@ export interface EmailVerificationConfig {
   sender_email?: string;
   gmail_app_password?: string;
   sender_name?: string;
+  google_client_id?: string;
 }
 
 export interface BookingEngineConfig {
