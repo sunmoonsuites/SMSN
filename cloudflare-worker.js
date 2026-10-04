@@ -2,7 +2,8 @@
  * Cloudflare Worker & Pages Edge Handler for Sun Moon Suites
  * Supports:
  * - 100% Stateless HMAC-SHA256 OTP Verification Tokens (Cross-isolate & cold-start resilient)
- * - Live Gmail SMTP delivery via Cloudflare Sockets (Port 465 Implicit TLS & Port 587 STARTTLS)
+ * - Multi-Provider Email Delivery: Brevo API, Resend API, and Gmail SMTPS (Port 465/587)
+ * - Clean Guest Experience: Zero internal debug errors exposed to public guests
  * - Razorpay Web Crypto Payment Verification
  * - Yanolja Inbuilt Booking API Proxies
  * - Supabase Edge Proxy
@@ -85,10 +86,77 @@ async function verifyOtpToken(email, code, tokenStr, secret = OTP_DEFAULT_SECRET
 }
 
 // ==========================================
-// 2. GMAIL SMTP VIA CLOUDFLARE SOCKETS
+// 2. MULTI-PROVIDER EMAIL DISPATCH
 // ==========================================
 
-async function sendViaPort465({ connectSocket, cleanSender, cleanPass, cleanName, cleanTo, subject, htmlBody }) {
+async function sendViaBrevoApi({ apiKey, senderEmail, senderName, to, subject, htmlBody }) {
+  const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey.trim(),
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: senderName || 'Sun Moon Suites', email: senderEmail || 'sunmoonsuites@gmail.com' },
+      to: [{ email: to.toLowerCase().trim() }],
+      subject: subject,
+      htmlContent: htmlBody,
+    }),
+  });
+
+  if (!resp.ok) {
+    const errData = await resp.json().catch(() => ({}));
+    throw new Error(errData.message || `Brevo API returned HTTP ${resp.status}`);
+  }
+  const data = await resp.json().catch(() => ({}));
+  return { success: true, provider: 'brevo', messageId: data.messageId || 'brevo-sent' };
+}
+
+async function sendViaResendApi({ apiKey, senderEmail, senderName, to, subject, htmlBody }) {
+  const cleanSender = (senderEmail || '').includes('@') ? senderEmail : 'onboarding@resend.dev';
+  const fromField = `${senderName || 'Sun Moon Suites'} <${cleanSender}>`;
+  const resp = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey.trim()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: fromField,
+      to: [to.toLowerCase().trim()],
+      subject: subject,
+      html: htmlBody,
+    }),
+  });
+
+  if (!resp.ok) {
+    const errData = await resp.json().catch(() => ({}));
+    throw new Error(errData.message || `Resend API returned HTTP ${resp.status}`);
+  }
+  const data = await resp.json().catch(() => ({}));
+  return { success: true, provider: 'resend', messageId: data.id || 'resend-sent' };
+}
+
+function safeBase64(str) {
+  try {
+    return btoa(str);
+  } catch {
+    return Buffer.from(str).toString('base64');
+  }
+}
+
+async function sendViaPort465(params) {
+  const { connectSocket, subject, htmlBody } = params;
+  const cleanSender = (params.cleanSender || params.senderEmail || 'sunmoonsuites@gmail.com').trim();
+  const cleanPass = String(params.cleanPass || params.appPassword || params.password || '').trim().replace(/\s+/g, '');
+  const cleanName = (params.cleanName || params.senderName || 'Sun Moon Suites').trim();
+  const cleanTo = (params.cleanTo || params.cleanRecipient || params.to || params.testRecipientEmail || '').trim();
+
+  if (!cleanPass) {
+    throw new Error('Google App Password is missing or empty.');
+  }
+
   const socket = connectSocket(
     { hostname: 'smtp.gmail.com', port: 465 },
     { secureTransport: 'on' }
@@ -127,7 +195,7 @@ async function sendViaPort465({ connectSocket, cleanSender, cleanPass, cleanName
     while (true) {
       const line = await readLine(timeoutMs);
       lines.push(line);
-      if (/^\d{3}\s/.test(line)) break;
+      if (/^\d{3}(\s|$)/.test(line)) break;
     }
     const lastLine = lines[lines.length - 1] || '';
     return { code: parseInt(lastLine.slice(0, 3), 10), lines, text: lines.join('\n') };
@@ -142,16 +210,16 @@ async function sendViaPort465({ connectSocket, cleanSender, cleanPass, cleanName
     const greeting = await readResponse();
     if (greeting.code !== 220) throw new Error(`Port 465 greeting failed: ${greeting.text}`);
 
-    const ehlo = await sendCmd('EHLO localhost');
+    const ehlo = await sendCmd('EHLO sunmoonsuites.com');
     if (ehlo.code !== 250) throw new Error(`EHLO failed: ${ehlo.text}`);
 
     const authResp = await sendCmd('AUTH LOGIN');
     if (authResp.code !== 334) throw new Error(`AUTH LOGIN failed: ${authResp.text}`);
 
-    const userResp = await sendCmd(btoa(cleanSender));
+    const userResp = await sendCmd(safeBase64(cleanSender));
     if (userResp.code !== 334) throw new Error(`Username rejected: ${userResp.text}`);
 
-    const passResp = await sendCmd(btoa(cleanPass));
+    const passResp = await sendCmd(safeBase64(cleanPass));
     if (passResp.code !== 235) {
       if (passResp.text.includes('535') || passResp.text.includes('Username and Password not accepted')) {
         throw new Error('Google App Password authentication failed (535). Please verify that 2-Step Verification is ON and the 16-character App Password is correct.');
@@ -193,7 +261,7 @@ async function sendViaPort465({ connectSocket, cleanSender, cleanPass, cleanName
     try { writer.releaseLock(); } catch {}
     try { await socket.close(); } catch {}
 
-    return { success: true, messageId };
+    return { success: true, provider: 'gmail_smtp', messageId };
   } catch (err) {
     try { reader.releaseLock(); } catch {}
     try { writer.releaseLock(); } catch {}
@@ -202,7 +270,17 @@ async function sendViaPort465({ connectSocket, cleanSender, cleanPass, cleanName
   }
 }
 
-async function sendViaPort587({ connectSocket, cleanSender, cleanPass, cleanName, cleanTo, subject, htmlBody }) {
+async function sendViaPort587(params) {
+  const { connectSocket, subject, htmlBody } = params;
+  const cleanSender = (params.cleanSender || params.senderEmail || 'sunmoonsuites@gmail.com').trim();
+  const cleanPass = String(params.cleanPass || params.appPassword || params.password || '').trim().replace(/\s+/g, '');
+  const cleanName = (params.cleanName || params.senderName || 'Sun Moon Suites').trim();
+  const cleanTo = (params.cleanTo || params.cleanRecipient || params.to || params.testRecipientEmail || '').trim();
+
+  if (!cleanPass) {
+    throw new Error('Google App Password is missing or empty.');
+  }
+
   const socket = connectSocket(
     { hostname: 'smtp.gmail.com', port: 587 },
     { secureTransport: 'starttls' }
@@ -242,7 +320,7 @@ async function sendViaPort587({ connectSocket, cleanSender, cleanPass, cleanName
     while (true) {
       const line = await readLine(timeoutMs);
       lines.push(line);
-      if (/^\d{3}\s/.test(line)) break;
+      if (/^\d{3}(\s|$)/.test(line)) break;
     }
     const lastLine = lines[lines.length - 1] || '';
     return { code: parseInt(lastLine.slice(0, 3), 10), lines, text: lines.join('\n') };
@@ -257,7 +335,7 @@ async function sendViaPort587({ connectSocket, cleanSender, cleanPass, cleanName
     const greeting = await readResponse();
     if (greeting.code !== 220) throw new Error(`Port 587 greeting failed: ${greeting.text}`);
 
-    await sendCmd('EHLO localhost');
+    await sendCmd('EHLO sunmoonsuites.com');
     const startTlsResp = await sendCmd('STARTTLS');
     if (startTlsResp.code !== 220) throw new Error(`STARTTLS command failed: ${startTlsResp.text}`);
 
@@ -265,21 +343,21 @@ async function sendViaPort587({ connectSocket, cleanSender, cleanPass, cleanName
     writer.releaseLock();
     buffer = '';
 
-    const secureSocket = currentSocket.startTls();
+    const secureSocket = currentSocket.startTls({ expectedServerHostname: 'smtp.gmail.com' });
     currentSocket = secureSocket;
     reader = currentSocket.readable.getReader();
     writer = currentSocket.writable.getWriter();
 
-    const ehloSec = await sendCmd('EHLO localhost');
+    const ehloSec = await sendCmd('EHLO sunmoonsuites.com');
     if (ehloSec.code !== 250) throw new Error(`Post-TLS EHLO failed: ${ehloSec.text}`);
 
     const authResp = await sendCmd('AUTH LOGIN');
     if (authResp.code !== 334) throw new Error(`AUTH LOGIN failed: ${authResp.text}`);
 
-    const userResp = await sendCmd(btoa(cleanSender));
+    const userResp = await sendCmd(safeBase64(cleanSender));
     if (userResp.code !== 334) throw new Error(`Username rejected: ${userResp.text}`);
 
-    const passResp = await sendCmd(btoa(cleanPass));
+    const passResp = await sendCmd(safeBase64(cleanPass));
     if (passResp.code !== 235) {
       if (passResp.text.includes('535') || passResp.text.includes('Username and Password not accepted')) {
         throw new Error('Google App Password authentication failed (535). Please verify that 2-Step Verification is ON and the 16-character App Password is correct.');
@@ -321,7 +399,7 @@ async function sendViaPort587({ connectSocket, cleanSender, cleanPass, cleanName
     try { writer.releaseLock(); } catch {}
     try { await currentSocket.close(); } catch {}
 
-    return { success: true, messageId };
+    return { success: true, provider: 'gmail_smtp', messageId };
   } catch (err) {
     try { reader.releaseLock(); } catch {}
     try { writer.releaseLock(); } catch {}
@@ -343,15 +421,91 @@ async function sendGmailSmtpSocket(params) {
     throw new Error('Cloudflare connect() is not a function');
   }
 
+  const cleanSender = (params.cleanSender || params.senderEmail || 'sunmoonsuites@gmail.com').trim();
+  const cleanPass = String(params.cleanPass || params.appPassword || params.password || '').trim().replace(/\s+/g, '');
+  const cleanName = (params.cleanName || params.senderName || 'Sun Moon Suites').trim();
+  const cleanTo = (params.cleanTo || params.cleanRecipient || params.to || params.testRecipientEmail || '').trim();
+
+  const normalized = {
+    connectSocket,
+    cleanSender,
+    cleanPass,
+    cleanName,
+    cleanTo,
+    subject: params.subject,
+    htmlBody: params.htmlBody,
+  };
+
   try {
-    return await sendViaPort465({ ...params, connectSocket });
+    return await sendViaPort465(normalized);
   } catch (port465Err) {
     console.warn('Port 465 attempt failed, trying Port 587 STARTTLS:', port465Err?.message || port465Err);
     if (port465Err?.message && port465Err.message.includes('535')) {
       throw port465Err;
     }
-    return await sendViaPort587({ ...params, connectSocket });
+    return await sendViaPort587(normalized);
   }
+}
+
+async function dispatchEmailViaBestProvider({ env, emailConfig, to, subject, htmlBody }) {
+  const brevoKey = (emailConfig?.brevo_api_key || env?.BREVO_API_KEY || '').trim();
+  const resendKey = (emailConfig?.resend_api_key || env?.RESEND_API_KEY || '').trim();
+  const rawPassword = (emailConfig?.gmail_app_password || env?.GMAIL_APP_PASSWORD || '').trim();
+  const cleanPassword = rawPassword.replace(/\s+/g, '');
+  const senderEmail = (emailConfig?.sender_email || env?.GMAIL_USER || 'sunmoonsuites@gmail.com').trim();
+  const senderName = (emailConfig?.sender_name || 'Sun Moon Suites').trim();
+
+  // 1. Try Brevo REST API (100% reliable on Cloudflare Workers, no socket handshake required)
+  if (brevoKey) {
+    try {
+      return await sendViaBrevoApi({
+        apiKey: brevoKey,
+        senderEmail,
+        senderName,
+        to,
+        subject,
+        htmlBody,
+      });
+    } catch (err) {
+      console.warn('[Brevo] Dispatch error:', err?.message || err);
+      // Fall through to next provider
+    }
+  }
+
+  // 2. Try Resend REST API
+  if (resendKey) {
+    try {
+      return await sendViaResendApi({
+        apiKey: resendKey,
+        senderEmail,
+        senderName,
+        to,
+        subject,
+        htmlBody,
+      });
+    } catch (err) {
+      console.warn('[Resend] Dispatch error:', err?.message || err);
+      // Fall through to next provider
+    }
+  }
+
+  // 3. Try Gmail SMTP Sockets
+  if (cleanPassword) {
+    return await sendGmailSmtpSocket({
+      senderEmail,
+      appPassword: cleanPassword,
+      cleanSender: senderEmail,
+      cleanPass: cleanPassword,
+      senderName,
+      cleanName: senderName,
+      to,
+      cleanTo: to,
+      subject,
+      htmlBody,
+    });
+  }
+
+  throw new Error('No active email delivery credentials configured (Gmail App Password, Brevo, or Resend).');
 }
 
 function buildOtpHtml(senderName, otpCode, guestName) {
@@ -576,7 +730,7 @@ export async function handleApiRequest(request, env) {
     }
   }
 
-  // 4. SEND VERIFICATION OTP (Gmail SMTP + Stateless HMAC Token)
+  // 4. SEND VERIFICATION OTP
   if (pathname === '/api/auth/send-verification-otp' && request.method === 'POST') {
     try {
       const body = await request.json().catch(() => ({}));
@@ -597,55 +751,35 @@ export async function handleApiRequest(request, env) {
         guestName: guestName ? String(guestName).trim() : 'Guest',
       });
 
-      const senderEmail = (emailConfig?.sender_email || env?.GMAIL_USER || 'sunmoonsuites@gmail.com').trim();
-      const rawPassword = (emailConfig?.gmail_app_password || env?.GMAIL_APP_PASSWORD || '').trim();
-      const cleanPassword = rawPassword.replace(/\s+/g, '');
       const senderName = (emailConfig?.sender_name || 'Sun Moon Suites').trim();
 
-      // If Google App Password is not set
-      if (!cleanPassword) {
-        return jsonResponse({
-          success: true,
-          emailSent: false,
-          token: otpToken,
-          warning: 'Gmail App Password is not configured yet in Staff Portal > Settings > Email Verification.',
-          devCode: otpCode,
-          message: 'Verification code generated for instant confirmation.',
-        });
-      }
-
-      // Try delivering via Gmail SMTP Sockets
+      // Try delivering email via best configured provider (Brevo -> Resend -> Gmail SMTP)
       try {
         const mailHtml = buildOtpHtml(senderName, otpCode, guestName);
-        await sendGmailSmtpSocket({
-          senderEmail,
-          appPassword: cleanPassword,
-          senderName,
+        await dispatchEmailViaBestProvider({
+          env,
+          emailConfig,
           to: cleanEmail,
           subject: `${otpCode} is your ${senderName} Booking Verification Code`,
           htmlBody: mailHtml,
         });
 
+        console.log(`[OTP] Successfully delivered email with OTP ${otpCode} to ${cleanEmail}`);
         return jsonResponse({
           success: true,
           emailSent: true,
           token: otpToken,
           message: `Verification code sent to ${cleanEmail}. Please check your inbox or spam folder.`,
         });
-      } catch (smtpErr) {
-        console.warn('Gmail SMTP socket dispatch error:', smtpErr?.message || smtpErr);
-        const errMsg = smtpErr?.message || 'SMTP Authentication failure';
-        const isAuthError = errMsg.includes('535') || errMsg.includes('Username and Password not accepted');
-
+      } catch (dispatchErr) {
+        console.warn('[OTP] Email dispatch issue on Edge:', dispatchErr?.message || dispatchErr);
+        // Fallback: Return code cleanly so guest is NEVER blocked, without scary error text
         return jsonResponse({
           success: true,
           emailSent: false,
           token: otpToken,
           devCode: otpCode,
-          message: 'Instant Verification Code active.',
-          warning: isAuthError
-            ? 'Gmail SMTP authentication failed (Google App Password not accepted or 2-Step Verification required). You can verify immediately using the instant code below.'
-            : `Gmail dispatch issue (${errMsg}). You can verify immediately using the instant code below.`,
+          message: `Verification code active for ${cleanEmail}.`,
         });
       }
     } catch (err) {
@@ -659,8 +793,7 @@ export async function handleApiRequest(request, env) {
         emailSent: false,
         token: fallbackToken,
         devCode: fallbackCode,
-        message: 'Instant Verification Code generated.',
-        warning: 'Instant Verification Code active. Enter code below or click Auto-Fill.',
+        message: 'Verification code active.',
       });
     }
   }
@@ -739,51 +872,49 @@ export async function handleApiRequest(request, env) {
     }
   }
 
-  // 6. TEST EMAIL CONFIGURATION
+  // 6. TEST EMAIL CONFIGURATION (For Admin Staff Settings diagnostics)
   if (pathname === '/api/auth/test-email-config' && request.method === 'POST') {
     try {
       const body = await request.json().catch(() => ({}));
-      const { senderEmail, gmailAppPassword, testRecipientEmail, senderName } = body || {};
+      const { senderEmail, gmailAppPassword, testRecipientEmail, senderName, brevoApiKey, resendApiKey } = body || {};
       const cleanSender = (senderEmail || env?.GMAIL_USER || 'sunmoonsuites@gmail.com').trim();
       const cleanPass = String(gmailAppPassword || env?.GMAIL_APP_PASSWORD || '').trim().replace(/\s+/g, '');
       const cleanRecipient = (testRecipientEmail || cleanSender).trim();
       const cleanName = (senderName || 'Sun Moon Suites').trim();
 
-      if (!cleanPass) {
-        return jsonResponse({
-          success: false,
-          error: 'Please enter a 16-character Google App Password first.',
-        }, 400);
-      }
-
       const testHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; border: 1px solid #e7e5e4; border-radius: 10px; max-width: 520px; margin: 0 auto; background: #ffffff;">
-          <h2 style="color: #78350f; margin-top: 0; font-family: Georgia, serif;">${cleanName} &bull; Email Verification Active</h2>
-          <p style="font-size: 14px; color: #292524; line-height: 1.5;">This confirms that your Google App Password is authenticated and active on Cloudflare Edge.</p>
+          <h2 style="color: #78350f; margin-top: 0; font-family: Georgia, serif;">${cleanName} &bull; Email Delivery Verified</h2>
+          <p style="font-size: 14px; color: #292524; line-height: 1.5;">This confirms that your email configuration is authenticated and active on Cloudflare Edge.</p>
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin: 16px 0; color: #166534; font-size: 13px; font-weight: 600;">
-            ✓ SMTP Delivery Confirmed
+            ✓ Delivery Connection Confirmed
           </div>
           <p style="font-size: 12px; color: #78716c; margin-bottom: 0;">Sent at: ${new Date().toISOString()}</p>
         </div>
       `;
 
-      await sendGmailSmtpSocket({
-        senderEmail: cleanSender,
-        appPassword: cleanPass,
-        senderName: cleanName,
+      const result = await dispatchEmailViaBestProvider({
+        env,
+        emailConfig: {
+          sender_email: cleanSender,
+          gmail_app_password: cleanPass,
+          sender_name: cleanName,
+          brevo_api_key: brevoApiKey,
+          resend_api_key: resendApiKey,
+        },
         to: cleanRecipient,
-        subject: `[Test] ${cleanName} Gmail Connection Verified`,
+        subject: `[Test] ${cleanName} Email Connection Verified`,
         htmlBody: testHtml,
       });
 
       return jsonResponse({
         success: true,
-        message: `Test email sent successfully to ${cleanRecipient} via Gmail SMTP!`,
+        message: `Test email successfully delivered to ${cleanRecipient} via ${result.provider || 'email provider'}!`,
       });
     } catch (err) {
       return jsonResponse({
         success: false,
-        error: err?.message || 'Failed to send test email via Gmail SMTP.',
+        error: err?.message || 'Failed to send test email.',
       }, 400);
     }
   }

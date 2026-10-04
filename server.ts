@@ -163,7 +163,7 @@ async function startServer() {
         guestName: guestName ? String(guestName).trim() : 'Guest',
       });
 
-      // Determine Gmail App Password & Sender
+      // Determine Delivery Credentials
       const senderEmail =
         (emailConfig?.sender_email || process.env.GMAIL_USER || 'sunmoonsuites@gmail.com').trim();
       const rawPassword =
@@ -171,31 +171,10 @@ async function startServer() {
       const cleanPassword = rawPassword.replace(/\s+/g, '');
       const senderName =
         (emailConfig?.sender_name || 'Sun Moon Suites').trim();
-
-      if (!cleanPassword) {
-        // When Google App Password has not been configured yet in Settings, provide clear feedback
-        console.log(`[OTP] Generated verification OTP ${otpCode} for ${cleanEmail} (Gmail App Password pending setup)`);
-        return res.json({
-          success: true,
-          emailSent: false,
-          token: otpToken,
-          warning: 'Gmail App Password is not configured yet in Staff Portal > Settings > Email Verification.',
-          devCode: otpCode,
-          message: 'Verification code generated for instant confirmation.',
-        });
-      }
-
-      // Configure Gmail transporter with connection timeouts
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: senderEmail,
-          pass: cleanPassword,
-        },
-        connectionTimeout: 8000,
-        greetingTimeout: 8000,
-        socketTimeout: 10000,
-      });
+      const brevoKey =
+        (emailConfig?.brevo_api_key || process.env.BREVO_API_KEY || '').trim();
+      const resendKey =
+        (emailConfig?.resend_api_key || process.env.RESEND_API_KEY || '').trim();
 
       const mailHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e7e5e4; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
@@ -225,6 +204,93 @@ async function startServer() {
           </div>
         </div>
       `;
+
+      // 1. Try Brevo REST API if configured
+      if (brevoKey) {
+        try {
+          const brevoResp = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+              'accept': 'application/json',
+              'api-key': brevoKey,
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              sender: { name: senderName, email: senderEmail },
+              to: [{ email: cleanEmail }],
+              subject: `${otpCode} is your ${senderName} Booking Verification Code`,
+              htmlContent: mailHtml,
+            }),
+          });
+          if (brevoResp.ok) {
+            console.log(`[OTP] Successfully dispatched OTP via Brevo API to ${cleanEmail}`);
+            return res.json({
+              success: true,
+              emailSent: true,
+              token: otpToken,
+              message: `Verification code sent to ${cleanEmail}. Please check your inbox or spam folder.`,
+            });
+          }
+        } catch (bErr: any) {
+          console.warn('[OTP] Brevo dispatch error in server.ts:', bErr?.message);
+        }
+      }
+
+      // 2. Try Resend REST API if configured
+      if (resendKey) {
+        try {
+          const resendResp = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: `${senderName} <${senderEmail.includes('@') ? senderEmail : 'onboarding@resend.dev'}>`,
+              to: [cleanEmail],
+              subject: `${otpCode} is your ${senderName} Booking Verification Code`,
+              html: mailHtml,
+            }),
+          });
+          if (resendResp.ok) {
+            console.log(`[OTP] Successfully dispatched OTP via Resend API to ${cleanEmail}`);
+            return res.json({
+              success: true,
+              emailSent: true,
+              token: otpToken,
+              message: `Verification code sent to ${cleanEmail}. Please check your inbox or spam folder.`,
+            });
+          }
+        } catch (rErr: any) {
+          console.warn('[OTP] Resend dispatch error in server.ts:', rErr?.message);
+        }
+      }
+
+      // 3. Try Gmail SMTP if password is configured
+      if (!cleanPassword) {
+        // When Google App Password has not been configured yet in Settings, provide clear feedback
+        console.log(`[OTP] Generated verification OTP ${otpCode} for ${cleanEmail} (Gmail App Password pending setup)`);
+        return res.json({
+          success: true,
+          emailSent: false,
+          token: otpToken,
+          warning: 'Gmail App Password is not configured yet in Staff Portal > Settings > Email Verification.',
+          devCode: otpCode,
+          message: 'Verification code generated for instant confirmation.',
+        });
+      }
+
+      // Configure Gmail transporter with connection timeouts
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: senderEmail,
+          pass: cleanPassword,
+        },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 10000,
+      });
 
       try {
         await transporter.sendMail({
@@ -357,19 +423,89 @@ async function startServer() {
     }
   });
 
-  // Test Gmail Configuration endpoint
+  // Test Gmail / Email Configuration endpoint
   app.post('/api/auth/test-email-config', async (req, res) => {
     try {
-      const { senderEmail, gmailAppPassword, testRecipientEmail, senderName } = req.body || {};
+      const { senderEmail, gmailAppPassword, testRecipientEmail, senderName, brevoApiKey, resendApiKey } = req.body || {};
       const cleanSender = (senderEmail || 'sunmoonsuites@gmail.com').trim();
       const cleanPass = String(gmailAppPassword || '').trim().replace(/\s+/g, '');
       const cleanRecipient = (testRecipientEmail || cleanSender).trim();
       const cleanName = (senderName || 'Sun Moon Suites').trim();
+      const cleanBrevo = String(brevoApiKey || process.env.BREVO_API_KEY || '').trim();
+      const cleanResend = String(resendApiKey || process.env.RESEND_API_KEY || '').trim();
 
+      const testHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #d1fae5; border-radius: 8px; background: #ecfdf5; color: #065f46;">
+          <h2 style="margin-top: 0; color: #047857;">✓ Email Configuration Test Successful!</h2>
+          <p>Your email provider credentials for <strong>${cleanSender}</strong> are verified and active.</p>
+          <p>Guests booking rooms on Sun Moon Suites website will receive instantaneous 6-digit verification codes straight to their email inbox.</p>
+          <hr style="border: 0; border-top: 1px solid #a7f3d0; margin: 15px 0;" />
+          <small style="color: #059669;">Sun Moon Suites Sector 117 Noida &bull; Test Message sent at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</small>
+        </div>
+      `;
+
+      // 1. Try Brevo API if key is supplied
+      if (cleanBrevo) {
+        const brevoResp = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': cleanBrevo,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: { name: cleanName, email: cleanSender },
+            to: [{ email: cleanRecipient }],
+            subject: `[TEST] ${cleanName} Brevo Email Integration Verified!`,
+            htmlContent: testHtml,
+          }),
+        });
+        if (brevoResp.ok) {
+          return res.json({
+            success: true,
+            message: `Connection successful! A test email was sent to ${cleanRecipient} via Brevo API.`,
+          });
+        }
+        const errData = await brevoResp.json().catch(() => ({}));
+        return res.status(400).json({
+          success: false,
+          error: `Brevo API Error: ${errData.message || brevoResp.statusText}`,
+        });
+      }
+
+      // 2. Try Resend API if key is supplied
+      if (cleanResend) {
+        const resendResp = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${cleanResend}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: `${cleanName} <${cleanSender.includes('@') ? cleanSender : 'onboarding@resend.dev'}>`,
+            to: [cleanRecipient],
+            subject: `[TEST] ${cleanName} Resend Email Integration Verified!`,
+            html: testHtml,
+          }),
+        });
+        if (resendResp.ok) {
+          return res.json({
+            success: true,
+            message: `Connection successful! A test email was sent to ${cleanRecipient} via Resend API.`,
+          });
+        }
+        const errData = await resendResp.json().catch(() => ({}));
+        return res.status(400).json({
+          success: false,
+          error: `Resend API Error: ${errData.message || resendResp.statusText}`,
+        });
+      }
+
+      // 3. Try Gmail SMTP
       if (!cleanPass) {
         return res.status(400).json({
           success: false,
-          error: 'Please enter a 16-character Google App Password first.',
+          error: 'Please enter a 16-character Google App Password or Brevo/Resend API Key first.',
         });
       }
 
@@ -390,20 +526,12 @@ async function startServer() {
         to: cleanRecipient,
         subject: `[TEST] ${cleanName} Gmail Integration Verified!`,
         text: `Congratulations! Your Google App Password for ${cleanSender} is active and ready to send booking verification OTPs.`,
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #d1fae5; border-radius: 8px; background: #ecfdf5; color: #065f46;">
-            <h2 style="margin-top: 0; color: #047857;">✓ Gmail Configuration Test Successful!</h2>
-            <p>Your Google App Password for <strong>${cleanSender}</strong> is working perfectly.</p>
-            <p>Guests booking rooms on Sun Moon Suites website will now receive instantaneous 6-digit verification codes straight from this Gmail account.</p>
-            <hr style="border: 0; border-top: 1px solid #a7f3d0; margin: 15px 0;" />
-            <small style="color: #059669;">Sun Moon Suites Sector 117 Noida &bull; Test Message sent at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</small>
-          </div>
-        `,
+        html: testHtml,
       });
 
       return res.json({
         success: true,
-        message: `Connection successful! A test email was sent to ${cleanRecipient}.`,
+        message: `Connection successful! A test email was sent to ${cleanRecipient} via Gmail SMTP.`,
       });
     } catch (err: any) {
       console.error('[Email Test Error]:', err);

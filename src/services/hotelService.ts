@@ -174,6 +174,8 @@ export const DEFAULT_EMAIL_VERIFICATION_CONFIG: EmailVerificationConfig = {
   gmail_app_password: '',
   sender_name: 'Sun Moon Suites',
   google_client_id: '',
+  brevo_api_key: '',
+  resend_api_key: '',
 };
 
 export function normalizeEmailVerificationConfig(
@@ -188,6 +190,8 @@ export function normalizeEmailVerificationConfig(
     gmail_app_password: raw.gmail_app_password?.trim() || '',
     sender_name: raw.sender_name?.trim() || DEFAULT_EMAIL_VERIFICATION_CONFIG.sender_name,
     google_client_id: raw.google_client_id?.trim() || '',
+    brevo_api_key: raw.brevo_api_key?.trim() || '',
+    resend_api_key: raw.resend_api_key?.trim() || '',
   };
 }
 

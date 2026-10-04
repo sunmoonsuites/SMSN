@@ -324,9 +324,17 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
     setIsSendingOtp(false);
     if (res.success) {
-      setOtpSuccessMessage(res.message || `Verification code sent to ${guestEmail.trim()}`);
-      if (res.devCode) setOtpDevCode(res.devCode);
-      if (res.warning) setOtpWarning(res.warning);
+      if (res.emailSent) {
+        setOtpSuccessMessage(
+          res.message || `Verification code sent to ${guestEmail.trim()}. Please check your inbox or spam folder.`
+        );
+        setOtpDevCode('');
+        setOtpWarning('');
+      } else {
+        setOtpSuccessMessage(`Verification code active for ${guestEmail.trim()}.`);
+        if (res.devCode) setOtpDevCode(res.devCode);
+        setOtpWarning('');
+      }
       setOtpCountdown(30);
     } else {
       setOtpError(res.error || 'Failed to send verification email. Please check your connection.');
@@ -889,18 +897,13 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
                     {/* Messages */}
                     {otpSuccessMessage && (
-                      <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>{otpSuccessMessage}</span>
-                      </div>
-                    )}
-                    {otpWarning && (
-                      <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
-                        {otpWarning}
+                      <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span className="font-medium">{otpSuccessMessage}</span>
                       </div>
                     )}
                     {otpError && (
-                      <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs">
+                      <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs">
                         {otpError}
                       </div>
                     )}
@@ -927,7 +930,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                             type="button"
                             disabled={isVerifyingOtp || otpCode.trim().length !== 6}
                             onClick={handleVerifyOtpCode}
-                            className="px-4 py-2 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer shadow-2xs"
+                            className="px-4 py-2 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer shadow-2xs transition-colors"
                           >
                             {isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}
                           </button>
@@ -939,9 +942,9 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                             onClick={() => {
                               setOtpCode(otpDevCode);
                             }}
-                            className="w-full py-1 text-center text-[10px] text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded hover:bg-amber-100 font-semibold cursor-pointer"
+                            className="w-full py-1.5 text-center text-xs text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-lg hover:bg-amber-100 font-semibold cursor-pointer transition-colors"
                           >
-                            ⚡ Auto-Fill Instant Code: {otpDevCode}
+                            ⚡ Auto-Fill Code: {otpDevCode}
                           </button>
                         )}
                       </div>

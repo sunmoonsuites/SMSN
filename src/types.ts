@@ -64,6 +64,8 @@ export interface EmailVerificationConfig {
   gmail_app_password?: string;
   sender_name?: string;
   google_client_id?: string;
+  brevo_api_key?: string;
+  resend_api_key?: string;
 }
 
 export interface BookingEngineConfig {

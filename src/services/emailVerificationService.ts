@@ -187,9 +187,11 @@ export async function verifyOtp(email: string, code: string): Promise<VerifyOtpR
  */
 export async function testGmailConfiguration(params: {
   senderEmail?: string;
-  gmailAppPassword: string;
+  gmailAppPassword?: string;
   testRecipientEmail: string;
   senderName?: string;
+  brevoApiKey?: string;
+  resendApiKey?: string;
 }): Promise<TestEmailResponse> {
   try {
     const res = await fetch('/api/auth/test-email-config', {

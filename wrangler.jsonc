@@ -10,7 +10,8 @@
     "run_worker_first": ["/api/*"]
   },
   "vars": {
-    "PROPERTY_NAME": "Sun Moon Suites",
-    "LOCATION": "Sector 117, Noida, Uttar Pradesh, India"
+    "GMAIL_USER": "sunmoonsuites@gmail.com",
+    "LOCATION": "Sector 117, Noida, Uttar Pradesh, India",
+    "PROPERTY_NAME": "Sun Moon Suites"
   }
 }
