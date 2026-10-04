@@ -1373,6 +1373,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       currentFirstName={guestFirstName}
       currentLastName={guestLastName}
       currentPhone={guestPhone}
+      googleClientId={hotel?.email_verification_config?.google_client_id}
     />
   </>
   );

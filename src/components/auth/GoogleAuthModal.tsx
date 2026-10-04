@@ -12,6 +12,7 @@ interface GoogleAuthModalProps {
   currentFirstName?: string;
   currentLastName?: string;
   currentPhone?: string;
+  googleClientId?: string;
 }
 
 export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
@@ -23,6 +24,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
   currentFirstName = '',
   currentLastName = '',
   currentPhone = '',
+  googleClientId = '',
 }) => {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customFirstName, setCustomFirstName] = useState(currentFirstName);
@@ -81,7 +83,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
     setIsAuthenticating(true);
     setAuthStatusText('Opening Google Identity Services...');
     try {
-      const res = await triggerGoogleSignIn();
+      const res = await triggerGoogleSignIn(googleClientId);
       if (res.success && res.user) {
         saveVerifiedGoogleGuest(res.user);
         setIsAuthenticating(false);
