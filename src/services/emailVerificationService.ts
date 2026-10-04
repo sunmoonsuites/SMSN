@@ -4,6 +4,7 @@ export interface SendOtpResponse {
   success: boolean;
   emailSent?: boolean;
   message?: string;
+  token?: string;
   devCode?: string;
   warning?: string;
   error?: string;
@@ -45,6 +46,9 @@ export async function sendVerificationOtp(
 
     if (res.ok) {
       const data = await res.json();
+      if (data && data.token && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(`sms_otp_token_${cleanEmail}`, data.token);
+      }
       if (data && data.devCode && typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(
           `sms_otp_${cleanEmail}`,
@@ -55,6 +59,9 @@ export async function sendVerificationOtp(
     }
 
     const data = await res.json().catch(() => null);
+    if (data && data.token && typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(`sms_otp_token_${cleanEmail}`, data.token);
+    }
     if (data && data.devCode) {
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(
@@ -111,6 +118,11 @@ export async function verifyOtp(email: string, code: string): Promise<VerifyOtpR
   const cleanEmail = email.trim().toLowerCase();
   const cleanCode = code.trim().replace(/\s+/g, '');
 
+  let storedToken: string | undefined;
+  if (typeof sessionStorage !== 'undefined') {
+    storedToken = sessionStorage.getItem(`sms_otp_token_${cleanEmail}`) || undefined;
+  }
+
   try {
     const res = await fetch('/api/auth/verify-otp', {
       method: 'POST',
@@ -120,11 +132,16 @@ export async function verifyOtp(email: string, code: string): Promise<VerifyOtpR
       body: JSON.stringify({
         email: cleanEmail,
         code: cleanCode,
+        token: storedToken,
       }),
     });
 
     if (res.ok) {
       const data = await res.json();
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem(`sms_otp_token_${cleanEmail}`);
+        sessionStorage.removeItem(`sms_otp_${cleanEmail}`);
+      }
       return data;
     }
 
@@ -135,6 +152,7 @@ export async function verifyOtp(email: string, code: string): Promise<VerifyOtpR
         try {
           const parsed = JSON.parse(raw);
           if (parsed.expiresAt > Date.now() && parsed.code === cleanCode) {
+            sessionStorage.removeItem(`sms_otp_token_${cleanEmail}`);
             sessionStorage.removeItem(`sms_otp_${cleanEmail}`);
             return { verified: true, message: 'Email verified successfully!' };
           }

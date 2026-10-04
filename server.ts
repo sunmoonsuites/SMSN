@@ -96,6 +96,51 @@ async function startServer() {
     guestName?: string;
   }
   const otpCache = new Map<string, OtpRecord>();
+  const OTP_SECRET = process.env.OTP_SIGNING_SECRET || 'smsn_otp_secure_key_2026_sunmoonsuites_hotel_salt';
+
+  function signOtpTokenNode(email: string, code: string, expiresAt: number): string {
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanCode = code.trim().replace(/\s+/g, '');
+    const sig = crypto
+      .createHmac('sha256', OTP_SECRET)
+      .update(`${cleanEmail}:${cleanCode}:${expiresAt}`)
+      .digest('hex');
+    return Buffer.from(
+      JSON.stringify({
+        e: cleanEmail,
+        exp: expiresAt,
+        sig,
+      })
+    ).toString('base64');
+  }
+
+  function verifyOtpTokenNode(email: string, code: string, token: string): { valid: boolean; error?: string } {
+    try {
+      const raw = Buffer.from(token, 'base64').toString('utf-8');
+      const parsed = JSON.parse(raw);
+      const cleanEmail = email.toLowerCase().trim();
+      const cleanCode = code.trim().replace(/\s+/g, '');
+
+      if (parsed.e !== cleanEmail) {
+        return { valid: false, error: 'Token email mismatch.' };
+      }
+      if (Date.now() > parsed.exp) {
+        return { valid: false, error: 'Verification code has expired. Please request a new code.' };
+      }
+
+      const expectedSig = crypto
+        .createHmac('sha256', OTP_SECRET)
+        .update(`${cleanEmail}:${cleanCode}:${parsed.exp}`)
+        .digest('hex');
+
+      if (parsed.sig === expectedSig) {
+        return { valid: true };
+      }
+      return { valid: false, error: 'Incorrect verification code. Please try again.' };
+    } catch {
+      return { valid: false, error: 'Invalid verification token.' };
+    }
+  }
 
   // Send Verification OTP to Guest Email
   app.post('/api/auth/send-verification-otp', async (req, res) => {
@@ -107,11 +152,13 @@ async function startServer() {
 
       const cleanEmail = email.toLowerCase().trim();
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+      const otpToken = signOtpTokenNode(cleanEmail, otpCode, expiresAt);
 
       // Store in memory cache (valid for 10 minutes)
       otpCache.set(cleanEmail, {
         code: otpCode,
-        expiresAt: Date.now() + 10 * 60 * 1000,
+        expiresAt,
         attempts: 0,
         guestName: guestName ? String(guestName).trim() : 'Guest',
       });
@@ -131,6 +178,7 @@ async function startServer() {
         return res.json({
           success: true,
           emailSent: false,
+          token: otpToken,
           warning: 'Gmail App Password is not configured yet in Staff Portal > Settings > Email Verification.',
           devCode: otpCode,
           message: 'Verification code generated for instant confirmation.',
@@ -191,6 +239,7 @@ async function startServer() {
         return res.json({
           success: true,
           emailSent: true,
+          token: otpToken,
           message: `Verification code sent to ${cleanEmail}. Please check your inbox or spam folder.`,
         });
       } catch (sendErr: any) {
@@ -200,6 +249,7 @@ async function startServer() {
         return res.json({
           success: true,
           emailSent: false,
+          token: otpToken,
           devCode: otpCode,
           message: 'Instant Verification Code active.',
           warning: isAuthError
@@ -211,10 +261,14 @@ async function startServer() {
       console.error('[OTP] Top-level handler error:', err);
       // Fallback code so guest is never blocked
       const fallbackCode = Math.floor(100000 + Math.random() * 900000).toString();
-      if (req.body?.email) {
-        otpCache.set(String(req.body.email).toLowerCase().trim(), {
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+      const cleanEmail = req.body?.email ? String(req.body.email).toLowerCase().trim() : '';
+      const fallbackToken = cleanEmail ? signOtpTokenNode(cleanEmail, fallbackCode, expiresAt) : '';
+
+      if (cleanEmail) {
+        otpCache.set(cleanEmail, {
           code: fallbackCode,
-          expiresAt: Date.now() + 10 * 60 * 1000,
+          expiresAt,
           attempts: 0,
           guestName: req.body?.guestName ? String(req.body.guestName).trim() : 'Guest',
         });
@@ -222,6 +276,7 @@ async function startServer() {
       return res.json({
         success: true,
         emailSent: false,
+        token: fallbackToken,
         devCode: fallbackCode,
         message: 'Instant Verification Code generated.',
         warning: 'Instant Verification Code active. Enter code below or click Auto-Fill.',
@@ -232,7 +287,7 @@ async function startServer() {
   // Verify OTP
   app.post('/api/auth/verify-otp', (req, res) => {
     try {
-      const { email, code } = req.body || {};
+      const { email, code, token } = req.body || {};
       if (!email || !code) {
         return res.status(400).json({ verified: false, error: 'Email and verification code are required.' });
       }
@@ -240,6 +295,24 @@ async function startServer() {
       const cleanEmail = String(email).toLowerCase().trim();
       const cleanCode = String(code).trim().replace(/\s+/g, '');
 
+      // 1. Verify via cryptographic stateless HMAC token if present
+      if (token && typeof token === 'string') {
+        const tokenCheck = verifyOtpTokenNode(cleanEmail, cleanCode, token);
+        if (tokenCheck.valid) {
+          otpCache.delete(cleanEmail);
+          return res.json({
+            verified: true,
+            message: 'Email verified successfully!',
+          });
+        } else if (tokenCheck.error && !otpCache.has(cleanEmail)) {
+          return res.status(400).json({
+            verified: false,
+            error: tokenCheck.error,
+          });
+        }
+      }
+
+      // 2. Fallback to in-memory cache verification
       const record = otpCache.get(cleanEmail);
       if (!record) {
         return res.status(400).json({

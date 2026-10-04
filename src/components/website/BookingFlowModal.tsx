@@ -314,6 +314,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     setOtpError('');
     setOtpSuccessMessage('');
     setOtpWarning('');
+    setOtpDevCode('');
 
     const res = await sendVerificationOtp(
       guestEmail.trim(),
