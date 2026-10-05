@@ -547,7 +547,55 @@ async function startServer() {
     }
   });
 
-  // 3b. Yanolja Cloud Solution (letsbook.me) Internal Link Bridge
+  // 3b. Unique Visitor Counter Endpoints
+  // Anti-refresh rule: keeps track of counted visitor IDs so page refreshes never increment count
+  const VISITOR_STORE_FILE = path.join(process.cwd(), '.visitor_counter.json');
+  let currentVisitorCount = 3480;
+  const countedVisitorIds = new Set<string>();
+
+  try {
+    if (fs.existsSync(VISITOR_STORE_FILE)) {
+      const stored = JSON.parse(fs.readFileSync(VISITOR_STORE_FILE, 'utf-8'));
+      if (typeof stored.count === 'number') currentVisitorCount = stored.count;
+      if (Array.isArray(stored.visitors)) {
+        stored.visitors.forEach((id: string) => countedVisitorIds.add(id));
+      }
+    }
+  } catch (e) {
+    console.warn('[VisitorCounter] Error reading store file:', e);
+  }
+
+  function saveVisitorStore() {
+    try {
+      const payload = {
+        count: currentVisitorCount,
+        visitors: Array.from(countedVisitorIds).slice(-10000),
+        updatedAt: new Date().toISOString(),
+      };
+      fs.writeFileSync(VISITOR_STORE_FILE, JSON.stringify(payload, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('[VisitorCounter] Error saving store file:', e);
+    }
+  }
+
+  app.get('/api/visitors/count', (_req, res) => {
+    return res.json({ count: currentVisitorCount });
+  });
+
+  app.post('/api/visitors/record', (req, res) => {
+    const { visitorId } = req.body || {};
+    if (visitorId && typeof visitorId === 'string' && visitorId.length > 3) {
+      const cleanId = visitorId.trim();
+      if (!countedVisitorIds.has(cleanId)) {
+        countedVisitorIds.add(cleanId);
+        currentVisitorCount += 1;
+        saveVisitorStore();
+      }
+    }
+    return res.json({ count: currentVisitorCount });
+  });
+
+  // 3c. Yanolja Cloud Solution (letsbook.me) Internal Link Bridge
   // Allows feeding the https://letsbook.me/booking/sunmoonsuites link directly into the system
   // so availability and booking creation happen internally on the hotel's own website without redirecting away.
   const YANOLJA_SERVICE_BASE = 'https://commonservice.ipms247.com/YCSAPIServices/booking';

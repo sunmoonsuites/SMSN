@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Hotel } from '../../types';
 import { Phone, Mail, MapPin } from 'lucide-react';
 import { getCleanHotelPhone } from '../../lib/utils';
+import { VisitorCounter } from './VisitorCounter';
 
 interface FooterProps {
   hotel: Hotel | null;
@@ -244,9 +245,10 @@ export const Footer: React.FC<FooterProps> = ({
           </p>
         </div>
 
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-stone-500">
-          <p>&copy; {new Date().getFullYear()} {hotelName}. All rights reserved. {city}, {state}.</p>
-          <p>{hotel?.total_rooms || 30}-Room Boutique Hotel &amp; Suites</p>
+        <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-stone-500 border-t border-stone-900 mt-2">
+          <p className="text-center sm:text-left">&copy; {new Date().getFullYear()} {hotelName}. All rights reserved. {city}, {state}.</p>
+          <VisitorCounter />
+          <p className="text-center sm:text-right">{hotel?.total_rooms || 30}-Room Boutique Hotel &amp; Suites</p>
         </div>
       </div>
     </footer>

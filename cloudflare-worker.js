@@ -706,6 +706,39 @@ export async function handleApiRequest(request, env) {
     });
   }
 
+  // 2b. Unique Visitor Counter (Anti-Refresh: 1 count per unique device/guest)
+  if (pathname === '/api/visitors/count' && request.method === 'GET') {
+    const currentCount = sessionCache.get('unique_visitor_count') || 3480;
+    return jsonResponse({ count: currentCount });
+  }
+
+  if (pathname === '/api/visitors/record' && request.method === 'POST') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { visitorId } = body || {};
+      let currentCount = sessionCache.get('unique_visitor_count') || 3480;
+      let seenSet = sessionCache.get('unique_visitor_seen_set');
+      if (!seenSet) {
+        seenSet = new Set();
+        sessionCache.set('unique_visitor_seen_set', seenSet);
+      }
+
+      if (visitorId && typeof visitorId === 'string' && visitorId.length > 3) {
+        const cleanId = visitorId.trim();
+        if (!seenSet.has(cleanId)) {
+          seenSet.add(cleanId);
+          currentCount += 1;
+          sessionCache.set('unique_visitor_count', currentCount);
+        }
+      }
+
+      return jsonResponse({ count: currentCount });
+    } catch {
+      const currentCount = sessionCache.get('unique_visitor_count') || 3480;
+      return jsonResponse({ count: currentCount });
+    }
+  }
+
   // 3. Razorpay Payment Verification
   if (pathname === '/api/payments/verify' && request.method === 'POST') {
     try {
