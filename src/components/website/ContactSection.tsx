@@ -263,7 +263,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ hotel }) => {
                       {...({
                         toolparamdescription: 'Mobile phone number of the guest with country code',
                       } as any)}
-                      placeholder="+91 93135 01001"
+                      placeholder="+91 85868 68442"
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600 font-medium"

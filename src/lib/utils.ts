@@ -119,7 +119,7 @@ export function getCleanHotelPhone(rawPhone?: string | null): string {
 }
 
 /**
- * Returns a guaranteed clean, validated WhatsApp number in international format (e.g., 919313501001),
+ * Returns a guaranteed clean, validated WhatsApp number in international format (e.g., 918586868442),
  * replacing any legacy demo number
  */
 export function getCleanHotelWhatsApp(rawWhatsApp?: string | null): string {
