@@ -1,7 +1,8 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Hotel, StaffUser } from './types';
+import { Hotel, StaffUser, BookingIntentButtonSource } from './types';
 import { getInitialHotelFast, getTodayLocalDateStr, getNextDayLocalDateStr } from './lib/utils';
+import { recordBookingIntent } from './services/bookingIntentService';
 import {
   buildYanoljaBookingUrl,
   DEFAULT_BOOKING_ENGINE_CONFIG,
@@ -275,13 +276,25 @@ export function MainApp() {
     }
   };
 
-  const openPublicBookingOrRedirect = (searchParams?: {
-    checkIn: string;
-    checkOut: string;
-    adults: number;
-    children: number;
-    selectedCategoryId?: string;
-  }) => {
+  const openPublicBookingOrRedirect = (
+    searchParams?: {
+      checkIn: string;
+      checkOut: string;
+      adults: number;
+      children: number;
+      selectedCategoryId?: string;
+    },
+    source: BookingIntentButtonSource = 'navbar_book_now'
+  ) => {
+    // Record booking intent asynchronously in the background
+    recordBookingIntent({
+      hotelId: hotel?.id,
+      buttonSource: source,
+      checkIn: searchParams?.checkIn,
+      checkOut: searchParams?.checkOut,
+      guestsCount: (searchParams?.adults || 2) + (searchParams?.children || 0),
+    }).catch(() => {});
+
     const engineCfg = hotel?.booking_engine_config ?? DEFAULT_BOOKING_ENGINE_CONFIG;
     if (engineCfg?.is_enabled && engineCfg.mode === 'yanolja_redirect') {
       const targetUrl = buildYanoljaBookingUrl(engineCfg.yanolja_booking_url, searchParams);
@@ -298,32 +311,38 @@ export function MainApp() {
     adults: number;
     children: number;
   }) => {
-    openPublicBookingOrRedirect(search);
+    openPublicBookingOrRedirect(search, 'hero_check_availability');
   };
 
   const handleSelectCategoryForBooking = (categoryId: string) => {
     const today = getTodayLocalDateStr();
     const tomorrow = getNextDayLocalDateStr(today);
 
-    openPublicBookingOrRedirect({
-      checkIn: today,
-      checkOut: tomorrow,
-      adults: 2,
-      children: 0,
-      selectedCategoryId: categoryId,
-    });
+    openPublicBookingOrRedirect(
+      {
+        checkIn: today,
+        checkOut: tomorrow,
+        adults: 2,
+        children: 0,
+        selectedCategoryId: categoryId,
+      },
+      'room_card'
+    );
   };
 
   const handleSelectOfferCode = (code: string) => {
     const today = getTodayLocalDateStr();
     const tomorrow = getNextDayLocalDateStr(today);
 
-    openPublicBookingOrRedirect({
-      checkIn: today,
-      checkOut: tomorrow,
-      adults: 2,
-      children: 0,
-    });
+    openPublicBookingOrRedirect(
+      {
+        checkIn: today,
+        checkOut: tomorrow,
+        adults: 2,
+        children: 0,
+      },
+      'offer_code'
+    );
   };
 
   if (isLoadingHotel) {
@@ -468,7 +487,7 @@ export function MainApp() {
     <>
       <Navbar
         hotel={hotel}
-        onOpenBooking={() => openPublicBookingOrRedirect(undefined)}
+        onOpenBooking={() => openPublicBookingOrRedirect(undefined, 'navbar_book_now')}
         onNavigateSection={handleNavigateSection}
       />
 
@@ -496,7 +515,7 @@ export function MainApp() {
 
       <MobileStickyBar
         hotel={hotel}
-        onOpenBooking={() => openPublicBookingOrRedirect(undefined)}
+        onOpenBooking={() => openPublicBookingOrRedirect(undefined, 'mobile_sticky_bar')}
       />
     </>
   );
@@ -514,20 +533,14 @@ export function MainApp() {
             <>
               <Navbar
                 hotel={hotel}
-                onOpenBooking={() => {
-                  setBookingInitialSearch(undefined);
-                  setShowBookingModal(true);
-                }}
+                onOpenBooking={() => openPublicBookingOrRedirect(undefined, 'navbar_book_now')}
                 onNavigateSection={handleNavigateSection}
               />
               <main className="flex-1">
                 <Suspense fallback={null}>
                   <InsightArticlePage
                     hotel={hotel}
-                    onOpenBooking={() => {
-                      setBookingInitialSearch(undefined);
-                      setShowBookingModal(true);
-                    }}
+                    onOpenBooking={() => openPublicBookingOrRedirect(undefined, 'seo_landing_page')}
                   />
                 </Suspense>
               </main>
@@ -540,10 +553,7 @@ export function MainApp() {
               </Suspense>
               <MobileStickyBar
                 hotel={hotel}
-                onOpenBooking={() => {
-                  setBookingInitialSearch(undefined);
-                  setShowBookingModal(true);
-                }}
+                onOpenBooking={() => openPublicBookingOrRedirect(undefined, 'mobile_sticky_bar')}
               />
             </>
           }
@@ -556,10 +566,7 @@ export function MainApp() {
               <>
                 <Navbar
                   hotel={hotel}
-                  onOpenBooking={() => {
-                    setBookingInitialSearch(undefined);
-                    setShowBookingModal(true);
-                  }}
+                  onOpenBooking={() => openPublicBookingOrRedirect(undefined, 'navbar_book_now')}
                   onNavigateSection={handleNavigateSection}
                 />
                 <main className="flex-1">
@@ -567,10 +574,7 @@ export function MainApp() {
                     <SeoLandingPage
                       config={pageConfig}
                       hotel={hotel}
-                      onOpenBooking={() => {
-                        setBookingInitialSearch(undefined);
-                        setShowBookingModal(true);
-                      }}
+                      onOpenBooking={() => openPublicBookingOrRedirect(undefined, 'seo_landing_page')}
                       onSelectCategoryForBooking={handleSelectCategoryForBooking}
                       onNavigateSection={handleNavigateSection}
                     />
@@ -585,10 +589,7 @@ export function MainApp() {
                 </Suspense>
                 <MobileStickyBar
                   hotel={hotel}
-                  onOpenBooking={() => {
-                    setBookingInitialSearch(undefined);
-                    setShowBookingModal(true);
-                  }}
+                  onOpenBooking={() => openPublicBookingOrRedirect(undefined, 'mobile_sticky_bar')}
                 />
               </>
             }

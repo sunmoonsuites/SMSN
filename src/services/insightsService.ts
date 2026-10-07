@@ -488,26 +488,26 @@ export async function uploadInsightCoverImage(file: File): Promise<string> {
     }
   );
 
-  const supabase = getSupabase();
-  if (supabase && compressedBlobAndDataUrl.blob) {
-    try {
-      const filePath = `articles/insight-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.webp`;
-      const { error: uploadError } = await supabase.storage
-        .from('insights')
-        .upload(filePath, compressedBlobAndDataUrl.blob, {
-          contentType: 'image/webp',
-          upsert: true,
-        });
+  // Save directly to Cloudflare Pages Assets (/assets/mirrored)
+  try {
+    const res = await fetch('/api/media/mirror-to-cloudflare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageUrl: compressedBlobAndDataUrl.dataUrl,
+        customName: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' '),
+        category: 'insights',
+      }),
+    });
 
-      if (!uploadError) {
-        const { data: publicUrlData } = supabase.storage.from('insights').getPublicUrl(filePath);
-        if (publicUrlData?.publicUrl) {
-          return publicUrlData.publicUrl;
-        }
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.localUrl) {
+        return data.localUrl;
       }
-    } catch {
-      // Fallback to compressed WebP data URL
     }
+  } catch (err) {
+    console.warn('[InsightsService] Mirror to Cloudflare failed, using fallback:', err);
   }
 
   return compressedBlobAndDataUrl.dataUrl;

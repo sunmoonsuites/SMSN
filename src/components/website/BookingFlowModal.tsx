@@ -19,6 +19,7 @@ import {
   getNextDayLocalDateStr,
 } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { attachGuestToLatestIntent, markLatestIntentConverted } from '../../services/bookingIntentService';
 import { sendVerificationOtp, verifyOtp } from '../../services/emailVerificationService';
 import {
   getExistingGoogleUser,
@@ -387,6 +388,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       return;
     }
     setSubmitError('');
+    attachGuestToLatestIntent({
+      guestName: `${guestFirstName.trim()} ${guestLastName.trim()}`.trim(),
+      guestPhone: guestPhone.trim(),
+      guestEmail: guestEmail.trim(),
+    }).catch(() => {});
     setStep('review');
   };
 
@@ -481,6 +487,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       setConfirmedBookingRef(res.booking.booking_reference);
       setStep('confirmed');
       if (onBookingSuccess) onBookingSuccess(res.booking.booking_reference);
+      markLatestIntentConverted(res.booking.booking_reference).catch(() => {});
     } else {
       setSubmitError(res.error || 'Failed to confirm booking. Please try again.');
     }

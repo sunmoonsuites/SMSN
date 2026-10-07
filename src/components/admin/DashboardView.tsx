@@ -7,6 +7,7 @@ import { formatINR, formatDate } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { EmptyState } from '../common/EmptyState';
 import { DailyHuddleWidget } from './DailyHuddleWidget';
+import { BookingIntentWidget } from './BookingIntentWidget';
 import {
   Users,
   LogIn,
@@ -244,6 +245,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Website Footfall & Booking Intent Analytics */}
+      <BookingIntentWidget
+        hotelId={hotel?.id}
+        onNavigateTab={onNavigateTab}
+      />
 
       {/* Recent Reservations Table */}
       <div className="bg-white rounded-2xl border border-stone-200 shadow-2xs overflow-hidden">

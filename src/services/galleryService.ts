@@ -29,8 +29,7 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
     id: 'gal-1',
     hotel_id: 'default-hotel-id',
     category: 'Standard Room',
-    image_url:
-      'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
+    image_url: '/assets/mirrored/rooms-standard-room-muxpex8w.webp',
     caption: 'Standard AC Room with Queen Bed at Sun Moon Suites in Sector 117 Noida',
     sort_order: 1,
     is_featured: true,
@@ -40,8 +39,7 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
     id: 'gal-2',
     hotel_id: 'default-hotel-id',
     category: 'Deluxe Room',
-    image_url:
-      'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80',
+    image_url: '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp',
     caption: 'Deluxe Room with King Bed & Work Desk at Sun Moon Suites Sector 117 Noida',
     sort_order: 2,
     is_featured: true,
@@ -51,8 +49,7 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
     id: 'gal-3',
     hotel_id: 'default-hotel-id',
     category: 'Super Deluxe Room',
-    image_url:
-      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
+    image_url: '/assets/mirrored/rooms-super-deluxe-room-muxpexke.webp',
     caption: 'Super Deluxe Room Interior & Seating Area at Sun Moon Suites Sector 117 Noida',
     sort_order: 3,
     is_featured: true,
@@ -62,8 +59,7 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
     id: 'gal-4',
     hotel_id: 'default-hotel-id',
     category: 'Suite Room',
-    image_url:
-      'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80',
+    image_url: '/assets/mirrored/rooms-suite-room-muxpexmf.webp',
     caption: 'Spacious Suite Room with Living Area at Sun Moon Suites in Sector 117 Noida',
     sort_order: 4,
     is_featured: true,
@@ -73,8 +69,7 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
     id: 'gal-5',
     hotel_id: 'default-hotel-id',
     category: 'Banquet Hall',
-    image_url:
-      'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1200&q=80',
+    image_url: '/assets/mirrored/banquet-banquet-hall-muxpexo9.webp',
     caption: 'Ground Floor Banquet Hall for Events at Sun Moon Suites Sector 117 Noida',
     sort_order: 5,
     is_featured: true,
@@ -84,8 +79,7 @@ export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
     id: 'gal-6',
     hotel_id: 'default-hotel-id',
     category: 'Hotel & Lobby',
-    image_url:
-      'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
+    image_url: '/assets/mirrored/lobby-hotel-lobby-muxpexqc.webp',
     caption: 'Sun Moon Suites Hotel Exterior & Secure Parking in Sector 117 Noida',
     sort_order: 6,
     is_featured: false,

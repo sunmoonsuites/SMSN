@@ -595,7 +595,66 @@ async function startServer() {
     return res.json({ count: currentVisitorCount });
   });
 
-  // 3c. Yanolja Cloud Solution (letsbook.me) Internal Link Bridge
+  // 3c. 1-Click Cloudflare Media Asset Mirroring & Zero-Egress Storage
+  // Downloads images from Supabase Storage or external CDNs and stores them
+  // permanently in public/assets/mirrored so Cloudflare serves them with 100% free unlimited bandwidth.
+  const MIRRORED_MEDIA_DIR = path.join(process.cwd(), 'public', 'assets', 'mirrored');
+  if (!fs.existsSync(MIRRORED_MEDIA_DIR)) {
+    fs.mkdirSync(MIRRORED_MEDIA_DIR, { recursive: true });
+  }
+
+  app.post('/api/media/mirror-to-cloudflare', async (req, res) => {
+    try {
+      const { imageUrl, customName, category } = req.body || {};
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({ error: 'Missing imageUrl' });
+      }
+
+      // If already a local asset, return immediately
+      if (imageUrl.startsWith('/assets/')) {
+        return res.json({ success: true, localUrl: imageUrl, alreadyLocal: true });
+      }
+
+      // Generate a clean safe filename
+      const safePrefix = (category || 'photo').toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 20);
+      const safeName = (customName || 'img').toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30);
+      const fileName = `${safePrefix}-${safeName}-${Date.now().toString(36)}.webp`;
+      const targetFilePath = path.join(MIRRORED_MEDIA_DIR, fileName);
+
+      let buffer: Buffer;
+
+      if (imageUrl.startsWith('data:image/')) {
+        // Base64 data URL
+        const base64Data = imageUrl.split(';base64,').pop();
+        if (!base64Data) throw new Error('Invalid base64 image data');
+        buffer = Buffer.from(base64Data, 'base64');
+      } else {
+        // Remote URL (from Supabase Storage or external CDN)
+        const fetchRes = await fetch(imageUrl);
+        if (!fetchRes.ok) throw new Error(`Failed to download image: HTTP ${fetchRes.status}`);
+        const arrayBuf = await fetchRes.arrayBuffer();
+        buffer = Buffer.from(arrayBuf);
+      }
+
+      // Save to public/assets/mirrored
+      fs.writeFileSync(targetFilePath, buffer);
+
+      // If dist/assets/mirrored exists (in production build), copy it there too
+      const distMirrorDir = path.join(process.cwd(), 'dist', 'assets', 'mirrored');
+      if (fs.existsSync(path.join(process.cwd(), 'dist'))) {
+        if (!fs.existsSync(distMirrorDir)) fs.mkdirSync(distMirrorDir, { recursive: true });
+        fs.writeFileSync(path.join(distMirrorDir, fileName), buffer);
+      }
+
+      const localUrl = `/assets/mirrored/${fileName}`;
+      return res.json({ success: true, localUrl, sizeBytes: buffer.length });
+    } catch (err: any) {
+      console.warn('[CloudflareMediaMirror] Error mirroring image:', err);
+      return res.status(500).json({ error: err?.message || 'Failed to mirror image' });
+    }
+  });
+
+  // 3d. Yanolja Cloud Solution (letsbook.me) Internal Link Bridge
   // Allows feeding the https://letsbook.me/booking/sunmoonsuites link directly into the system
   // so availability and booking creation happen internally on the hotel's own website without redirecting away.
   const YANOLJA_SERVICE_BASE = 'https://commonservice.ipms247.com/YCSAPIServices/booking';

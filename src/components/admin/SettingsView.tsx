@@ -64,7 +64,9 @@ import {
   EyeOff,
   Send,
   Info,
+  Cloud,
 } from 'lucide-react';
+import { CloudflareMediaCard } from './CloudflareMediaCard';
 
 interface SettingsViewProps {
   hotel: Hotel | null;
@@ -74,6 +76,7 @@ interface SettingsViewProps {
 
 type SettingsTab =
   | 'general'
+  | 'cloudflare_media'
   | 'yanolja'
   | 'email_verification'
   | 'hero'
@@ -841,6 +844,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               : emailVerificationEnabled
               ? 'Setup Needed'
               : 'Disabled'}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('cloudflare_media')}
+          className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'cloudflare_media'
+              ? 'bg-white text-stone-900 shadow-2xs font-bold'
+              : 'text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <Cloud className="w-4 h-4 text-amber-700" />
+          <span>Cloudflare Media CDN</span>
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+            0 Egress
           </span>
         </button>
 
@@ -2800,9 +2819,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
+      {/* TAB: CLOUDFLARE MEDIA CDN & ZERO EGRESS STORAGE */}
+      {activeTab === 'cloudflare_media' && (
+        <CloudflareMediaCard />
+      )}
+
       {/* TAB 7: DATABASE & BACKUP */}
       {activeTab === 'backup' && (
         <div className="space-y-6">
+          <CloudflareMediaCard />
           {/* Cloud Database Connection Card */}
           <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-2xs space-y-4">
             <div className="flex items-center justify-between">

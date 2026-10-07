@@ -504,3 +504,39 @@ export interface DashboardStats {
   todayRevenue: number;
   outstandingBalance: number;
 }
+
+export type BookingIntentButtonSource =
+  | 'hero_check_availability'
+  | 'navbar_book_now'
+  | 'mobile_sticky_bar'
+  | 'room_card'
+  | 'seo_landing_page'
+  | 'offer_code'
+  | 'direct_widget';
+
+export interface BookingIntentLog {
+  id: string;
+  hotel_id?: string;
+  visitor_id: string;
+  button_source: BookingIntentButtonSource | string;
+  check_in?: string;
+  check_out?: string;
+  guests_count?: number;
+  room_type_name?: string;
+  guest_name?: string;
+  guest_phone?: string;
+  guest_email?: string;
+  device_type?: 'mobile' | 'desktop' | 'tablet';
+  converted_to_booking?: boolean;
+  booking_reference?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface BookingIntentSummary {
+  todayIntentCount: number;
+  todayConvertedCount: number;
+  todayDroppedCount: number;
+  conversionRate: number;
+  recentIntents: BookingIntentLog[];
+}
