@@ -26,62 +26,79 @@ export const ALL_GALLERY_CATEGORIES = [
 
 export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
   {
-    id: 'gal-1',
+    id: 'gal-std-1',
     hotel_id: 'default-hotel-id',
     category: 'Standard Room',
-    image_url: '/assets/mirrored/rooms-standard-room-muxpex8w.webp',
+    image_url:
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg',
     caption: 'Standard AC Room with Queen Bed at Sun Moon Suites in Sector 117 Noida',
     sort_order: 1,
     is_featured: true,
     created_at: new Date().toISOString(),
   },
   {
-    id: 'gal-2',
+    id: 'gal-dlx-2',
     hotel_id: 'default-hotel-id',
     category: 'Deluxe Room',
-    image_url: '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp',
+    image_url:
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg',
     caption: 'Deluxe Room with King Bed & Work Desk at Sun Moon Suites Sector 117 Noida',
     sort_order: 2,
     is_featured: true,
     created_at: new Date().toISOString(),
   },
   {
-    id: 'gal-3',
+    id: 'gal-sup-3',
     hotel_id: 'default-hotel-id',
     category: 'Super Deluxe Room',
-    image_url: '/assets/mirrored/rooms-super-deluxe-room-muxpexke.webp',
+    image_url:
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg',
     caption: 'Super Deluxe Room Interior & Seating Area at Sun Moon Suites Sector 117 Noida',
     sort_order: 3,
     is_featured: true,
     created_at: new Date().toISOString(),
   },
   {
-    id: 'gal-4',
+    id: 'gal-ste-4',
     hotel_id: 'default-hotel-id',
     category: 'Suite Room',
-    image_url: '/assets/mirrored/rooms-suite-room-muxpexmf.webp',
+    image_url:
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg',
     caption: 'Spacious Suite Room with Living Area at Sun Moon Suites in Sector 117 Noida',
     sort_order: 4,
     is_featured: true,
     created_at: new Date().toISOString(),
   },
   {
-    id: 'gal-5',
+    id: 'gal-bnq-5',
     hotel_id: 'default-hotel-id',
     category: 'Banquet Hall',
-    image_url: '/assets/mirrored/banquet-banquet-hall-muxpexo9.webp',
+    image_url:
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766452744-r8ge-dsc06674-5-6-copy.jpg',
     caption: 'Ground Floor Banquet Hall for Events at Sun Moon Suites Sector 117 Noida',
     sort_order: 5,
     is_featured: true,
     created_at: new Date().toISOString(),
   },
   {
-    id: 'gal-6',
+    id: 'gal-lob-6',
     hotel_id: 'default-hotel-id',
     category: 'Hotel & Lobby',
-    image_url: '/assets/mirrored/lobby-hotel-lobby-muxpexqc.webp',
-    caption: 'Sun Moon Suites Hotel Exterior & Secure Parking in Sector 117 Noida',
+    image_url:
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg',
+    caption: 'Sun Moon Suites Hotel Reception & Lobby in Sector 117 Noida',
     sort_order: 6,
+    is_featured: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'gal-ext-7',
+    hotel_id: 'default-hotel-id',
+    category: 'Exterior & Facade',
+    image_url:
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602879979-main-gate.jpeg',
+    caption: 'Sun Moon Suites Hotel Main Entrance & Secure Parking in Sector 117 Noida',
+    sort_order: 7,
     is_featured: false,
     created_at: new Date().toISOString(),
   },
@@ -92,7 +109,12 @@ export function getStoredGallery(): GalleryItem[] {
     const raw = localStorage.getItem(LOCAL_STORAGE_GALLERY_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const nonUnsplash = parsed.filter(
+          (g: GalleryItem) => g.image_url && !g.image_url.includes('unsplash.com')
+        );
+        if (nonUnsplash.length > 0) return nonUnsplash;
+      }
     }
   } catch (e) {
     console.warn(e);
@@ -809,12 +831,26 @@ export function getPhotosForRoomCategory(
 
   const normCatName = normalizeRoomCategoryName(cat.name);
 
-  // 1. Primary Source of Truth: Photos sorted into this Room Category in the Website Gallery
+  // 1. Check cat.images from Room Categories table (primary authentic room photos)
+  if (Array.isArray(cat.images)) {
+    cat.images.forEach((url, idx) => {
+      const cleanUrl = (url || '').trim();
+      if (!cleanUrl || seenUrls.has(cleanUrl) || cleanUrl.includes('unsplash.com')) return;
+      seenUrls.add(cleanUrl);
+      result.push({
+        url: cleanUrl,
+        caption: generateSmartSeoGalleryCaption(cat.name, '', idx, hotelName, cleanUrl),
+      });
+    });
+  }
+
+  // 2. Also include any matching non-Unsplash photos from the Gallery table for this category
   const matchingGallery = galleryItems
     .map((item, originalIndex) => ({ item, originalIndex }))
     .filter(
       ({ item }) =>
         Boolean(item.image_url) &&
+        !item.image_url.includes('unsplash.com') &&
         normalizeRoomCategoryName(item.category) === normCatName
     )
     .sort((a, b) => {
@@ -824,61 +860,34 @@ export function getPhotosForRoomCategory(
       return a.originalIndex - b.originalIndex;
     });
 
-  if (matchingGallery.length > 0) {
-    matchingGallery.forEach(({ item }, idx) => {
-      const cleanUrl = (item.image_url || '').trim();
-      if (cleanUrl && !seenUrls.has(cleanUrl)) {
-        seenUrls.add(cleanUrl);
-        result.push({
-          url: cleanUrl,
-          caption:
-            item.caption ||
-            generateSmartSeoGalleryCaption(cat.name, '', idx, hotelName, cleanUrl),
-        });
-      }
-    });
-    return result;
-  }
-
-  // 2. Fallback ONLY if no photos exist in Gallery for this Room Category:
-  // Use `cat.images`, excluding any photo that belongs to a DIFFERENT category in Gallery
-  const galleryCategoryByUrl = new Map<string, string>();
-  const galleryCaptionMap = new Map<string, string>();
-  for (const g of galleryItems) {
-    if (g.image_url) {
-      galleryCategoryByUrl.set(g.image_url.trim(), normalizeRoomCategoryName(g.category));
-      if (g.caption) {
-        galleryCaptionMap.set(g.image_url.trim(), g.caption);
-      }
-    }
-  }
-
-  if (Array.isArray(cat.images)) {
-    cat.images.forEach((url, idx) => {
-      const cleanUrl = (url || '').trim();
-      if (!cleanUrl || seenUrls.has(cleanUrl)) return;
-      const existingGalCat = galleryCategoryByUrl.get(cleanUrl);
-      // Do not show a photo if the user sorted it into a different category in Gallery
-      if (existingGalCat && existingGalCat !== normCatName) return;
-
+  matchingGallery.forEach(({ item }, idx) => {
+    const cleanUrl = (item.image_url || '').trim();
+    if (cleanUrl && !seenUrls.has(cleanUrl)) {
       seenUrls.add(cleanUrl);
       result.push({
         url: cleanUrl,
         caption:
-          galleryCaptionMap.get(cleanUrl) ||
+          item.caption ||
           generateSmartSeoGalleryCaption(cat.name, '', idx, hotelName, cleanUrl),
       });
-    });
-  }
+    }
+  });
 
+  // 3. Guaranteed authentic room photo fallback
   if (result.length === 0) {
     const fallbackImageMap: Record<string, string> = {
-      'standard-room': '/assets/mirrored/rooms-standard-room-muxpex8w.webp',
-      'deluxe-room': '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp',
-      'super-deluxe-room': '/assets/mirrored/rooms-super-deluxe-room-muxpexke.webp',
-      'suite-room': '/assets/mirrored/rooms-suite-room-muxpexmf.webp',
+      'standard-room':
+        'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg',
+      'deluxe-room':
+        'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg',
+      'super-deluxe-room':
+        'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg',
+      'suite-room':
+        'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg',
     };
-    const fallbackUrl = fallbackImageMap[normCatName] || '/assets/hero-hotel.webp';
+    const fallbackUrl =
+      fallbackImageMap[normCatName] ||
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg';
     result.push({
       url: fallbackUrl,
       caption: `${cat.name} at ${hotelName} in Sector 117 Noida`,

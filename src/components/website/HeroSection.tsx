@@ -91,8 +91,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         className="absolute inset-0 w-full h-full object-cover z-0"
         onError={(e) => {
           const target = e.currentTarget;
-          if (!target.src.endsWith('/assets/hero-hotel.webp')) {
-            target.src = '/assets/hero-hotel.webp';
+          const fallback =
+            'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg';
+          if (target.src !== fallback) {
+            target.removeAttribute('srcset');
+            target.src = fallback;
           }
         }}
       />

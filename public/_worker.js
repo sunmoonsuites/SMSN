@@ -1352,6 +1352,15 @@ export default {
           url.pathname.startsWith('/assets/') ||
           /\.(webp|jpg|jpeg|png|gif|svg|ico|css|js|json|xml|txt|woff2?)$/i.test(url.pathname);
 
+        // For all SPA route navigation (e.g. /PMS, /pms, /admin, /crm, /rooms), immediately serve /index.html
+        if (!isAssetPath) {
+          const indexRequest = new Request(new URL('/index.html', request.url), request);
+          const indexResponse = await env.ASSETS.fetch(indexRequest);
+          if (indexResponse && (indexResponse.status === 200 || indexResponse.status === 304)) {
+            return indexResponse;
+          }
+        }
+
         const assetResponse = await env.ASSETS.fetch(request);
         const contentType = assetResponse.headers.get('content-type') || '';
 

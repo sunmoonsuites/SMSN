@@ -85,8 +85,18 @@ export function MainApp() {
   const [hotel, setHotel] = useState<Hotel | null>(() => getInitialHotelFast());
   const [isLoadingHotel, setIsLoadingHotel] = useState(false);
 
-  // Authentication State — never auto-login; require explicit staff login
-  const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
+  // Authentication State — initialized from saved session if valid
+  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => {
+    try {
+      const raw =
+        localStorage.getItem('pms_staff_user') || sessionStorage.getItem('pms_staff_user');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.id && parsed.email) return parsed;
+      }
+    } catch {}
+    return null;
+  });
 
   // Admin Tab State
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
@@ -106,8 +116,6 @@ export function MainApp() {
   const [activePolicy, setActivePolicy] = useState<'cancellation' | 'terms' | 'privacy' | 'faq' | null>(null);
 
   useEffect(() => {
-    // Clear any legacy auto-login token from localStorage
-    localStorage.removeItem('pms_staff_user');
     const timer = setTimeout(() => {
       loadHotelData();
     }, 1200);
@@ -116,15 +124,21 @@ export function MainApp() {
       loadHotelData();
     };
 
+    const handleOpenAdminPortal = () => {
+      navigate('/PMS');
+    };
+
     window.addEventListener('hotel_data_updated', handleDataUpdated);
     window.addEventListener('storage', handleDataUpdated);
+    window.addEventListener('open_admin_portal', handleOpenAdminPortal);
 
     return () => {
       clearTimeout(timer);
       window.removeEventListener('hotel_data_updated', handleDataUpdated);
       window.removeEventListener('storage', handleDataUpdated);
+      window.removeEventListener('open_admin_portal', handleOpenAdminPortal);
     };
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const hash = window.location.hash.toLowerCase();
@@ -247,12 +261,19 @@ export function MainApp() {
 
   const handleAuthenticated = (user: StaffUser) => {
     setCurrentUser(user);
+    try {
+      localStorage.setItem('pms_staff_user', JSON.stringify(user));
+    } catch {}
   };
 
   const handleLogout = async () => {
     const { signOut } = await import('./services/staffService');
     await signOut();
     setCurrentUser(null);
+    try {
+      localStorage.removeItem('pms_staff_user');
+      sessionStorage.removeItem('pms_staff_user');
+    } catch {}
     if (
       location.pathname.toLowerCase().startsWith('/crm') ||
       location.pathname.toLowerCase().startsWith('/leads')
@@ -447,7 +468,13 @@ export function MainApp() {
       </AdminLayout>
     </Suspense>
   ) : (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-stone-900 text-amber-400">
+          <LoadingSpinner message="Opening Staff PMS Portal..." />
+        </div>
+      }
+    >
       <PMSLoginScreen
         hotel={hotel}
         onAuthenticated={handleAuthenticated}
@@ -596,13 +623,17 @@ export function MainApp() {
           />
         ))}
 
-        {/* DEDICATED STAFF PMS PORTAL ROUTES (/PMS, /pms, /admin) */}
+        {/* DEDICATED STAFF PMS PORTAL ROUTES (/PMS, /pms, /admin, /ADMIN) */}
         <Route path="/pms/*" element={pmsPortalElement} />
+        <Route path="/PMS/*" element={pmsPortalElement} />
         <Route path="/admin/*" element={pmsPortalElement} />
+        <Route path="/ADMIN/*" element={pmsPortalElement} />
 
         {/* DEDICATED LUXURY CRM & LEADS PORTAL ROUTES (/CRM, /crm, /leads) */}
         <Route path="/crm/*" element={crmPortalElement} />
+        <Route path="/CRM/*" element={crmPortalElement} />
         <Route path="/leads/*" element={crmPortalElement} />
+        <Route path="/LEADS/*" element={crmPortalElement} />
 
         {/* FALLBACK ROUTE: Render Public Website for any other path */}
         <Route path="*" element={publicWebsiteContent} />

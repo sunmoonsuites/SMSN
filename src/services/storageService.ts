@@ -75,9 +75,54 @@ export async function uploadImageToCloudflare(
   const cleanTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' ');
 
   try {
-    const { dataUrl } = await compressImageFile(file, 1280, 0.82);
+    const { blob, dataUrl } = await compressImageFile(file, 1280, 0.82);
 
-    // 1. Direct Cloudflare Media Mirroring API (Saves permanently to /public/assets/mirrored)
+    // 1. Primary: Upload to Supabase Storage bucket for permanent public CDN availability
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const filePath = `${folder}/${uniqueFileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(HOTEL_MEDIA_BUCKET)
+          .upload(filePath, blob, {
+            contentType: blob.type || 'image/jpeg',
+            upsert: true,
+          });
+
+        if (!uploadError) {
+          const { data: publicUrlData } = supabase.storage
+            .from(HOTEL_MEDIA_BUCKET)
+            .getPublicUrl(filePath);
+
+          if (publicUrlData?.publicUrl) {
+            // Also attempt background mirroring if available
+            fetch('/api/media/mirror-to-cloudflare', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                imageUrl: publicUrlData.publicUrl,
+                customName: cleanTitle,
+                category: folder,
+              }),
+            }).catch(() => {});
+
+            return {
+              success: true,
+              publicUrl: publicUrlData.publicUrl,
+              path: filePath,
+              fileName: cleanTitle,
+            };
+          }
+        }
+      } catch (storageErr) {
+        console.warn('[StorageService] Supabase upload failed, falling back to mirror API:', storageErr);
+      }
+    }
+
+    // 2. Direct Cloudflare Media Mirroring API (if Node server is running)
     try {
       const res = await fetch('/api/media/mirror-to-cloudflare', {
         method: 'POST',
@@ -100,10 +145,10 @@ export async function uploadImageToCloudflare(
         }
       }
     } catch (apiErr) {
-      console.warn('[CloudflareMedia] Mirror API call failed, using local fallback:', apiErr);
+      console.warn('[CloudflareMedia] Mirror API call failed, using dataUrl fallback:', apiErr);
     }
 
-    // 2. Resilient local fallback if server is offline: return optimized dataUrl
+    // 3. Fallback: return optimized dataUrl
     return {
       success: true,
       publicUrl: dataUrl,

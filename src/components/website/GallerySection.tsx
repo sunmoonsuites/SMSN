@@ -24,40 +24,42 @@ function buildGalleryImageAlt(item: GalleryItem, index: number, hotelName: strin
 function getGalleryFallbackImage(category?: string, idx: number = 0): string {
   const norm = (category || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
   if (norm.includes('super-deluxe')) {
-    return '/assets/mirrored/rooms-super-deluxe-room-muxpexke.webp';
+    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg';
   }
   if (norm.includes('deluxe')) {
-    return '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp';
+    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg';
   }
   if (norm.includes('standard')) {
-    return '/assets/mirrored/rooms-standard-room-muxpex8w.webp';
+    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg';
   }
   if (norm.includes('suite')) {
-    return '/assets/mirrored/rooms-suite-room-muxpexmf.webp';
+    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg';
   }
   if (norm.includes('banquet')) {
-    return '/assets/mirrored/banquet-banquet-hall-muxpexo9.webp';
+    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766452744-r8ge-dsc06674-5-6-copy.jpg';
   }
   if (norm.includes('lobby') || norm.includes('hotel') || norm.includes('reception')) {
-    return '/assets/mirrored/lobby-hotel-lobby-muxpexqc.webp';
+    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg';
   }
   if (norm.includes('exterior') || norm.includes('facade') || norm.includes('entrance')) {
-    return '/assets/mirrored/exterior---facade-hotel-entrance-ramp-and-gate---muxpirso.webp';
+    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602879979-main-gate.jpeg';
   }
 
   const rotation = [
-    '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp',
-    '/assets/mirrored/lobby-hotel-lobby-muxpexqc.webp',
-    '/assets/mirrored/rooms-suite-room-muxpexmf.webp',
-    '/assets/mirrored/banquet-banquet-hall-muxpexo9.webp',
-    '/assets/mirrored/rooms-super-deluxe-room-muxpexke.webp',
-    '/assets/mirrored/rooms-standard-room-muxpex8w.webp',
+    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg',
+    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg',
+    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg',
+    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766452744-r8ge-dsc06674-5-6-copy.jpg',
+    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg',
+    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg',
   ];
   return rotation[idx % rotation.length];
 }
 
 export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
-  const [items, setItems] = useState<GalleryItem[]>(() => getStoredGallery());
+  const [items, setItems] = useState<GalleryItem[]>(() =>
+    getStoredGallery().filter((i) => !i.image_url?.includes('unsplash.com'))
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
@@ -76,7 +78,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
     if (!hotel?.id) return;
     const data = await getGalleryItems(hotel.id);
     if (data && data.length > 0) {
-      setItems(data);
+      setItems(data.filter((i) => !i.image_url?.includes('unsplash.com')));
     }
     setIsLoading(false);
   };

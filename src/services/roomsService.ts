@@ -21,9 +21,13 @@ export const DEFAULT_ROOM_CATEGORIES: RoomCategory[] = [
     bed_type: 'Queen Bed',
     amenities: ['Air Conditioning', 'Free Wi-Fi', 'Smart TV', 'Daily Housekeeping'],
     images: [
-      'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1200&q=80',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766516314-rjhc-r1-copy.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766517696-6rum-r2-copy.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766520172-2vb2-r4-copy.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766522388-qhte-r6-copy.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766525074-g7qa-w2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766526383-djuq-w3.jpg',
     ],
     is_active: true,
     created_at: new Date().toISOString(),
@@ -48,9 +52,10 @@ export const DEFAULT_ROOM_CATEGORIES: RoomCategory[] = [
       'Work Desk',
     ],
     images: [
-      'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=1200&q=80',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766508506-lalb-dsc06977-8-9-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766519107-vl6e-r3-copy.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766527430-0bo5-w4.jpg',
     ],
     is_active: true,
     created_at: new Date().toISOString(),
@@ -76,9 +81,13 @@ export const DEFAULT_ROOM_CATEGORIES: RoomCategory[] = [
       'In-room Dining',
     ],
     images: [
-      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1620626011761-996317b8d101?auto=format&fit=crop&w=1200&q=80',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766475354-6jty-dsc06767-8-9-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766476467-kzd7-dsc06770-1-2-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766477617-uc96-dsc06773-4-5-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766478785-qfq8-dsc06779-80-81-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766480139-lnnc-dsc06785-6-7-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766481251-rbef-dsc06791-2-3-copy-2.jpg',
     ],
     is_active: true,
     created_at: new Date().toISOString(),
@@ -105,9 +114,13 @@ export const DEFAULT_ROOM_CATEGORIES: RoomCategory[] = [
       'Balcony',
     ],
     images: [
-      'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=1200&q=80',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766482372-9r4x-dsc06797-8-9-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766484175-3d5j-dsc06803-4-5-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766486860-6xlc-dsc06809-10-11-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766487942-qef1-dsc06815-6-7-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766489390-o165-dsc06821-2-3-copy-2.jpg',
+      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766504867-ptq6-dsc06959-60-61-copy-2.jpg',
     ],
     is_active: true,
     created_at: new Date().toISOString(),
@@ -120,7 +133,23 @@ export function getStoredCategories(): RoomCategory[] {
     const raw = localStorage.getItem(LOCAL_STORAGE_CATEGORIES_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const hasUnsplash = parsed.some((c: RoomCategory) =>
+          c.images?.some((img: string) => img.includes('unsplash.com'))
+        );
+        if (hasUnsplash) {
+          const cleansed = parsed.map((c: RoomCategory) => {
+            const validImages = (c.images || []).filter((img: string) => !img.includes('unsplash.com'));
+            const defaultMatch = DEFAULT_ROOM_CATEGORIES.find((d) => d.slug === c.slug || d.name === c.name);
+            return {
+              ...c,
+              images: validImages.length > 0 ? validImages : (defaultMatch?.images || []),
+            };
+          });
+          return cleansed;
+        }
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn(e);

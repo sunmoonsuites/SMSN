@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Hotel } from '../../types';
-import { Phone, Mail, MapPin } from 'lucide-react';
+import { Phone, Mail, MapPin, Lock } from 'lucide-react';
 import { getCleanHotelPhone } from '../../lib/utils';
 import { VisitorCounter } from './VisitorCounter';
 
@@ -188,6 +188,15 @@ export const Footer: React.FC<FooterProps> = ({
                 >
                   Frequently Asked Questions (FAQ)
                 </button>
+              </li>
+              <li className="pt-2 border-t border-stone-800">
+                <Link
+                  to="/PMS"
+                  className="hover:text-amber-400 transition-colors inline-flex items-center gap-1.5 text-stone-400 font-medium"
+                >
+                  <Lock className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+                  <span>Staff PMS Portal</span>
+                </Link>
               </li>
             </ul>
           </div>
