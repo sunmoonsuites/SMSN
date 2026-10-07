@@ -1341,34 +1341,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   type="button"
                   onClick={() =>
                     setHeroImageUrl(
-                      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80'
+                      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766452744-r8ge-dsc06674-5-6-copy.jpg'
                     )
                   }
-                  className="px-2.5 py-1 bg-stone-100 hover:bg-amber-100 text-stone-700 rounded cursor-pointer"
+                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded cursor-pointer font-medium"
                 >
-                  Grand Lobby
+                  Sun Moon Front Facade
                 </button>
                 <button
                   type="button"
                   onClick={() =>
                     setHeroImageUrl(
-                      'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=80'
+                      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790684387566-vhdi-reception.jpg'
                     )
                   }
-                  className="px-2.5 py-1 bg-stone-100 hover:bg-amber-100 text-stone-700 rounded cursor-pointer"
+                  className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded cursor-pointer"
                 >
-                  Boutique Resort Exterior
+                  Reception & Lobby
                 </button>
                 <button
                   type="button"
                   onClick={() =>
                     setHeroImageUrl(
-                      'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1600&q=80'
+                      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg'
                     )
                   }
-                  className="px-2.5 py-1 bg-stone-100 hover:bg-amber-100 text-stone-700 rounded cursor-pointer"
+                  className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded cursor-pointer"
                 >
-                  Luxury Suite
+                  Suite Room
                 </button>
               </div>
             </div>

@@ -871,6 +871,13 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
                       alt={item.caption}
                       referrerPolicy="no-referrer"
                       className="w-16 h-12 object-cover rounded shrink-0 bg-stone-100"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const fallback = getSupabaseFallbackForMirroredMedia(item.image_url);
+                        if (fallback && target.src !== fallback) {
+                          target.src = fallback;
+                        }
+                      }}
                     />
                     <div className="flex-1 min-w-0 space-y-1">
                       <input

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Hotel, GalleryItem } from '../../types';
 import { getGalleryItems, getStoredGallery } from '../../services/galleryService';
 import { getSupabaseFallbackForMirroredMedia } from '../../services/mediaFallbackMap';
-import { Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon, X, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import { EmptyState } from '../common/EmptyState';
 
 interface GallerySectionProps {
@@ -63,6 +63,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (hotel?.id) {
@@ -124,6 +125,25 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
       ? items.filter((i) => roomSubCategories.has(i.category))
       : items.filter((i) => i.category === selectedCategory);
 
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIndex(null);
+      if (e.key === 'ArrowRight') {
+        setLightboxIndex((prev) =>
+          prev !== null ? (prev + 1) % filtered.length : null
+        );
+      }
+      if (e.key === 'ArrowLeft') {
+        setLightboxIndex((prev) =>
+          prev !== null ? (prev - 1 + filtered.length) % filtered.length : null
+        );
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, filtered.length]);
+
   return (
     <section id="gallery" className="py-20 bg-stone-50 border-b border-stone-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -176,13 +196,16 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
             {filtered.map((item, idx) => (
               <div
                 key={item.id}
-                className="group relative rounded-xl overflow-hidden bg-stone-100 border border-stone-200 shadow-2xs aspect-4/3"
+                onClick={() => setLightboxIndex(idx)}
+                className="group relative rounded-xl overflow-hidden bg-stone-100 border border-stone-200 shadow-2xs aspect-[3/2] cursor-pointer"
+                title="Click to view full HD photo"
               >
                 <img
                   src={item.image_url}
                   alt={buildGalleryImageAlt(item, idx, hotel?.name || 'Sun Moon Suites')}
-                  width={600}
-                  height={450}
+                  width={1280}
+                  height={853}
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   loading="lazy"
                   decoding="async"
                   referrerPolicy="no-referrer"
@@ -196,13 +219,104 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
                     }
                   }}
                 />
-                {item.caption && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent flex items-end p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-white text-xs font-medium">{item.caption}</p>
-                  </div>
-                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent flex items-end justify-between p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p className="text-white text-xs font-medium truncate pr-2">{item.caption || item.category}</p>
+                  <span className="p-1 rounded-md bg-stone-900/70 text-white shrink-0">
+                    <Maximize2 className="w-3.5 h-3.5" />
+                  </span>
+                </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Full-Screen HD Lightbox Modal */}
+        {lightboxIndex !== null && filtered[lightboxIndex] && (
+          <div
+            className="fixed inset-0 z-50 bg-stone-950/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-fade-in"
+            onClick={() => setLightboxIndex(null)}
+          >
+            {/* Top Bar */}
+            <div
+              className="w-full max-w-5xl flex items-center justify-between text-white pb-3 border-b border-stone-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div>
+                <span className="text-xs uppercase tracking-wider text-amber-400 font-bold">
+                  {filtered[lightboxIndex].category} • {lightboxIndex + 1} of {filtered.length}
+                </span>
+                <h3 className="text-sm sm:text-base font-serif font-bold text-stone-100 truncate max-w-xl">
+                  {filtered[lightboxIndex].caption || `${hotel?.name || 'Sun Moon Suites'} Gallery Photo`}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(null)}
+                className="p-2 rounded-full bg-stone-800/80 hover:bg-stone-700 text-stone-300 hover:text-white cursor-pointer transition-colors"
+                aria-label="Close photo view"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Main Full HD Image */}
+            <div
+              className="relative flex-1 w-full max-w-5xl flex items-center justify-center my-4 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={filtered[lightboxIndex].image_url}
+                alt={filtered[lightboxIndex].caption || 'Hotel photo'}
+                referrerPolicy="no-referrer"
+                className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const directFallback = getSupabaseFallbackForMirroredMedia(filtered[lightboxIndex].image_url);
+                  if (directFallback && target.src !== directFallback) {
+                    target.src = directFallback;
+                  }
+                }}
+              />
+
+              {filtered.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxIndex((prev) =>
+                        prev !== null ? (prev - 1 + filtered.length) % filtered.length : 0
+                      );
+                    }}
+                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-stone-900/80 hover:bg-amber-700 text-white cursor-pointer transition-colors shadow-lg"
+                    aria-label="Previous photo"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxIndex((prev) =>
+                        prev !== null ? (prev + 1) % filtered.length : 0
+                      );
+                    }}
+                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-stone-900/80 hover:bg-amber-700 text-white cursor-pointer transition-colors shadow-lg"
+                    aria-label="Next photo"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Bottom Caption Bar */}
+            <div
+              className="w-full max-w-2xl text-center text-stone-300 text-xs px-4 py-2 bg-stone-900/60 rounded-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span>{filtered[lightboxIndex].caption || 'Sun Moon Suites, Sector 117, Noida'}</span>
+            </div>
           </div>
         )}
       </div>

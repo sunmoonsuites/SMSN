@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { GalleryItem } from '../../types';
 import { getGalleryItems } from '../../services/galleryService';
+import { getSupabaseFallbackForMirroredMedia } from '../../services/mediaFallbackMap';
 import { Modal } from './Modal';
 import { CheckCircle2, Image as ImageIcon, Search } from 'lucide-react';
 
@@ -169,6 +170,13 @@ export const GalleryPickerModal: React.FC<GalleryPickerModalProps> = ({
                       alt={img.caption || img.category}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const directFallback = getSupabaseFallbackForMirroredMedia(img.image_url);
+                        if (directFallback && target.src !== directFallback) {
+                          target.src = directFallback;
+                        }
+                      }}
                     />
                     <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-black/70 text-white text-[9px] font-bold rounded">
                       {img.category}

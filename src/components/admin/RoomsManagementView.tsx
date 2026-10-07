@@ -19,6 +19,7 @@ import {
   normalizeRoomCategoryName,
   updateGalleryItemCaption,
 } from '../../services/galleryService';
+import { getSupabaseFallbackForMirroredMedia } from '../../services/mediaFallbackMap';
 import { formatINR } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { EmptyState } from '../common/EmptyState';
@@ -536,6 +537,13 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
                         alt={cat.name}
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const fallback = getSupabaseFallbackForMirroredMedia(catPhotos[0]?.url);
+                          if (fallback && target.src !== fallback) {
+                            target.src = fallback;
+                          }
+                        }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-stone-400">
@@ -739,6 +747,13 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
                       alt={`${newCatName} photo ${idx + 1}`}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const fallback = getSupabaseFallbackForMirroredMedia(imgUrl);
+                        if (fallback && target.src !== fallback) {
+                          target.src = fallback;
+                        }
+                      }}
                     />
                     <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-stone-900/85 text-white text-[9px] font-bold rounded">
                       {idx === 0 ? '#1 Cover' : `#${idx + 1}`}
@@ -814,6 +829,13 @@ export const RoomsManagementView: React.FC<RoomsManagementViewProps> = ({ hotel 
                           alt={img.caption || img.category}
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const fallback = getSupabaseFallbackForMirroredMedia(img.image_url);
+                            if (fallback && target.src !== fallback) {
+                              target.src = fallback;
+                            }
+                          }}
                         />
                         {isSelected && (
                           <div className="absolute inset-0 bg-emerald-900/25 flex items-center justify-center">
