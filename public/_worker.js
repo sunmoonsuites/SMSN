@@ -1348,14 +1348,41 @@ export default {
     // Static Assets serving via Cloudflare ASSETS binding
     if (env && env.ASSETS) {
       try {
+        const isAssetPath =
+          url.pathname.startsWith('/assets/') ||
+          /\.(webp|jpg|jpeg|png|gif|svg|ico|css|js|json|xml|txt|woff2?)$/i.test(url.pathname);
+
         const assetResponse = await env.ASSETS.fetch(request);
+        const contentType = assetResponse.headers.get('content-type') || '';
+
+        // If an image/asset was requested but ASSETS returned HTML (SPA fallback), do NOT return HTML!
+        if (isAssetPath && contentType.includes('text/html')) {
+          return new Response('Asset not found', {
+            status: 404,
+            headers: {
+              'Content-Type': 'text/plain',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
+          });
+        }
+
         if (assetResponse.status !== 404) {
           return assetResponse;
         }
 
-        // SPA Navigation Fallback
-        const indexRequest = new Request(new URL('/index.html', request.url), request);
-        return await env.ASSETS.fetch(indexRequest);
+        // Only SPA navigation requests should fall back to /index.html
+        if (!isAssetPath) {
+          const indexRequest = new Request(new URL('/index.html', request.url), request);
+          return await env.ASSETS.fetch(indexRequest);
+        }
+
+        return new Response('Asset not found', {
+          status: 404,
+          headers: {
+            'Content-Type': 'text/plain',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          },
+        });
       } catch (assetErr) {
         console.error('Asset fetch error:', assetErr);
       }

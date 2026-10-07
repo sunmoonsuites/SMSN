@@ -21,6 +21,41 @@ function buildGalleryImageAlt(item: GalleryItem, index: number, hotelName: strin
   return `${cleanCategory} interior view ${index + 1} at ${hotelName} hotel in Sector 117 Noida`;
 }
 
+function getGalleryFallbackImage(category?: string, idx: number = 0): string {
+  const norm = (category || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+  if (norm.includes('super-deluxe')) {
+    return '/assets/mirrored/rooms-super-deluxe-room-muxpexke.webp';
+  }
+  if (norm.includes('deluxe')) {
+    return '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp';
+  }
+  if (norm.includes('standard')) {
+    return '/assets/mirrored/rooms-standard-room-muxpex8w.webp';
+  }
+  if (norm.includes('suite')) {
+    return '/assets/mirrored/rooms-suite-room-muxpexmf.webp';
+  }
+  if (norm.includes('banquet')) {
+    return '/assets/mirrored/banquet-banquet-hall-muxpexo9.webp';
+  }
+  if (norm.includes('lobby') || norm.includes('hotel') || norm.includes('reception')) {
+    return '/assets/mirrored/lobby-hotel-lobby-muxpexqc.webp';
+  }
+  if (norm.includes('exterior') || norm.includes('facade') || norm.includes('entrance')) {
+    return '/assets/mirrored/exterior---facade-hotel-entrance-ramp-and-gate---muxpirso.webp';
+  }
+
+  const rotation = [
+    '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp',
+    '/assets/mirrored/lobby-hotel-lobby-muxpexqc.webp',
+    '/assets/mirrored/rooms-suite-room-muxpexmf.webp',
+    '/assets/mirrored/banquet-banquet-hall-muxpexo9.webp',
+    '/assets/mirrored/rooms-super-deluxe-room-muxpexke.webp',
+    '/assets/mirrored/rooms-standard-room-muxpex8w.webp',
+  ];
+  return rotation[idx % rotation.length];
+}
+
 export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
   const [items, setItems] = useState<GalleryItem[]>(() => getStoredGallery());
   const [isLoading, setIsLoading] = useState(false);
@@ -151,7 +186,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
                     const target = e.currentTarget;
-                    const fallback = '/assets/hero-hotel.webp';
+                    const fallback = getGalleryFallbackImage(item.category, idx);
                     if (!target.src.endsWith(fallback)) {
                       target.src = fallback;
                     }

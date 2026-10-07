@@ -32,6 +32,20 @@ interface FeaturedRoomsProps {
   onSelectCategoryForBooking: (categoryId: string) => void;
 }
 
+function getCategoryFallbackImage(categoryName?: string): string {
+  const norm = (categoryName || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+  if (norm.includes('super-deluxe')) {
+    return '/assets/mirrored/rooms-super-deluxe-room-muxpexke.webp';
+  }
+  if (norm.includes('deluxe')) {
+    return '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp';
+  }
+  if (norm.includes('suite')) {
+    return '/assets/mirrored/rooms-suite-room-muxpexmf.webp';
+  }
+  return '/assets/mirrored/rooms-standard-room-muxpex8w.webp';
+}
+
 export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
   hotel,
   onSelectCategoryForBooking,
@@ -184,7 +198,7 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {
                           const target = e.currentTarget;
-                          const fallback = '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp';
+                          const fallback = getCategoryFallbackImage(cat.name);
                           if (!target.src.endsWith(fallback)) {
                             target.src = fallback;
                           }
@@ -414,7 +428,7 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                 className="max-w-full max-h-full object-contain"
                 onError={(e) => {
                   const target = e.currentTarget;
-                  const fallback = '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp';
+                  const fallback = getCategoryFallbackImage(lightboxCategory?.name);
                   if (!target.src.endsWith(fallback)) {
                     target.src = fallback;
                   }
@@ -478,7 +492,7 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           const target = e.currentTarget;
-                          const fallback = '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp';
+                          const fallback = getCategoryFallbackImage(lightboxCategory?.name);
                           if (!target.src.endsWith(fallback)) {
                             target.src = fallback;
                           }
