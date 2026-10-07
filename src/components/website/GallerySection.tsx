@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Hotel, GalleryItem } from '../../types';
 import { getGalleryItems, getStoredGallery } from '../../services/galleryService';
+import { getSupabaseFallbackForMirroredMedia } from '../../services/mediaFallbackMap';
 import { Image as ImageIcon } from 'lucide-react';
 import { EmptyState } from '../common/EmptyState';
 
@@ -188,7 +189,8 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
                     const target = e.currentTarget;
-                    const fallback = getGalleryFallbackImage(item.category, idx);
+                    const directFallback = getSupabaseFallbackForMirroredMedia(item.image_url);
+                    const fallback = directFallback || getGalleryFallbackImage(item.category, idx);
                     if (!target.src.endsWith(fallback)) {
                       target.src = fallback;
                     }

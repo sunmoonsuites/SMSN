@@ -12,6 +12,8 @@ export const ROOM_GALLERY_CATEGORIES = [
   'Suite Room',
 ] as const;
 
+import { ALL_SUN_MOON_GALLERY_ITEMS } from './defaultGalleryData';
+
 export const ALL_GALLERY_CATEGORIES = [
   'Standard Room',
   'Deluxe Room',
@@ -24,102 +26,24 @@ export const ALL_GALLERY_CATEGORIES = [
   'Exterior & Facade',
 ] as const;
 
-export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = [
-  {
-    id: 'gal-std-1',
-    hotel_id: 'default-hotel-id',
-    category: 'Standard Room',
-    image_url:
-      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg',
-    caption: 'Standard AC Room with Queen Bed at Sun Moon Suites in Sector 117 Noida',
-    sort_order: 1,
-    is_featured: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'gal-dlx-2',
-    hotel_id: 'default-hotel-id',
-    category: 'Deluxe Room',
-    image_url:
-      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg',
-    caption: 'Deluxe Room with King Bed & Work Desk at Sun Moon Suites Sector 117 Noida',
-    sort_order: 2,
-    is_featured: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'gal-sup-3',
-    hotel_id: 'default-hotel-id',
-    category: 'Super Deluxe Room',
-    image_url:
-      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg',
-    caption: 'Super Deluxe Room Interior & Seating Area at Sun Moon Suites Sector 117 Noida',
-    sort_order: 3,
-    is_featured: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'gal-ste-4',
-    hotel_id: 'default-hotel-id',
-    category: 'Suite Room',
-    image_url:
-      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg',
-    caption: 'Spacious Suite Room with Living Area at Sun Moon Suites in Sector 117 Noida',
-    sort_order: 4,
-    is_featured: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'gal-bnq-5',
-    hotel_id: 'default-hotel-id',
-    category: 'Banquet Hall',
-    image_url:
-      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766452744-r8ge-dsc06674-5-6-copy.jpg',
-    caption: 'Ground Floor Banquet Hall for Events at Sun Moon Suites Sector 117 Noida',
-    sort_order: 5,
-    is_featured: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'gal-lob-6',
-    hotel_id: 'default-hotel-id',
-    category: 'Hotel & Lobby',
-    image_url:
-      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg',
-    caption: 'Sun Moon Suites Hotel Reception & Lobby in Sector 117 Noida',
-    sort_order: 6,
-    is_featured: false,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'gal-ext-7',
-    hotel_id: 'default-hotel-id',
-    category: 'Exterior & Facade',
-    image_url:
-      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602879979-main-gate.jpeg',
-    caption: 'Sun Moon Suites Hotel Main Entrance & Secure Parking in Sector 117 Noida',
-    sort_order: 7,
-    is_featured: false,
-    created_at: new Date().toISOString(),
-  },
-];
+export const DEFAULT_GALLERY_ITEMS: GalleryItem[] = ALL_SUN_MOON_GALLERY_ITEMS;
 
 export function getStoredGallery(): GalleryItem[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_GALLERY_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed) && parsed.length >= 10) {
         const nonUnsplash = parsed.filter(
           (g: GalleryItem) => g.image_url && !g.image_url.includes('unsplash.com')
         );
-        if (nonUnsplash.length > 0) return nonUnsplash;
+        if (nonUnsplash.length >= 10) return nonUnsplash;
       }
     }
   } catch (e) {
     console.warn(e);
   }
-  return DEFAULT_GALLERY_ITEMS;
+  return ALL_SUN_MOON_GALLERY_ITEMS;
 }
 
 function saveStoredGallery(items: GalleryItem[]): void {

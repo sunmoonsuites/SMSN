@@ -11,6 +11,7 @@ import {
   reorderGalleryItemsInCategory,
   normalizeRoomCategoryName,
 } from '../../services/galleryService';
+import { getSupabaseFallbackForMirroredMedia } from '../../services/mediaFallbackMap';
 import { uploadMultipleImagesToSupabase } from '../../services/storageService';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { EmptyState } from '../common/EmptyState';
@@ -616,6 +617,13 @@ export const GalleryManagementView: React.FC<GalleryManagementViewProps> = ({ ho
                     alt={img.caption || 'Hotel photo'}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const fallback = getSupabaseFallbackForMirroredMedia(img.image_url);
+                      if (fallback && target.src !== fallback) {
+                        target.src = fallback;
+                      }
+                    }}
                   />
                   <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/75 text-white text-[10px] font-bold rounded flex items-center gap-1">
                     <span>{img.category}</span>

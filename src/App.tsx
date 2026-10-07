@@ -116,9 +116,7 @@ export function MainApp() {
   const [activePolicy, setActivePolicy] = useState<'cancellation' | 'terms' | 'privacy' | 'faq' | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadHotelData();
-    }, 1200);
+    loadHotelData();
 
     const handleDataUpdated = () => {
       loadHotelData();
@@ -133,7 +131,6 @@ export function MainApp() {
     window.addEventListener('open_admin_portal', handleOpenAdminPortal);
 
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('hotel_data_updated', handleDataUpdated);
       window.removeEventListener('storage', handleDataUpdated);
       window.removeEventListener('open_admin_portal', handleOpenAdminPortal);

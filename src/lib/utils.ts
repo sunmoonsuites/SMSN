@@ -136,7 +136,11 @@ export function getCleanHotelWhatsApp(rawWhatsApp?: string | null): string {
 export function getInitialHotelFast(): any {
   let localConfig: Record<string, any> = {};
   try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('sunmoon_hotel_cms_config_v1') : null;
+    const raw =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('pms_dynamic_website_config') ||
+          localStorage.getItem('sunmoon_hotel_cms_config_v1')
+        : null;
     if (raw) localConfig = JSON.parse(raw);
   } catch {
     // ignore
@@ -168,6 +172,17 @@ export function getInitialHotelFast(): any {
     check_out_time: localConfig.check_out_time || '11:00',
     currency: 'INR',
     currency_symbol: '₹',
+    hero_config: localConfig.hero_config || {
+      badge: 'Sector 117, Noida • 30 Boutique Rooms',
+      heading: 'Modern Comfort & Tranquility in Noida',
+      description:
+        'Experience attentive hospitality at our 30-room hotel in Sector 117, Noida. Featuring well-appointed rooms across three floors, dedicated dining, and premier connectivity to the Noida Expressway.',
+      image_url:
+        '/assets/mirrored/exterior---facade-sun-moon-suites-front-facade---muxpinlk.webp',
+      highlight1: '100% Verified Reservations',
+      highlight2: 'Best Direct Tariff Guaranteed',
+      highlight3: 'Zero Booking Fees',
+    },
     ...localConfig,
   };
 }

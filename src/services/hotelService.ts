@@ -31,7 +31,8 @@ export const DEFAULT_HERO_CONFIG: HeroConfig = {
   heading: 'Modern Comfort & Tranquility in Noida',
   description:
     'Experience attentive hospitality at our 30-room hotel in Sector 117, Noida. Featuring well-appointed rooms across three floors, dedicated dining, and premier connectivity to the Noida Expressway.',
-  image_url: '',
+  image_url:
+    '/assets/mirrored/exterior---facade-sun-moon-suites-front-facade---muxpinlk.webp',
   highlight1: '100% Verified Reservations',
   highlight2: 'Best Direct Tariff Guaranteed',
   highlight3: 'Zero Booking Fees',

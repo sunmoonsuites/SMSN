@@ -13,17 +13,23 @@ interface HeroSectionProps {
   }) => void;
 }
 
+const SUN_MOON_FACADE_HERO =
+  '/assets/mirrored/exterior---facade-sun-moon-suites-front-facade---muxpinlk.webp';
+const SUN_MOON_FACADE_FALLBACK =
+  'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602879979-main-gate.jpeg';
+
 function isBuiltInHeroImage(url?: string): boolean {
   if (!url || url.trim() === '') return true;
   if (url.includes('1790602862099-reception.jpeg')) return true;
   if (url.includes('hero_hotel_image')) return true;
+  if (url.includes('hero-hero-banner-image')) return true;
   return false;
 }
 
 function optimizeHeroImageUrl(url?: string): string {
-  if (isBuiltInHeroImage(url)) return '/assets/hero-hotel.webp';
+  if (isBuiltInHeroImage(url)) return SUN_MOON_FACADE_HERO;
   if (url!.includes('images.unsplash.com') && !url!.includes('w=')) {
-    return `${url}${url!.includes('?') ? '&' : '?'}auto=format&fit=crop&w=960&q=70`;
+    return `${url}${url!.includes('?') ? '&' : '?'}auto=format&fit=crop&w=1200&q=80`;
   }
   return url!;
 }
@@ -83,7 +89,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             : undefined
         }
         sizes="100vw"
-        alt={`${hotel?.name || 'Sun Moon Suites'} hotel reception and guest lounge in Sector 117 Noida`}
+        alt={`${hotel?.name || 'Sun Moon Suites'} hotel building facade and grand entrance in Sector 117 Noida`}
         width={1080}
         height={720}
         fetchPriority="high"
@@ -91,11 +97,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         className="absolute inset-0 w-full h-full object-cover z-0"
         onError={(e) => {
           const target = e.currentTarget;
-          const fallback =
-            'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg';
-          if (target.src !== fallback) {
+          if (target.src !== SUN_MOON_FACADE_FALLBACK) {
             target.removeAttribute('srcset');
-            target.src = fallback;
+            target.src = SUN_MOON_FACADE_FALLBACK;
           }
         }}
       />

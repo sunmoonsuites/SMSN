@@ -1,0 +1,662 @@
+[
+  {
+    "id": "cfbaf9a1-b9ab-4b9c-821c-57a5403d2331",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Exterior & Facade",
+    "image_url": "/assets/mirrored/exterior---facade-sun-moon-suites-front-facade---muxpinlk.webp",
+    "caption": "Sun Moon Suites Front Facade — modern multi-story hotel architecture with green trees and entrance ramps at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 4,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "62a2dead-fd78-4eeb-ad91-78a3e2a7d068",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-sun-moon-suites-glass-entrance-muxpip9s.webp",
+    "caption": "Sun Moon Suites Glass Entrance — Elegant glass double doors featuring the Sun Moon Suites logo at our Sector 117 Noida property.",
+    "sort_order": 5,
+    "is_featured": false,
+    "created_at": "2026-09-28T13:41:22.846883+00:00"
+  },
+  {
+    "id": "fe97339f-c926-4efd-8d36-be65df5bd4bb",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Exterior & Facade",
+    "image_url": "/assets/mirrored/exterior---facade-sun-moon-suites-front-entrance-muxpioju.webp",
+    "caption": "Sun Moon Suites Front Entrance — Modern white building exterior with entrance ramp, landscaping, and Indian flags at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 5,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "6e034afc-4aca-4975-a336-4a383954ee56",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Exterior & Facade",
+    "image_url": "/assets/mirrored/exterior---facade-sun-moon-suites-front-facade---muxpiptm.webp",
+    "caption": "Sun Moon Suites Front Facade — modern building with white architecture, black gates, and lush greenery at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 6,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "3be0a8a9-5060-4520-b18d-7ccb07f1a1a5",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-sun-moon-suites-reception-lobb-muxpiqfv.webp",
+    "caption": "Sun Moon Suites Reception Lobby — Features a teal velvet sofa, modern coffee tables, and a vibrant reception desk in Sector 117 Noida.",
+    "sort_order": 6,
+    "is_featured": false,
+    "created_at": "2026-09-29T12:19:49.144827+00:00"
+  },
+  {
+    "id": "06cee632-317f-462d-acd4-4650e1e08162",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-modern-suite-bedroom--featurin-muxpir5o.webp",
+    "caption": "Modern Suite Bedroom— featuring a plush bed with red accents, sleek desk, and stylish wall art at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 6,
+    "is_featured": false,
+    "created_at": "2026-09-28T13:41:31.741561+00:00"
+  },
+  {
+    "id": "33b1ef49-9d56-432f-9540-c9e6a6fd4008",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Exterior & Facade",
+    "image_url": "/assets/mirrored/exterior---facade-hotel-entrance-ramp-and-gate---muxpirso.webp",
+    "caption": "Hotel entrance ramp and gate — featuring stone steps, black gate, and signage at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 7,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "f9674ca9-fe4f-49ef-846e-1649e1216608",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Exterior & Facade",
+    "image_url": "/assets/mirrored/exterior---facade-sun-moon-suites-entrance-ramp--muxpiseb.webp",
+    "caption": "Sun Moon Suites Entrance Ramp — Facade view featuring a stone staircase, gated entry, and signage at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 8,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "c764d2ab-7567-4d5b-9259-97ec98cd92ff",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Exterior & Facade",
+    "image_url": "/assets/mirrored/exterior---facade-sun-moon-suites-front-entrance-muxpit16.webp",
+    "caption": "Sun Moon Suites Front Entrance — Featuring the paved access ramp and gated entry at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 9,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "c8f23b5d-9143-48d8-b6e7-2b3bf14a513c",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-modern-hotel-reception-lobby---muxpitos.webp",
+    "caption": "Modern Hotel Reception Lobby — elegant teal velvet sofas and wood paneled walls at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 10,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "a799d14e-d7a5-4741-b478-cafb79249093",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-modern-hotel-reception-lobby---muxpiubh.webp",
+    "caption": "Modern Hotel Reception Lobby — featuring emerald green sofas, colorful geometric front desk and sleek interiors at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 11,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "dc23b480-1502-4845-b664-12428d45509e",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-sun-moon-suites-hotel-lobby----muxpiuvv.webp",
+    "caption": "Sun Moon Suites Hotel Lobby — featuring a green sofa, coffee table, and glass entrance at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 12,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "eb5b7f4e-5678-4618-9be8-bdc51b1c0512",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-reception-desk---waiting-loung-muxpivj2.webp",
+    "caption": "Reception Desk & Waiting Lounge — Stylish front desk and sofas at Sun Moon Suites Sector 117 Noida.",
+    "sort_order": 13,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "4b152999-5c98-4270-a79d-79dc04f282bf",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-lobby-guest-waiting-sofa-loung-muxpiw5x.webp",
+    "caption": "Lobby Guest Waiting Sofa Lounge — Plush velvet seating with juice service at Sun Moon Suites Sector 117 Noida.",
+    "sort_order": 14,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "c328a050-bd12-4a1d-a5e6-d93bd61ec985",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-modern-hotel-reception-lobby---muxpiwv2.webp",
+    "caption": "Modern Hotel Reception Lobby — Colorful geometric front desk and teal velvet sofa at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 15,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "ac308162-5182-4a7b-9026-ddda7f0b109e",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-modern-hotel-lobby-waiting-are-muxpixhe.webp",
+    "caption": "Modern Hotel Lobby Waiting Area — featuring plush velvet sofas and coffee tables at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 16,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "9b92585e-f6a2-4623-94be-0f11d800d63b",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-hotel-lobby-reception-area---v-muxpiycc.webp",
+    "caption": "Hotel Lobby Reception Area — vibrant multi-colored desk, plush velvet sofa, and modern interior at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 17,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "1afeebd7-05f5-404b-ba0f-58339ecf3271",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-internal-staircase---glass-ent-muxpiyzj.webp",
+    "caption": "Internal Staircase & Glass Entrance — Elegant marble stairs and glass door at Sun Moon Suites Sector 117 Noida.",
+    "sort_order": 18,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "93b1df30-7749-47b2-be12-da8fe129a3f6",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-super-deluxe-room-with-tufted--muxpizk5.webp",
+    "caption": "Super Deluxe Room with Tufted Headboard — Elegant guest room with plush bedding at Sun Moon Suites Sector 117 Noida.",
+    "sort_order": 19,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "19f10bb4-fd52-4984-a824-cc010998aa0c",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-super-deluxe-room-wall-art---s-muxpj0a6.webp",
+    "caption": "Super Deluxe Room Wall Art — Stylish bed and interior decor at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 20,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "b7c43ac6-ebc0-4d2b-a1dd-3c916ea1af49",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-bed-with-tufted-headboard-deco-muxpj103.webp",
+    "caption": "Bed with Tufted Headboard Decor — Plush bedding and geometric art at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 21,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "e17666bf-f2c2-412b-b437-93c6c230a8ec",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-super-deluxe-room-balcony---mo-muxpj1z6.webp",
+    "caption": "Super Deluxe Room Balcony — Modern room with wardrobe and AC at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 22,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "b54c41aa-a23a-410d-b90b-554815bcdf1b",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-super-deluxe-room-with-sofa-lo-muxpj2lm.webp",
+    "caption": "Super Deluxe Room with Sofa Lounge — Spacious guest room with LED TV at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 23,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "58772a4f-fa30-4eac-9c38-b4d9df459fd6",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-spacious-room-with-seating-are-muxpj394.webp",
+    "caption": "Spacious Room with Seating Area — plush bed, sofa lounge, and modern TV at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 24,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "1fa00ea8-3537-444d-8a3a-481dfdcaeac0",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-suite-room-with-elegant-decor--muxpj3vm.webp",
+    "caption": "Suite Room with Elegant Decor — tufted headboard, patterned art, and warm lighting at Sun Moon Suites Noida",
+    "sort_order": 25,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "256495a0-970c-46f0-b7a3-e0a2eec0fc3c",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-cozy-living-area-with-sofa---w-muxpj4i0.webp",
+    "caption": "Cozy Living Area with Sofa — wall-mounted TV, coffee table, and snacks at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 26,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "5168e802-ab49-4628-8ba1-60895e190dcc",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-room-with-wardrobe-and-balcony-muxpj58q.webp",
+    "caption": "Room with Wardrobe and Balcony — wooden furniture, tea station, and AC at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 27,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "74145a50-e6f8-4783-9242-d145b747ec3b",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-comfortable-super-deluxe-room--muxpj5ul.webp",
+    "caption": "Comfortable Super Deluxe Room Seating — Plush sofa with table and bedroom decor at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 28,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "5464463c-13b0-4240-b9e1-fa5fe0cb6676",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-suite-room-lounge-and-decor----muxpj6o6.webp",
+    "caption": "Suite Room Lounge And Decor — Modern sofa, TV, and elegant interior room setup at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 29,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "3c7e7e4f-6072-451c-8fab-c9a380709597",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-suite-room-workspace-with-balc-muxpj79e.webp",
+    "caption": "Suite Room Workspace With Balcony — Laptop desk, TV, and balcony view at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 30,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "6385bddd-5973-44e6-b409-e89a8fde3f08",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-suite-work-desk-and-balcony----muxpj7z0.webp",
+    "caption": "Suite Work Desk And Balcony — Study area with laptop and scenic balcony view at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 31,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "e18e83d5-a936-44fd-8dda-b53627b5a9bb",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-suite-room-with-private-balcon-muxpj8lj.webp",
+    "caption": "Suite Room with Private Balcony — King bed, sofa, work desk, and outdoor view at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 32,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "d8a3784c-1a64-427b-9d79-209b5ff00c8e",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-comfortable-suite-room-with-ba-muxpj96r.webp",
+    "caption": "Comfortable Suite Room with Balcony — Plush queen bed, work desk, TV, and garden view at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 33,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "2161b3b5-c48c-47e5-a6bb-55c731a433af",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-luxury-suite-room-interiors----muxpj9zw.webp",
+    "caption": "Luxury Suite Room Interiors — Elegant tufted headboard, sofa lounge, and modern amenities at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 34,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "baf4b9cb-8b1b-469b-a5ad-11192680eaf1",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-bedroom-with-balcony-view---ki-muxpjalh.webp",
+    "caption": "Bedroom with balcony view — King bed, private balcony and modern furniture at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 35,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "d6cb6c1e-40b2-49a8-9b8e-27b30f10641e",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-suite-room-amenities-and-desk--muxpjb7k.webp",
+    "caption": "Suite Room Amenities and Desk — Cozy seating, work area, and premium suite features at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 36,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "57372add-bcef-479d-961a-2e3bd52eb52f",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-comfortable-room-with-seating--muxpjbt1.webp",
+    "caption": "Comfortable Room with Seating Area — featuring grey sofa, work desk, and TV at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 37,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "3fa83ea6-2c7f-4ca7-b3f1-914daa9f8f46",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-modern-room-with-queen-bed---d-muxpjcgm.webp",
+    "caption": "Modern Room with Queen Bed — displaying patterned wall art, wooden wardrobe, and balcony at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 38,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "778f4e22-811b-4da6-afaf-38ab89c88107",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-well-appointed-room-with-plush-muxpjd4z.webp",
+    "caption": "Well-Appointed Room with Plush Bed — featuring tufted headboard and elegant decor at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 39,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "4d40c59d-a06e-42cc-bbd5-f93f9fa380d1",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-guest-room-with-lounge-seating-muxpjdrn.webp",
+    "caption": "Guest Room with Lounge Seating — featuring sofa, center table, and bedroom setup at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 40,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "b035a85d-85df-4bc6-817f-8fecdbe38f51",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Exterior & Facade",
+    "image_url": "/assets/mirrored/exterior---facade-private-balcony-with-city-view-muxpjecq.webp",
+    "caption": "Private Balcony with City View — outdoor seating space, metal railing, and neighborhood view at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 41,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "f638f628-8ce4-4ac0-bd62-444a701ae6d7",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-work-desk-and-tv-area---wall-m-muxpjeyw.webp",
+    "caption": "Work Desk and TV Area — wall-mounted television, kettle, and office chair in a guest room at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 42,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "3d2ef6bd-49df-4ab4-ad9f-5c7f1b8cdec9",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-super-deluxe-room-king-bed---t-muxpjfli.webp",
+    "caption": "Super Deluxe Room King Bed — tufted headboard, blue cushions, and abstract wall decor at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 43,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "f416bfdb-4992-4184-9c26-ace270cec7bb",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-cozy-king-bed-and-decor---plus-muxpjgak.webp",
+    "caption": "Cozy King Bed and Decor — plush bedding, blue bed runner, and wall frames in a room at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 44,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "dce52052-b8e0-44cb-82ca-9534ac34357e",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Standard Room",
+    "image_url": "/assets/mirrored/standard-room-guest-room-wardrobe-and-tv---w-muxpjgvv.webp",
+    "caption": "Guest Room Wardrobe and TV — Wall-mounted TV, wooden wardrobe, and kettle at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 45,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "7ac71548-c3cf-4251-be79-91e1df5f5881",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Deluxe Room",
+    "image_url": "/assets/mirrored/deluxe-room-guest-room-mirror-and-wardrobe-muxpjhjt.webp",
+    "caption": "Guest Room Mirror and Wardrobe — Full-length wall mirror and wooden cupboard at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 46,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "55adfd80-7e97-456e-af14-10d5c199bb30",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Deluxe Room",
+    "image_url": "/assets/mirrored/deluxe-room-guest-room-work-desk-area---co-muxpjia6.webp",
+    "caption": "Guest Room Work Desk Area — Compact wooden desk with electric kettle and TV at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 47,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "287119f1-e2a9-4af7-bd2b-33c8bbd7dc37",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-cozy-guest-bedroom-interior----muxpjiwr.webp",
+    "caption": "Cozy Guest Bedroom Interior — Comfortable bed, patterned headboard, and decor at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 48,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "6c636686-f84c-45c2-998d-babc5d61e289",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-guest-floor-corridor-and-hallw-muxpjjkl.webp",
+    "caption": "Guest Floor Corridor and Hallway — featuring wood paneled walls and marble flooring at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 49,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "d395e3cb-04d5-4297-9f44-0d77c50d2623",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-hotel-corridor-with-room-entra-muxpjk4t.webp",
+    "caption": "Hotel Corridor with Room Entrance — showcasing modern wall art and wooden paneling at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 50,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "8c7aa01e-040a-41db-b593-1087cda08011",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-modern-guest-floor-hallway-cor-muxpjkqd.webp",
+    "caption": "Modern Guest Floor Hallway Corridor — with wooden room doors and hanging pendant lights at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 51,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "d21b45ec-f0f2-47eb-8398-bf17c37ff3dc",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-hallway-corridor-with-framed-a-muxpjldh.webp",
+    "caption": "Hallway Corridor with Framed Art — bright hotel passage with wood and marble finish at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 52,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "9de5731b-8966-4983-89ea-f21780b848e9",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Hotel & Lobby",
+    "image_url": "/assets/mirrored/hotel---lobby-guest-floor-corridor-hallway---muxpjlzy.webp",
+    "caption": "Guest Floor Corridor Hallway — wood panelled walls and hallway lights at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 53,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "6c0a854c-d567-4cb3-a627-a75d56d23399",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Standard Room",
+    "image_url": "/assets/mirrored/standard-room-room-wardrobe-and-mini-bar---w-muxpjmpw.webp",
+    "caption": "Room Wardrobe and Mini Bar — wooden furniture, kettle and snacks at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 54,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "bcef12f9-ff5b-4666-8c76-206f95f545e9",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Standard Room",
+    "image_url": "/assets/mirrored/standard-room-standard-room-with-bed---pink--muxpjncx.webp",
+    "caption": "Standard Room with Bed — pink bed runner, wall mirror and AC at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 55,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "5695a4b8-b72a-44ec-9edc-44931838b919",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Deluxe Room",
+    "image_url": "/assets/mirrored/deluxe-room-room-interior-and-decor---bed--muxpjnzw.webp",
+    "caption": "Room Interior and Decor — bed, wall art and tea station at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 56,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "0b8812a7-9bf7-4885-90d1-e70dd71b4511",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Standard Room",
+    "image_url": "/assets/mirrored/standard-room-standard-room-bed-interior---c-muxpjomm.webp",
+    "caption": "Standard Room Bed Interior — Cozy bed with decorative wallpaper and artwork at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 57,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "552bca33-d63f-4d67-bbaa-7e36181a4ba2",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Rooms",
+    "image_url": "/assets/mirrored/rooms-deluxe-room-bed-layout---comfo-muxpjpa2.webp",
+    "caption": "Deluxe Room Bed Layout — Comfortable bed, accent wallpaper, and mirror at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 58,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "73a8133f-b3ab-4443-bf2c-7959cff5e125",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Standard Room",
+    "image_url": "/assets/mirrored/standard-room-suite-room-guest-accomodation--muxpjpts.webp",
+    "caption": "Suite Room Guest Accomodation — Modern room with queen bed and amenities at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 59,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "6cf879fe-9557-4fe7-944b-ca42747dc1e4",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-attached-modern-bathroom-washr-muxpjqgp.webp",
+    "caption": "Attached Modern Bathroom Washroom — Tiled shower and vanity area at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 60,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "fb846e9a-d821-46aa-aeaa-71a81f2a9474",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Standard Room",
+    "image_url": "/assets/mirrored/standard-room-attached-modern-bathroom---was-muxpjr49.webp",
+    "caption": "Attached Modern Bathroom & Washroom — black marble tiles, LED mirror, and sleek basin at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 61,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "f51dfd3b-5853-41a1-b227-09e6e8f0985e",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Standard Room",
+    "image_url": "/assets/mirrored/standard-room-modern-bathroom-with-grey-tile-muxpjrw6.webp",
+    "caption": "Modern Bathroom with Grey Tiles — wall-mounted commode, basin, and shower at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 62,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "c488b68f-a7d9-4641-bf08-6d45ddac0b56",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Deluxe Room",
+    "image_url": "/assets/mirrored/deluxe-room-bathroom-basin-and-led-mirror--muxpjsj8.webp",
+    "caption": "Bathroom Basin and LED Mirror — wash basin, vanity, and wooden door at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 63,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "2cb3be69-caa4-419d-850b-9c946390e2dc",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Suite Room",
+    "image_url": "/assets/mirrored/suite-room-bathroom-vanity-and-tiled-wall-muxpjt4r.webp",
+    "caption": "Bathroom Vanity and Tiled Walls — basin, exhaust fan, and shower fittings at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 64,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "7f1f66a9-4f9a-41a7-a75b-3bca803a1c4d",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-attached-modern-bathroom-washr-muxpjttz.webp",
+    "caption": "Attached Modern Bathroom Washroom — stylish tiled shower area with premium fittings at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 65,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  },
+  {
+    "id": "0a2f7b41-717a-40e7-8ddb-63b7aa2f90a6",
+    "hotel_id": "ca8ca4c4-d493-490f-8d30-774e8fca42b6",
+    "category": "Super Deluxe Room",
+    "image_url": "/assets/mirrored/super-deluxe-room-modern-tiled-guest-bathroom----muxpjuf7.webp",
+    "caption": "Modern Tiled Guest Bathroom — featuring sleek sink and shower area with contemporary design at Sun Moon Suites Sector 117 Noida",
+    "sort_order": 66,
+    "is_featured": false,
+    "created_at": "2026-09-30T11:09:00.691224+00:00"
+  }
+]

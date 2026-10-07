@@ -13,6 +13,7 @@ import {
   getStoredGallery,
   getPhotosForRoomCategory,
 } from '../../services/galleryService';
+import { getSupabaseFallbackForMirroredMedia } from '../../services/mediaFallbackMap';
 import { formatINR } from '../../lib/utils';
 import {
   Bed,
@@ -198,7 +199,8 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {
                           const target = e.currentTarget;
-                          const fallback = getCategoryFallbackImage(cat.name);
+                          const directFallback = getSupabaseFallbackForMirroredMedia(activePhoto.url);
+                          const fallback = directFallback || getCategoryFallbackImage(cat.name);
                           if (!target.src.endsWith(fallback)) {
                             target.src = fallback;
                           }
@@ -428,7 +430,9 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                 className="max-w-full max-h-full object-contain"
                 onError={(e) => {
                   const target = e.currentTarget;
-                  const fallback = getCategoryFallbackImage(lightboxCategory?.name);
+                  const currentUrl = lightboxPhotos[lightboxIndex]?.url;
+                  const directFallback = getSupabaseFallbackForMirroredMedia(currentUrl);
+                  const fallback = directFallback || getCategoryFallbackImage(lightboxCategory?.name);
                   if (!target.src.endsWith(fallback)) {
                     target.src = fallback;
                   }
