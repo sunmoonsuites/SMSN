@@ -182,6 +182,13 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                         decoding="async"
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const fallback = '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp';
+                          if (!target.src.endsWith(fallback)) {
+                            target.src = fallback;
+                          }
+                        }}
                       />
                     ) : (
                       <div className="text-center p-6">
@@ -405,6 +412,13 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                 }
                 referrerPolicy="no-referrer"
                 className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const fallback = '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp';
+                  if (!target.src.endsWith(fallback)) {
+                    target.src = fallback;
+                  }
+                }}
               />
 
               {lightboxPhotos.length > 1 && (
@@ -462,6 +476,13 @@ export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({
                         alt={photo.caption || `${lightboxCategory.name} photo ${idx + 1}`}
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const fallback = '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp';
+                          if (!target.src.endsWith(fallback)) {
+                            target.src = fallback;
+                          }
+                        }}
                       />
                     </button>
                   ))}

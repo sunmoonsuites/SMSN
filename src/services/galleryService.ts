@@ -871,6 +871,20 @@ export function getPhotosForRoomCategory(
     });
   }
 
+  if (result.length === 0) {
+    const fallbackImageMap: Record<string, string> = {
+      'standard-room': '/assets/mirrored/rooms-standard-room-muxpex8w.webp',
+      'deluxe-room': '/assets/mirrored/rooms-deluxe-room-muxpexhe.webp',
+      'super-deluxe-room': '/assets/mirrored/rooms-super-deluxe-room-muxpexke.webp',
+      'suite-room': '/assets/mirrored/rooms-suite-room-muxpexmf.webp',
+    };
+    const fallbackUrl = fallbackImageMap[normCatName] || '/assets/hero-hotel.webp';
+    result.push({
+      url: fallbackUrl,
+      caption: `${cat.name} at ${hotelName} in Sector 117 Noida`,
+    });
+  }
+
   return result;
 }
 

@@ -89,6 +89,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         fetchPriority="high"
         decoding="sync"
         className="absolute inset-0 w-full h-full object-cover z-0"
+        onError={(e) => {
+          const target = e.currentTarget;
+          if (!target.src.endsWith('/assets/hero-hotel.webp')) {
+            target.src = '/assets/hero-hotel.webp';
+          }
+        }}
       />
       <div className="absolute inset-0 bg-stone-950/65 z-0" />
 

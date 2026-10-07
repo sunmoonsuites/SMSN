@@ -1830,12 +1830,18 @@ For each photo, return an object with:
   });
 
   const distPath = path.join(process.cwd(), 'dist');
+  const publicPath = path.join(process.cwd(), 'public');
   const hasBuiltDist = fs.existsSync(path.join(distPath, 'index.html'));
   const isRunningViaTsx = process.execArgv.some((arg) => arg.includes('tsx'));
   const isProduction =
     process.env.NODE_ENV === 'production' ||
     process.env.npm_lifecycle_event === 'start' ||
     (!isRunningViaTsx && hasBuiltDist);
+
+  // Directly serve public and assets folder so all mirrored and static media
+  // (e.g. /assets/mirrored/*.webp, /assets/*.webp) are served immediately with correct image MIME types
+  app.use('/assets', express.static(path.join(publicPath, 'assets')));
+  app.use(express.static(publicPath));
 
   // Vite middleware for development vs static build for production
   if (!isProduction) {

@@ -149,6 +149,13 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ hotel }) => {
                   decoding="async"
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    const fallback = '/assets/hero-hotel.webp';
+                    if (!target.src.endsWith(fallback)) {
+                      target.src = fallback;
+                    }
+                  }}
                 />
                 {item.caption && (
                   <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent flex items-end p-3 opacity-0 group-hover:opacity-100 transition-opacity">
