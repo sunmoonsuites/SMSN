@@ -120,9 +120,11 @@ export async function recordBookingIntent(params: RecordIntentParams): Promise<s
         converted_to_booking: false,
       };
 
-      if (params.hotelId && UUID_REGEX.test(params.hotelId)) {
-        payload.hotel_id = params.hotelId;
-      }
+      const resolvedHotelId =
+        params.hotelId && UUID_REGEX.test(params.hotelId)
+          ? params.hotelId
+          : 'ca8ca4c4-d493-490f-8d30-774e8fca42b6';
+      payload.hotel_id = resolvedHotelId;
 
       supabase
         .from('booking_intent_logs')
@@ -264,9 +266,11 @@ export async function getBookingIntentSummary(hotelId?: string): Promise<Booking
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (hotelId && UUID_REGEX.test(hotelId)) {
-        query = query.eq('hotel_id', hotelId);
-      }
+      const resolvedHotelId =
+        hotelId && UUID_REGEX.test(hotelId)
+          ? hotelId
+          : 'ca8ca4c4-d493-490f-8d30-774e8fca42b6';
+      query = query.or(`hotel_id.eq.${resolvedHotelId},hotel_id.is.null`);
 
       const { data, error } = await query;
       if (!error && Array.isArray(data) && data.length > 0) {

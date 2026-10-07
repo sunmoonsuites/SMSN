@@ -1,3 +1,5 @@
+import { getSupabase } from '../lib/supabase';
+
 /**
  * Unique Visitor Counter Service for Sun Moon Suites
  * 
@@ -70,7 +72,44 @@ export function getVisitorIdentity(): { visitorId: string; isNewVisitor: boolean
 export async function recordOrFetchUniqueVisitor(): Promise<{ count: number; isNewVisitor: boolean }> {
   const { visitorId, isNewVisitor } = getVisitorIdentity();
 
-  // Try API first
+  // 1. Try direct Supabase sync for 100% persistent cross-device counter
+  try {
+    const supabase = getSupabase();
+    if (supabase) {
+      const { data: s } = await supabase
+        .from('hotel_settings')
+        .select('social_links')
+        .eq('hotel_id', 'ca8ca4c4-d493-490f-8d30-774e8fca42b6')
+        .maybeSingle();
+
+      const soc = (s?.social_links || {}) as Record<string, any>;
+      let currentDbCount = Number(soc.visitor_stats?.count) || DEFAULT_BASELINE_VISITORS;
+
+      if (isNewVisitor) {
+        currentDbCount += 1;
+        soc.visitor_stats = {
+          baseline: DEFAULT_BASELINE_VISITORS,
+          count: currentDbCount,
+          updated_at: new Date().toISOString(),
+        };
+        // Persist increment to Supabase in background
+        supabase
+          .from('hotel_settings')
+          .update({ social_links: soc })
+          .eq('hotel_id', 'ca8ca4c4-d493-490f-8d30-774e8fca42b6')
+          .then(() => {});
+      }
+
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(VISITOR_COUNT_CACHE_KEY, String(currentDbCount));
+      }
+      return { count: currentDbCount, isNewVisitor };
+    }
+  } catch (err) {
+    console.debug('[VisitorService] Supabase sync error, trying API fallback:', err);
+  }
+
+  // 2. Try API fallback
   try {
     const endpoint = isNewVisitor ? '/api/visitors/record' : '/api/visitors/count';
     const options: RequestInit = isNewVisitor
@@ -98,7 +137,7 @@ export async function recordOrFetchUniqueVisitor(): Promise<{ count: number; isN
     console.warn('[VisitorService] API unavailable, using local store fallback:', err);
   }
 
-  // Fallback if API fails or offline: use localStorage cached count
+  // 3. Fallback if API fails or offline: use localStorage cached count
   let currentCached = DEFAULT_BASELINE_VISITORS;
   if (typeof localStorage !== 'undefined') {
     const raw = localStorage.getItem(VISITOR_COUNT_CACHE_KEY);

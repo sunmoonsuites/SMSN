@@ -2,6 +2,7 @@ import React from 'react';
 import { MessageCircle } from 'lucide-react';
 import { Hotel } from '../../types';
 import { getCleanHotelWhatsApp } from '../../lib/utils';
+import { recordBookingIntent } from '../../services/bookingIntentService';
 
 interface FloatingWhatsAppButtonProps {
   hotel: Hotel | null;
@@ -18,6 +19,12 @@ export const FloatingWhatsAppButton: React.FC<FloatingWhatsAppButtonProps> = ({ 
       href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => {
+        recordBookingIntent({
+          hotelId: hotel?.id,
+          buttonSource: 'floating_whatsapp',
+        }).catch(() => {});
+      }}
       className="fixed bottom-6 right-6 z-50 p-4 bg-emerald-500 text-white rounded-full shadow-lg hover:bg-emerald-600 transition-all duration-300 hover:scale-110 flex items-center justify-center"
       aria-label="Chat on WhatsApp"
     >

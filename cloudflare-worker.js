@@ -707,8 +707,8 @@ export async function handleApiRequest(request, env) {
   }
 
   // 2b. Unique Visitor Counter (Anti-Refresh: 1 count per unique device/guest)
-  if (pathname === '/api/visitors/count' && request.method === 'GET') {
-    const currentCount = sessionCache.get('unique_visitor_count') || 3480;
+  if (pathname === '/api/visitors/count' && (request.method === 'GET' || request.method === 'HEAD')) {
+    const currentCount = sessionCache.get('unique_visitor_count') || 3481;
     return jsonResponse({ count: currentCount });
   }
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { Hotel } from '../../types';
 import { Phone, MessageCircle, CalendarCheck } from 'lucide-react';
 import { getCleanHotelPhone, getCleanHotelWhatsApp } from '../../lib/utils';
+import { recordBookingIntent } from '../../services/bookingIntentService';
 
 interface MobileStickyBarProps {
   hotel: Hotel | null;
@@ -24,6 +25,12 @@ export const MobileStickyBar: React.FC<MobileStickyBarProps> = ({
     <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-white/95 backdrop-blur-md border-t border-stone-200 px-3 py-2 flex items-center justify-between gap-2 shadow-2xl">
       <a
         href={`tel:${phone.replace(/\s+/g, '')}`}
+        onClick={() => {
+          recordBookingIntent({
+            hotelId: hotel?.id,
+            buttonSource: 'mobile_call_button',
+          }).catch(() => {});
+        }}
         className="flex-1 py-2.5 px-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
       >
         <Phone className="w-3.5 h-3.5 text-stone-700" />
@@ -34,6 +41,12 @@ export const MobileStickyBar: React.FC<MobileStickyBarProps> = ({
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => {
+          recordBookingIntent({
+            hotelId: hotel?.id,
+            buttonSource: 'mobile_whatsapp_button',
+          }).catch(() => {});
+        }}
         className="flex-1 py-2.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
       >
         <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />

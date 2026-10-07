@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { BookingIntentSummary, BookingIntentLog } from '../../types';
 import { getBookingIntentSummary } from '../../services/bookingIntentService';
+import { getSupabase } from '../../lib/supabase';
 import { formatDate } from '../../lib/utils';
 
 interface BookingIntentWidgetProps {
@@ -45,9 +46,38 @@ export const BookingIntentWidget: React.FC<BookingIntentWidgetProps> = ({
 
   useEffect(() => {
     loadData();
-    // Auto-refresh every 45 seconds for live front desk updates
-    const interval = setInterval(loadData, 45000);
-    return () => clearInterval(interval);
+    // Auto-refresh every 20 seconds
+    const interval = setInterval(loadData, 20000);
+
+    // Listen for realtime intent inserts/updates in Supabase
+    let channel: any;
+    try {
+      const supabase = getSupabase();
+      if (supabase) {
+        channel = supabase
+          .channel('pms_realtime_booking_intents')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'booking_intent_logs' },
+            () => {
+              loadData();
+            }
+          )
+          .subscribe();
+      }
+    } catch (e) {
+      console.debug('[BookingIntentWidget] Realtime setup error:', e);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (channel) {
+        try {
+          const supabase = getSupabase();
+          if (supabase) supabase.removeChannel(channel);
+        } catch {}
+      }
+    };
   }, [hotelId]);
 
   const getSourceBadge = (source: string) => {
@@ -64,6 +94,12 @@ export const BookingIntentWidget: React.FC<BookingIntentWidgetProps> = ({
         return { label: 'SEO Landing Page', bg: 'bg-teal-100 text-teal-900 border-teal-200' };
       case 'offer_code':
         return { label: 'Promo / Offer Code', bg: 'bg-purple-100 text-purple-900 border-purple-200' };
+      case 'floating_whatsapp':
+        return { label: 'Floating WhatsApp', bg: 'bg-emerald-100 text-emerald-900 border-emerald-200' };
+      case 'mobile_whatsapp_button':
+        return { label: 'Mobile WhatsApp', bg: 'bg-emerald-100 text-emerald-900 border-emerald-200' };
+      case 'mobile_call_button':
+        return { label: 'Mobile Phone Call', bg: 'bg-stone-100 text-stone-800 border-stone-200' };
       default:
         return { label: source || 'Website CTA', bg: 'bg-stone-100 text-stone-700 border-stone-200' };
     }
