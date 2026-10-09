@@ -207,6 +207,8 @@ export const DEFAULT_BOOKING_ENGINE_CONFIG: BookingEngineConfig = {
   razorpay_key_id: '',
   razorpay_key_secret: '',
   payment_collection_mode: 'pay_at_hotel',
+  prepaid_discount_enabled: true,
+  prepaid_discount_percent: 5,
 };
 
 export function normalizeBookingEngineConfig(
@@ -220,6 +222,8 @@ export function normalizeBookingEngineConfig(
     ...raw,
     is_enabled: isLegacyBuiltin ? true : raw.is_enabled !== false,
     mode: isLegacyBuiltin ? 'yanolja_link_inbuilt' : raw.mode,
+    prepaid_discount_enabled: raw.prepaid_discount_enabled !== false,
+    prepaid_discount_percent: typeof raw.prepaid_discount_percent === 'number' ? raw.prepaid_discount_percent : 5,
     yanolja_booking_url:
       raw.yanolja_booking_url?.trim() || DEFAULT_BOOKING_ENGINE_CONFIG.yanolja_booking_url,
     yanolja_hotel_code:

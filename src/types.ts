@@ -79,6 +79,8 @@ export interface BookingEngineConfig {
   razorpay_key_id?: string;
   razorpay_key_secret?: string;
   payment_collection_mode?: 'pay_at_hotel' | 'both' | 'online_only';
+  prepaid_discount_enabled?: boolean;
+  prepaid_discount_percent?: number;
 }
 
 export interface HeroConfig {

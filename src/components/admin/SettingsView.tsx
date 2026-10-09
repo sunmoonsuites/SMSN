@@ -236,6 +236,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [paymentCollectionMode, setPaymentCollectionMode] = useState<
     'pay_at_hotel' | 'both' | 'online_only'
   >(initialEngine.payment_collection_mode || 'pay_at_hotel');
+  const [prepaidDiscountEnabled, setPrepaidDiscountEnabled] = useState<boolean>(
+    initialEngine.prepaid_discount_enabled !== false
+  );
+  const [prepaidDiscountPercent, setPrepaidDiscountPercent] = useState<number>(
+    typeof initialEngine.prepaid_discount_percent === 'number'
+      ? initialEngine.prepaid_discount_percent
+      : 5
+  );
   const [isTestingYanoljaLink, setIsTestingYanoljaLink] = useState(false);
   const [yanoljaLinkTestResult, setYanoljaLinkTestResult] = useState<{
     success: boolean;
@@ -378,6 +386,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setPaymentCollectionMode(
           hotel.booking_engine_config.payment_collection_mode || 'pay_at_hotel'
         );
+        setPrepaidDiscountEnabled(
+          hotel.booking_engine_config.prepaid_discount_enabled !== false
+        );
+        setPrepaidDiscountPercent(
+          typeof hotel.booking_engine_config.prepaid_discount_percent === 'number'
+            ? hotel.booking_engine_config.prepaid_discount_percent
+            : 5
+        );
       }
       if (hotel.email_verification_config) {
         setEmailVerificationEnabled(hotel.email_verification_config.is_enabled !== false);
@@ -455,6 +471,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         razorpay_key_id: razorpayKeyId.trim(),
         razorpay_key_secret: razorpayKeySecret.trim(),
         payment_collection_mode: paymentCollectionMode,
+        prepaid_discount_enabled: prepaidDiscountEnabled,
+        prepaid_discount_percent: prepaidDiscountPercent,
       },
       email_verification_config: {
         is_enabled: emailVerificationEnabled,
@@ -2471,6 +2489,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <option value="online_only">100% Online Payment Only (Razorpay)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* SECTION 2B: PREPAID ONLINE DISCOUNT CONFIGURATION */}
+              <div className="p-4 rounded-xl border border-emerald-300 bg-emerald-50/70 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-1.5 font-bold text-sm text-emerald-950">
+                      <Sparkles className="w-4 h-4 text-emerald-700" />
+                      <span>Prepaid Online Payment Instant Discount (OTA-Style Offer)</span>
+                    </div>
+                    <p className="text-xs text-emerald-800 mt-0.5">
+                      Show an exclusive highlighted offer card with strike-through regular price on checkout to motivate guests to pay online immediately.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={prepaidDiscountEnabled}
+                      onChange={(e) => setPrepaidDiscountEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-stone-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <span className="ml-2 text-xs font-bold text-stone-700">
+                      {prepaidDiscountEnabled ? 'Active' : 'Disabled'}
+                    </span>
+                  </label>
+                </div>
+
+                {prepaidDiscountEnabled && (
+                  <div className="pt-2 border-t border-emerald-200/80 flex flex-wrap items-center gap-4">
+                    <div className="w-44">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-emerald-900 mb-1">
+                        Prepaid Discount (%)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="1"
+                          max="50"
+                          step="1"
+                          value={prepaidDiscountPercent}
+                          onChange={(e) =>
+                            setPrepaidDiscountPercent(
+                              Math.max(1, Math.min(50, Number(e.target.value) || 5))
+                            )
+                          }
+                          className="w-full px-3 py-2 pr-8 border border-emerald-300 rounded-lg bg-white font-mono text-xs font-bold text-emerald-950"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-700">
+                          %
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-emerald-700 font-medium max-w-md pt-3">
+                      Guests who choose <strong>Pay Online</strong> receive an extra{' '}
+                      <strong>{prepaidDiscountPercent}% discount</strong>, while{' '}
+                      <strong>Pay at Hotel</strong> pays the standard rate.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -44,6 +44,8 @@ import {
   Sparkles,
   ShieldCheck,
   Lock,
+  Crown,
+  CreditCard,
 } from 'lucide-react';
 
 interface BookingFlowModalProps {
@@ -448,9 +450,44 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const roomTotal = selectedResult ? selectedResult.ratePerNight * nights : 0;
   const inauguralSavings = Math.max(0, originalRoomTotal - roomTotal);
   const discountTotal = !isOfferAlreadyApplied && appliedPromo ? appliedPromo.discount : 0;
-  const taxableTotal = Math.max(0, roomTotal - discountTotal);
-  const taxAmount = Math.round((taxableTotal * (taxableTotal > 7500 ? 18 : 12)) / 100);
-  const grandTotal = taxableTotal + taxAmount;
+
+  // Dynamic Prepaid Online Discount Configuration
+  const prepaidDiscountPercent =
+    typeof engineConfig?.prepaid_discount_percent === 'number' && engineConfig.prepaid_discount_percent > 0
+      ? engineConfig.prepaid_discount_percent
+      : 5;
+  const isPrepaidDiscountEligible = Boolean(
+    isRazorpayActive &&
+      engineConfig?.prepaid_discount_enabled !== false &&
+      paymentMode !== 'pay_at_hotel' &&
+      prepaidDiscountPercent > 0
+  );
+
+  // Standard (Pay at Hotel) totals
+  const standardTaxableTotal = Math.max(0, roomTotal - discountTotal);
+  const standardTaxAmount = Math.round(
+    (standardTaxableTotal * (standardTaxableTotal > 7500 ? 18 : 12)) / 100
+  );
+  const standardGrandTotal = standardTaxableTotal + standardTaxAmount;
+
+  // Prepaid (Pay Online) calculations
+  const prepaidDiscountAmount = isPrepaidDiscountEligible
+    ? Math.round((standardTaxableTotal * prepaidDiscountPercent) / 100)
+    : 0;
+  const onlineTaxableTotal = Math.max(0, standardTaxableTotal - prepaidDiscountAmount);
+  const onlineTaxAmount = Math.round(
+    (onlineTaxableTotal * (onlineTaxableTotal > 7500 ? 18 : 12)) / 100
+  );
+  const onlineGrandTotal = onlineTaxableTotal + onlineTaxAmount;
+
+  // Current active totals based on selected payment method
+  const isPrepaidSelected =
+    isRazorpayActive && selectedPaymentMethod === 'razorpay' && isPrepaidDiscountEligible;
+  const activePrepaidDiscount = isPrepaidSelected ? prepaidDiscountAmount : 0;
+  const effectiveDiscountTotal = discountTotal + activePrepaidDiscount;
+  const taxableTotal = isPrepaidSelected ? onlineTaxableTotal : standardTaxableTotal;
+  const taxAmount = isPrepaidSelected ? onlineTaxAmount : standardTaxAmount;
+  const grandTotal = isPrepaidSelected ? onlineGrandTotal : standardGrandTotal;
 
   const finalizeBookingRecord = async (paymentRef?: string) => {
     if (!hotel?.id || !selectedResult) return;
@@ -473,7 +510,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       ratePerNight: selectedResult.ratePerNight,
       source: 'Website',
       promoCode: !isOfferAlreadyApplied ? appliedPromo?.code : undefined,
-      discountAmount: discountTotal,
+      discountAmount: effectiveDiscountTotal,
       specialRequests: specialRequests.trim() || undefined,
       paymentStatus: paymentRef ? 'Paid' : 'Pending',
       paidAmount: paymentRef ? grandTotal : 0,
@@ -1259,6 +1296,15 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     <span>- {formatINR(discountTotal)}</span>
                   </div>
                 )}
+                {isPrepaidSelected && prepaidDiscountAmount > 0 && (
+                  <div className="flex justify-between items-center text-emerald-800 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+                    <span className="flex items-center gap-1">
+                      <Crown className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Prepaid Online Savings ({prepaidDiscountPercent}%)</span>
+                    </span>
+                    <span>- {formatINR(prepaidDiscountAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Taxes (GST)</span>
                   <span>{formatINR(taxAmount)}</span>
@@ -1286,55 +1332,136 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
             {/* Payment & Guarantee Mode */}
             {isRazorpayActive && paymentMode !== 'pay_at_hotel' ? (
-              <div className="space-y-2.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
-                  Select Payment Method
-                </label>
-                <div
-                  className={`grid grid-cols-1 ${
-                    paymentMode === 'both' ? 'sm:grid-cols-2' : ''
-                  } gap-3 text-xs`}
-                >
-                  <button
-                    type="button"
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                    Choose Your Preferred Payment Plan
+                  </label>
+                  {isPrepaidDiscountEligible && (
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-emerald-700" />
+                      Save {prepaidDiscountPercent}% Online
+                    </span>
+                  )}
+                </div>
+
+                {/* COMPARISON CARDS (EXACT MATCH TO USER SCREENSHOT) */}
+                <div className="space-y-3">
+                  {/* CARD 1: EXCLUSIVE PREPAID OFFER */}
+                  <div
                     onClick={() => setSelectedPaymentMethod('razorpay')}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`rounded-2xl border-2 p-4 transition-all cursor-pointer relative ${
                       selectedPaymentMethod === 'razorpay'
-                        ? 'border-amber-700 bg-amber-50/90 ring-2 ring-amber-600/20 text-amber-950'
-                        : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'
+                        ? 'border-emerald-600 bg-emerald-50/60 shadow-md ring-2 ring-emerald-600/20'
+                        : 'border-emerald-300 bg-emerald-50/20 hover:border-emerald-500'
                     }`}
                   >
-                    <div className="font-bold flex items-center justify-between">
-                      <span>Pay Online Now (Razorpay)</span>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px] font-extrabold uppercase">
-                        Instant Paid
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                        <Crown className="w-4 h-4 text-emerald-600" />
+                        <span>Exclusive Offer</span>
+                      </div>
+                      {isPrepaidDiscountEligible && (
+                        <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-extrabold rounded-md border border-emerald-300">
+                          {prepaidDiscountPercent}% Off
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-baseline gap-2">
+                      {isPrepaidDiscountEligible && (
+                        <span className="text-stone-400 line-through text-xs font-mono">
+                          {formatINR(standardTaxableTotal)}
+                        </span>
+                      )}
+                      <span className="text-2xl sm:text-3xl font-extrabold text-emerald-700 font-mono">
+                        {formatINR(onlineTaxableTotal)}
                       </span>
                     </div>
-                    <p className="text-[11px] text-stone-600 mt-1">
-                      Pay securely on this website via UPI (GPay, PhonePe, Paytm), Credit/Debit Card, or NetBanking.
+
+                    <p className="text-[11px] text-stone-500 mt-0.5">
+                      + {formatINR(onlineTaxAmount)} Taxes &amp; fees (12% GST)
                     </p>
-                  </button>
+
+                    <div className="pt-3 mt-3 border-t border-emerald-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="text-[11px] text-stone-600 flex items-center gap-1">
+                        <CreditCard className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Instant UPI (GPay/PhonePe), Cards, NetBanking</span>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 shrink-0 ${
+                          selectedPaymentMethod === 'razorpay'
+                            ? 'bg-emerald-700 text-white shadow-xs'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
+                        <Tag className="w-3.5 h-3.5" />
+                        <span>
+                          {selectedPaymentMethod === 'razorpay'
+                            ? '✓ Selected • Pay Online'
+                            : `Get Offer (${formatINR(onlineGrandTotal)})`}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
 
                   {paymentMode === 'both' && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPaymentMethod('pay_at_hotel')}
-                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                        selectedPaymentMethod === 'pay_at_hotel'
-                          ? 'border-amber-700 bg-amber-50/90 ring-2 ring-amber-600/20 text-amber-950'
-                          : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'
-                      }`}
-                    >
-                      <div className="font-bold flex items-center justify-between">
-                        <span>Pay on Arrival at Hotel</span>
-                        <span className="px-2 py-0.5 bg-stone-200 text-stone-700 rounded text-[10px] font-bold uppercase">
-                          Reception
-                        </span>
+                    <>
+                      {/* DIVIDER: OR */}
+                      <div className="relative py-1">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-stone-200"></div>
+                        </div>
+                        <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest text-stone-400">
+                          <span className="bg-white px-3 border border-stone-200 rounded-full">OR</span>
+                        </div>
                       </div>
-                      <p className="text-[11px] text-stone-600 mt-1">
-                        Reserve your room now and pay upon check-in via Cash, UPI, or Card at the front desk.
-                      </p>
-                    </button>
+
+                      {/* CARD 2: STANDARD RATE - PAY AT HOTEL */}
+                      <div
+                        onClick={() => setSelectedPaymentMethod('pay_at_hotel')}
+                        className={`rounded-2xl border p-4 transition-all cursor-pointer ${
+                          selectedPaymentMethod === 'pay_at_hotel'
+                            ? 'border-amber-700 bg-amber-50/70 ring-2 ring-amber-600/20 shadow-xs'
+                            : 'border-stone-200 bg-white hover:border-stone-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-xs font-semibold text-stone-700">Standard Rate</span>
+                          <span className="px-2 py-0.5 bg-stone-100 text-stone-600 text-[10px] font-bold rounded uppercase">
+                            Pay at Hotel
+                          </span>
+                        </div>
+
+                        <div className="text-xl sm:text-2xl font-bold text-stone-900 font-mono">
+                          {formatINR(standardTaxableTotal)}
+                        </div>
+
+                        <p className="text-[11px] text-stone-500 mt-0.5">
+                          Total for 1 Room &bull; {nights} {nights === 1 ? 'Night' : 'Nights'} (+{' '}
+                          {formatINR(standardTaxAmount)} Taxes &amp; fees)
+                        </p>
+
+                        <div className="pt-3 mt-3 border-t border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <span className="text-[11px] text-stone-500">
+                            Pay upon check-in at front desk via Cash, UPI, or Card
+                          </span>
+                          <span
+                            className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 shrink-0 ${
+                              selectedPaymentMethod === 'pay_at_hotel'
+                                ? 'bg-amber-800 text-white shadow-xs'
+                                : 'bg-stone-100 text-stone-700 border border-stone-300'
+                            }`}
+                          >
+                            <span>
+                              {selectedPaymentMethod === 'pay_at_hotel'
+                                ? '✓ Selected • Pay at Hotel'
+                                : `Select Room (${formatINR(standardGrandTotal)})`}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
