@@ -209,6 +209,9 @@ export const DEFAULT_BOOKING_ENGINE_CONFIG: BookingEngineConfig = {
   payment_collection_mode: 'pay_at_hotel',
   prepaid_discount_enabled: true,
   prepaid_discount_percent: 5,
+  gst_rate_below_7500: 5,
+  gst_rate_above_7500: 18,
+  gst_threshold_amount: 7500,
 };
 
 export function normalizeBookingEngineConfig(
@@ -224,6 +227,9 @@ export function normalizeBookingEngineConfig(
     mode: isLegacyBuiltin ? 'yanolja_link_inbuilt' : raw.mode,
     prepaid_discount_enabled: raw.prepaid_discount_enabled !== false,
     prepaid_discount_percent: typeof raw.prepaid_discount_percent === 'number' ? raw.prepaid_discount_percent : 5,
+    gst_rate_below_7500: typeof raw.gst_rate_below_7500 === 'number' ? raw.gst_rate_below_7500 : 5,
+    gst_rate_above_7500: typeof raw.gst_rate_above_7500 === 'number' ? raw.gst_rate_above_7500 : 18,
+    gst_threshold_amount: typeof raw.gst_threshold_amount === 'number' ? raw.gst_threshold_amount : 7500,
     yanolja_booking_url:
       raw.yanolja_booking_url?.trim() || DEFAULT_BOOKING_ENGINE_CONFIG.yanolja_booking_url,
     yanolja_hotel_code:
@@ -387,7 +393,7 @@ export const DEFAULT_SETTINGS: Partial<HotelSettings> = {
     allow_same_day_booking: true,
     advance_booking_days: 180,
     child_age_free_limit: 5,
-    gst_rate_below_7500: 12.0,
+    gst_rate_below_7500: 5.0,
     gst_rate_above_7500: 18.0,
   },
   cancellation_policy: DEFAULT_HOTEL_INFO.cancellation_policy || '',

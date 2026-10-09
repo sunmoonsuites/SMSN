@@ -81,6 +81,9 @@ export interface BookingEngineConfig {
   payment_collection_mode?: 'pay_at_hotel' | 'both' | 'online_only';
   prepaid_discount_enabled?: boolean;
   prepaid_discount_percent?: number;
+  gst_rate_below_7500?: number;
+  gst_rate_above_7500?: number;
+  gst_threshold_amount?: number;
 }
 
 export interface HeroConfig {

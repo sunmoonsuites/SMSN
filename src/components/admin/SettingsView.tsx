@@ -244,6 +244,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       ? initialEngine.prepaid_discount_percent
       : 5
   );
+  const [gstRateBelow7500, setGstRateBelow7500] = useState<number>(
+    typeof initialEngine.gst_rate_below_7500 === 'number'
+      ? initialEngine.gst_rate_below_7500
+      : (typeof hotel?.booking_rules?.gst_rate_below_7500 === 'number'
+          ? hotel.booking_rules.gst_rate_below_7500
+          : 5)
+  );
+  const [gstRateAbove7500, setGstRateAbove7500] = useState<number>(
+    typeof initialEngine.gst_rate_above_7500 === 'number'
+      ? initialEngine.gst_rate_above_7500
+      : (typeof hotel?.booking_rules?.gst_rate_above_7500 === 'number'
+          ? hotel.booking_rules.gst_rate_above_7500
+          : 18)
+  );
+  const [gstThresholdAmount, setGstThresholdAmount] = useState<number>(
+    typeof initialEngine.gst_threshold_amount === 'number'
+      ? initialEngine.gst_threshold_amount
+      : 7500
+  );
   const [isTestingYanoljaLink, setIsTestingYanoljaLink] = useState(false);
   const [yanoljaLinkTestResult, setYanoljaLinkTestResult] = useState<{
     success: boolean;
@@ -394,6 +413,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             ? hotel.booking_engine_config.prepaid_discount_percent
             : 5
         );
+        setGstRateBelow7500(
+          typeof hotel.booking_engine_config.gst_rate_below_7500 === 'number'
+            ? hotel.booking_engine_config.gst_rate_below_7500
+            : (typeof hotel?.booking_rules?.gst_rate_below_7500 === 'number'
+                ? hotel.booking_rules.gst_rate_below_7500
+                : 5)
+        );
+        setGstRateAbove7500(
+          typeof hotel.booking_engine_config.gst_rate_above_7500 === 'number'
+            ? hotel.booking_engine_config.gst_rate_above_7500
+            : (typeof hotel?.booking_rules?.gst_rate_above_7500 === 'number'
+                ? hotel.booking_rules.gst_rate_above_7500
+                : 18)
+        );
+        setGstThresholdAmount(
+          typeof hotel.booking_engine_config.gst_threshold_amount === 'number'
+            ? hotel.booking_engine_config.gst_threshold_amount
+            : 7500
+        );
       }
       if (hotel.email_verification_config) {
         setEmailVerificationEnabled(hotel.email_verification_config.is_enabled !== false);
@@ -473,6 +511,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         payment_collection_mode: paymentCollectionMode,
         prepaid_discount_enabled: prepaidDiscountEnabled,
         prepaid_discount_percent: prepaidDiscountPercent,
+        gst_rate_below_7500: gstRateBelow7500,
+        gst_rate_above_7500: gstRateAbove7500,
+        gst_threshold_amount: gstThresholdAmount,
+      },
+      booking_rules: {
+        ...(hotel.booking_rules || {}),
+        gst_rate_below_7500: gstRateBelow7500,
+        gst_rate_above_7500: gstRateAbove7500,
       },
       email_verification_config: {
         is_enabled: emailVerificationEnabled,
@@ -2549,6 +2595,101 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* SECTION 2C: DYNAMIC GST TAX SLABS */}
+              <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-3">
+                <div>
+                  <div className="flex items-center gap-1.5 font-bold text-sm text-indigo-950">
+                    <Tag className="w-4 h-4 text-indigo-700" />
+                    <span>Dynamic GST Tax Slabs &amp; Pricing Rules</span>
+                  </div>
+                  <p className="text-xs text-indigo-800 mt-0.5">
+                    Configure official GST tax percentages applied during guest checkout, invoicing, and billing dynamically.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-indigo-200/80">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-indigo-950 mb-1">
+                      GST Rate (Price Upto ₹{gstThresholdAmount.toLocaleString('en-IN')})
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="28"
+                        step="0.5"
+                        value={gstRateBelow7500}
+                        onChange={(e) =>
+                          setGstRateBelow7500(Math.max(0, Math.min(28, Number(e.target.value) || 0)))
+                        }
+                        className="w-full px-3 py-2 pr-8 border border-indigo-300 rounded-lg bg-white font-mono text-xs font-bold text-indigo-950"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-700">
+                        %
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-indigo-600 mt-1">Default: 5% (Budget / Mid-range)</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-indigo-950 mb-1">
+                      GST Rate (Price Above ₹{gstThresholdAmount.toLocaleString('en-IN')})
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="28"
+                        step="0.5"
+                        value={gstRateAbove7500}
+                        onChange={(e) =>
+                          setGstRateAbove7500(Math.max(0, Math.min(28, Number(e.target.value) || 0)))
+                        }
+                        className="w-full px-3 py-2 pr-8 border border-indigo-300 rounded-lg bg-white font-mono text-xs font-bold text-indigo-950"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-700">
+                        %
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-indigo-600 mt-1">Default: 18% (Luxury / Suites)</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-indigo-950 mb-1">
+                      Slab Threshold Cut-Off (₹)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-700">
+                        ₹
+                      </span>
+                      <input
+                        type="number"
+                        min="1000"
+                        max="20000"
+                        step="100"
+                        value={gstThresholdAmount}
+                        onChange={(e) =>
+                          setGstThresholdAmount(Math.max(1000, Number(e.target.value) || 7500))
+                        }
+                        className="w-full pl-7 pr-3 py-2 border border-indigo-300 rounded-lg bg-white font-mono text-xs font-bold text-indigo-950"
+                      />
+                    </div>
+                    <p className="text-[10px] text-indigo-600 mt-1">Government threshold: ₹7,500/night</p>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-white/80 border border-indigo-200 text-xs text-indigo-900 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0"></span>
+                  <span>
+                    <strong>Live Active Rule:</strong> Room price &le; ₹
+                    {gstThresholdAmount.toLocaleString('en-IN')} is charged{' '}
+                    <strong className="text-emerald-700">{gstRateBelow7500}% GST</strong>, and room price &gt;
+                    ₹{gstThresholdAmount.toLocaleString('en-IN')} is charged{' '}
+                    <strong className="text-indigo-800">{gstRateAbove7500}% GST</strong>.
+                  </span>
+                </div>
               </div>
             </div>
 

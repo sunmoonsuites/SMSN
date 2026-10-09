@@ -463,11 +463,28 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       prepaidDiscountPercent > 0
   );
 
+  // Dynamic GST Tax Configuration
+  const gstRateBelow =
+    typeof engineConfig?.gst_rate_below_7500 === 'number'
+      ? engineConfig.gst_rate_below_7500
+      : (typeof hotel?.booking_rules?.gst_rate_below_7500 === 'number'
+          ? hotel.booking_rules.gst_rate_below_7500
+          : 5);
+  const gstRateAbove =
+    typeof engineConfig?.gst_rate_above_7500 === 'number'
+      ? engineConfig.gst_rate_above_7500
+      : (typeof hotel?.booking_rules?.gst_rate_above_7500 === 'number'
+          ? hotel.booking_rules.gst_rate_above_7500
+          : 18);
+  const gstThreshold =
+    typeof engineConfig?.gst_threshold_amount === 'number'
+      ? engineConfig.gst_threshold_amount
+      : 7500;
+
   // Standard (Pay at Hotel) totals
   const standardTaxableTotal = Math.max(0, roomTotal - discountTotal);
-  const standardTaxAmount = Math.round(
-    (standardTaxableTotal * (standardTaxableTotal > 7500 ? 18 : 12)) / 100
-  );
+  const standardGstRate = standardTaxableTotal > gstThreshold ? gstRateAbove : gstRateBelow;
+  const standardTaxAmount = Math.round((standardTaxableTotal * standardGstRate) / 100);
   const standardGrandTotal = standardTaxableTotal + standardTaxAmount;
 
   // Prepaid (Pay Online) calculations
@@ -475,9 +492,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     ? Math.round((standardTaxableTotal * prepaidDiscountPercent) / 100)
     : 0;
   const onlineTaxableTotal = Math.max(0, standardTaxableTotal - prepaidDiscountAmount);
-  const onlineTaxAmount = Math.round(
-    (onlineTaxableTotal * (onlineTaxableTotal > 7500 ? 18 : 12)) / 100
-  );
+  const onlineGstRate = onlineTaxableTotal > gstThreshold ? gstRateAbove : gstRateBelow;
+  const onlineTaxAmount = Math.round((onlineTaxableTotal * onlineGstRate) / 100);
   const onlineGrandTotal = onlineTaxableTotal + onlineTaxAmount;
 
   // Current active totals based on selected payment method
@@ -486,6 +502,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const activePrepaidDiscount = isPrepaidSelected ? prepaidDiscountAmount : 0;
   const effectiveDiscountTotal = discountTotal + activePrepaidDiscount;
   const taxableTotal = isPrepaidSelected ? onlineTaxableTotal : standardTaxableTotal;
+  const activeGstRate = isPrepaidSelected ? onlineGstRate : standardGstRate;
   const taxAmount = isPrepaidSelected ? onlineTaxAmount : standardTaxAmount;
   const grandTotal = isPrepaidSelected ? onlineGrandTotal : standardGrandTotal;
 
@@ -1306,7 +1323,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span>Taxes (GST)</span>
+                  <span>Taxes ({activeGstRate}% GST)</span>
                   <span>{formatINR(taxAmount)}</span>
                 </div>
                 <div className="flex justify-between text-base font-bold text-stone-900 pt-2 border-t border-stone-200 font-serif">
@@ -1380,7 +1397,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     </div>
 
                     <p className="text-[11px] text-stone-500 mt-0.5">
-                      + {formatINR(onlineTaxAmount)} Taxes &amp; fees (12% GST)
+                      + {formatINR(onlineTaxAmount)} Taxes &amp; fees ({onlineGstRate}% GST)
                     </p>
 
                     <div className="pt-3 mt-3 border-t border-emerald-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1439,7 +1456,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
                         <p className="text-[11px] text-stone-500 mt-0.5">
                           Total for 1 Room &bull; {nights} {nights === 1 ? 'Night' : 'Nights'} (+{' '}
-                          {formatINR(standardTaxAmount)} Taxes &amp; fees)
+                          {formatINR(standardTaxAmount)} Taxes &amp; fees &bull; {standardGstRate}% GST)
                         </p>
 
                         <div className="pt-3 mt-3 border-t border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">

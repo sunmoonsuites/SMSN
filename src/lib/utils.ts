@@ -92,11 +92,16 @@ export function generateInvoiceNumber(): string {
   return `INV-${year}-${randomPart}`;
 }
 
-export function calculateGST(amount: number): { rate: number; tax: number; total: number } {
+export function calculateGST(
+  amount: number,
+  customBelow7500Rate = 5,
+  customAbove7500Rate = 18,
+  threshold = 7500
+): { rate: number; tax: number; total: number } {
   // Indian Hotel GST rules:
-  // Room tariff <= ₹7,500/night -> 12% GST
-  // Room tariff > ₹7,500/night -> 18% GST
-  const rate = amount > 7500 ? 18 : 12;
+  // Room tariff <= ₹7,500/night -> 5% GST (or dynamic setting)
+  // Room tariff > ₹7,500/night -> 18% GST (or dynamic setting)
+  const rate = amount > threshold ? customAbove7500Rate : customBelow7500Rate;
   const tax = Math.round((amount * rate) / 100);
   return {
     rate,
