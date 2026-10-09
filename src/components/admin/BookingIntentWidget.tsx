@@ -30,7 +30,7 @@ export const BookingIntentWidget: React.FC<BookingIntentWidgetProps> = ({
 }) => {
   const [summary, setSummary] = useState<BookingIntentSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [filterMode, setFilterMode] = useState<'all' | 'leads' | 'converted'>('all');
+  const [filterMode, setFilterMode] = useState<'contacts' | 'leads' | 'converted' | 'all'>('contacts');
 
   const loadData = async () => {
     setIsLoading(true);
@@ -119,9 +119,26 @@ export const BookingIntentWidget: React.FC<BookingIntentWidgetProps> = ({
     }
   };
 
-  const filteredIntents = (summary?.recentIntents || []).filter((item) => {
+  // Check if an intent record has real contact details
+  const hasContactInfo = (item: BookingIntentLog) => {
+    return Boolean(
+      (item.guest_phone && item.guest_phone.trim()) ||
+      (item.guest_email && item.guest_email.trim()) ||
+      (item.guest_name && item.guest_name.trim() && item.guest_name.toLowerCase() !== 'anonymous visitor')
+    );
+  };
+
+  const allRecent = summary?.recentIntents || [];
+  const contactsList = allRecent.filter(hasContactInfo);
+  const leadsList = allRecent.filter((item) => Boolean(item.guest_phone && item.guest_phone.trim()));
+  const convertedList = allRecent.filter((item) => Boolean(item.converted_to_booking));
+
+  const filteredIntents = allRecent.filter((item) => {
+    if (filterMode === 'contacts') {
+      return hasContactInfo(item);
+    }
     if (filterMode === 'leads') {
-      return Boolean(item.guest_phone || item.guest_name);
+      return Boolean(item.guest_phone && item.guest_phone.trim());
     }
     if (filterMode === 'converted') {
       return Boolean(item.converted_to_booking);
@@ -221,14 +238,14 @@ export const BookingIntentWidget: React.FC<BookingIntentWidgetProps> = ({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setFilterMode('all')}
-            className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
-              filterMode === 'all'
+            onClick={() => setFilterMode('contacts')}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${
+              filterMode === 'contacts'
                 ? 'bg-stone-900 text-white'
                 : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
             }`}
           >
-            All Clicks ({summary?.recentIntents?.length || 0})
+            <span>With Contact Info ({contactsList.length})</span>
           </button>
           <button
             type="button"
@@ -240,7 +257,7 @@ export const BookingIntentWidget: React.FC<BookingIntentWidgetProps> = ({
             }`}
           >
             <Sparkles className="w-3 h-3" />
-            <span>With Guest Phone (Follow-Up Leads)</span>
+            <span>With Guest Phone ({leadsList.length})</span>
           </button>
           <button
             type="button"
@@ -251,12 +268,26 @@ export const BookingIntentWidget: React.FC<BookingIntentWidgetProps> = ({
                 : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border border-emerald-200'
             }`}
           >
-            Confirmed Only
+            Confirmed Only ({convertedList.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterMode('all')}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+              filterMode === 'all'
+                ? 'bg-stone-700 text-white'
+                : 'text-stone-400 hover:text-stone-600 hover:bg-stone-100'
+            }`}
+            title="All interactions including anonymous clicks"
+          >
+            All Clicks ({allRecent.length})
           </button>
         </div>
 
         <span className="text-[11px] text-stone-400 hidden sm:inline">
-          Showing latest {filteredIntents.length} interactions
+          {filterMode === 'all'
+            ? `Showing all ${filteredIntents.length} interactions`
+            : `Showing ${filteredIntents.length} interactions with contact info`}
         </span>
       </div>
 
