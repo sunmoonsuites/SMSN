@@ -17,6 +17,7 @@ import {
   getCleanHotelWhatsApp,
   getTodayLocalDateStr,
   getNextDayLocalDateStr,
+  matchGSTRate,
 } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { attachGuestToLatestIntent, markLatestIntentConverted } from '../../services/bookingIntentService';
@@ -463,7 +464,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       prepaidDiscountPercent > 0
   );
 
-  // Dynamic GST Tax Configuration
+  // Dynamic GST Tax Configuration (Based strictly on Per Room Per Night tariff)
   const gstRateBelow =
     typeof engineConfig?.gst_rate_below_7500 === 'number'
       ? engineConfig.gst_rate_below_7500
@@ -480,10 +481,26 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     typeof engineConfig?.gst_threshold_amount === 'number'
       ? engineConfig.gst_threshold_amount
       : 7500;
+  const gstSlabs =
+    (Array.isArray(engineConfig?.gst_slabs) && engineConfig.gst_slabs.length > 0)
+      ? engineConfig.gst_slabs
+      : (Array.isArray(hotel?.booking_rules?.gst_slabs) && hotel.booking_rules.gst_slabs.length > 0)
+        ? hotel.booking_rules.gst_slabs
+        : undefined;
+
+  // Tariff Per Room Per Night (decides the official GST bracket)
+  const perRoomPerNightTariff =
+    selectedResult?.ratePerNight || (nights > 0 ? Math.round(roomTotal / nights) : roomTotal);
 
   // Standard (Pay at Hotel) totals
   const standardTaxableTotal = Math.max(0, roomTotal - discountTotal);
-  const standardGstRate = standardTaxableTotal > gstThreshold ? gstRateAbove : gstRateBelow;
+  const standardGstRate = matchGSTRate(
+    perRoomPerNightTariff,
+    gstSlabs,
+    gstRateBelow,
+    gstRateAbove,
+    gstThreshold
+  );
   const standardTaxAmount = Math.round((standardTaxableTotal * standardGstRate) / 100);
   const standardGrandTotal = standardTaxableTotal + standardTaxAmount;
 
@@ -492,7 +509,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     ? Math.round((standardTaxableTotal * prepaidDiscountPercent) / 100)
     : 0;
   const onlineTaxableTotal = Math.max(0, standardTaxableTotal - prepaidDiscountAmount);
-  const onlineGstRate = onlineTaxableTotal > gstThreshold ? gstRateAbove : gstRateBelow;
+  const onlinePerRoomPerNight = nights > 0 ? Math.round(onlineTaxableTotal / nights) : perRoomPerNightTariff;
+  const onlineGstRate = matchGSTRate(
+    onlinePerRoomPerNight,
+    gstSlabs,
+    gstRateBelow,
+    gstRateAbove,
+    gstThreshold
+  );
   const onlineTaxAmount = Math.round((onlineTaxableTotal * onlineGstRate) / 100);
   const onlineGrandTotal = onlineTaxableTotal + onlineTaxAmount;
 
@@ -762,7 +786,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                               <span className="text-xs font-normal text-stone-500"> / night</span>
                             </div>
                             <div className="text-[11px] text-stone-500">
-                              Total: {formatINR(result.total)} incl. GST
+                              Total: {formatINR(result.total)} (incl. {result.gstRate ?? 5}% GST)
                             </div>
                           </div>
 
@@ -1562,6 +1586,10 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <span className="text-stone-800">
                   {formatDate(checkOut)} (until {hotel?.check_out_time || '11:00'})
                 </span>
+              </div>
+              <div className="flex justify-between text-stone-600">
+                <span>Taxes &amp; Fees ({activeGstRate}% GST)</span>
+                <span>{formatINR(taxAmount)}</span>
               </div>
               <div className="flex justify-between font-bold text-stone-900 pt-2 border-t border-stone-200">
                 <span>Total Amount Payable</span>

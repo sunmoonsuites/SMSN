@@ -68,6 +68,16 @@ export interface EmailVerificationConfig {
   resend_api_key?: string;
 }
 
+export type GSTConditionType = 'upto' | 'below' | 'above';
+
+export interface GSTSlab {
+  id: string;
+  condition: GSTConditionType;
+  price: number;
+  rate: number;
+  label?: string;
+}
+
 export interface BookingEngineConfig {
   is_enabled?: boolean;
   mode?: 'builtin' | 'local_only' | 'yanolja_link_inbuilt' | 'yanolja_api' | 'yanolja_redirect';
@@ -81,6 +91,7 @@ export interface BookingEngineConfig {
   payment_collection_mode?: 'pay_at_hotel' | 'both' | 'online_only';
   prepaid_discount_enabled?: boolean;
   prepaid_discount_percent?: number;
+  gst_slabs?: GSTSlab[];
   gst_rate_below_7500?: number;
   gst_rate_above_7500?: number;
   gst_threshold_amount?: number;
@@ -136,16 +147,18 @@ export interface Hotel {
   privacy_policy?: string;
   social_links?: SocialLinks;
   faq_items?: FAQItem[];
+  booking_rules?: BookingRules;
 }
 
 export interface BookingRules {
-  min_stay_nights: number;
-  max_stay_nights: number;
-  allow_same_day_booking: boolean;
-  advance_booking_days: number;
-  child_age_free_limit: number;
-  gst_rate_below_7500: number;
-  gst_rate_above_7500: number;
+  min_stay_nights?: number;
+  max_stay_nights?: number;
+  allow_same_day_booking?: boolean;
+  advance_booking_days?: number;
+  child_age_free_limit?: number;
+  gst_slabs?: GSTSlab[];
+  gst_rate_below_7500?: number;
+  gst_rate_above_7500?: number;
 }
 
 export interface PaymentConfig {

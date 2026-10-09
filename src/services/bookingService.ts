@@ -22,6 +22,7 @@ export interface AvailabilityResult {
   subtotal: number;
   tax: number;
   total: number;
+  gstRate?: number;
   yanoljaRoomTypeUnkid?: string;
   yanoljaRoomRateUnkid?: string;
   yanoljaSynced?: boolean;
@@ -471,7 +472,14 @@ export async function checkRoomAvailability(
     const finalRate =
       !isInauguralActive && matchedYanolja?.rate ? matchedYanolja.rate : effectivePrice;
     const subtotal = finalRate * nights;
-    const { tax, total } = calculateGST(subtotal);
+    const { tax, total, rate } = calculateGST(
+      subtotal,
+      engineCfg.gst_rate_below_7500,
+      engineCfg.gst_rate_above_7500,
+      engineCfg.gst_threshold_amount,
+      engineCfg.gst_slabs,
+      finalRate
+    );
 
     results.push({
       categoryId: cat.id,
@@ -483,6 +491,7 @@ export async function checkRoomAvailability(
       subtotal,
       tax,
       total,
+      gstRate: rate,
       yanoljaRoomTypeUnkid: matchedYanolja?.roomTypeUnkid,
       yanoljaRoomRateUnkid: matchedYanolja?.roomRateUnkid,
       yanoljaSynced: Boolean(matchedYanolja?.synced),
@@ -635,7 +644,16 @@ export async function createBooking(
     const discount = isInauguralActive ? 0 : params.discountAmount || 0;
     const effectivePromoCode = isInauguralActive ? null : params.promoCode || null;
     const taxableAmount = Math.max(0, roomCharges - discount);
-    const { tax } = calculateGST(taxableAmount);
+    const localHotel = getStoredLocalConfig();
+    const engineCfg = normalizeBookingEngineConfig(localHotel?.booking_engine_config);
+    const { tax } = calculateGST(
+      taxableAmount,
+      engineCfg.gst_rate_below_7500,
+      engineCfg.gst_rate_above_7500,
+      engineCfg.gst_threshold_amount,
+      engineCfg.gst_slabs,
+      params.ratePerNight
+    );
     const totalAmount = taxableAmount + tax;
 
     // 1. Find or create guest record
@@ -749,7 +767,16 @@ export async function createBooking(
     const discount = isInauguralActive ? 0 : params.discountAmount || 0;
     const effectivePromoCode = isInauguralActive ? undefined : params.promoCode || undefined;
     const taxableAmount = Math.max(0, roomCharges - discount);
-    const { tax } = calculateGST(taxableAmount);
+    const localHotelFallback = getStoredLocalConfig();
+    const engineCfgFallback = normalizeBookingEngineConfig(localHotelFallback?.booking_engine_config);
+    const { tax } = calculateGST(
+      taxableAmount,
+      engineCfgFallback.gst_rate_below_7500,
+      engineCfgFallback.gst_rate_above_7500,
+      engineCfgFallback.gst_threshold_amount,
+      engineCfgFallback.gst_slabs,
+      params.ratePerNight
+    );
     const totalAmount = taxableAmount + tax;
     const bookingRef = generateBookingRef();
 

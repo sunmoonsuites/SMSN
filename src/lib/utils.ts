@@ -1,3 +1,5 @@
+import type { GSTSlab } from '../types';
+
 /**
  * Utility functions for Hotel Management System & Website
  */
@@ -92,16 +94,85 @@ export function generateInvoiceNumber(): string {
   return `INV-${year}-${randomPart}`;
 }
 
+export const DEFAULT_GST_SLABS: GSTSlab[] = [
+  { id: 'slab-1', condition: 'upto', price: 7500, rate: 5 },
+  { id: 'slab-2', condition: 'above', price: 7500, rate: 18 },
+];
+
+/**
+ * Matches the applicable GST tax percentage based on per-room-per-night tariff
+ * and configured custom dynamic slabs (Upto / Below / Above).
+ */
+export function matchGSTRate(
+  perRoomPerNightTariff: number,
+  slabs?: GSTSlab[],
+  fallbackBelowRate = 5,
+  fallbackAboveRate = 18,
+  fallbackThreshold = 7500
+): number {
+  if (Array.isArray(slabs) && slabs.length > 0) {
+    // Slabs with 'upto' or 'below' evaluated in ascending price order
+    const uptoOrBelowSlabs = slabs
+      .filter((s) => s && (s.condition === 'upto' || s.condition === 'below'))
+      .sort((a, b) => Number(a.price) - Number(b.price));
+
+    for (const slab of uptoOrBelowSlabs) {
+      const price = Number(slab.price) || 0;
+      const rate = Number(slab.rate) || 0;
+      if (slab.condition === 'upto' && perRoomPerNightTariff <= price) {
+        return rate;
+      }
+      if (slab.condition === 'below' && perRoomPerNightTariff < price) {
+        return rate;
+      }
+    }
+
+    // Slabs with 'above' evaluated in descending price order
+    const aboveSlabs = slabs
+      .filter((s) => s && s.condition === 'above')
+      .sort((a, b) => Number(b.price) - Number(a.price));
+
+    for (const slab of aboveSlabs) {
+      const price = Number(slab.price) || 0;
+      const rate = Number(slab.rate) || 0;
+      if (perRoomPerNightTariff > price) {
+        return rate;
+      }
+    }
+
+    // Fallback to last slab if defined
+    const lastSlab = slabs[slabs.length - 1];
+    if (lastSlab && typeof lastSlab.rate === 'number') {
+      return Number(lastSlab.rate);
+    }
+  }
+
+  // Standard fallback
+  return perRoomPerNightTariff > fallbackThreshold ? fallbackAboveRate : fallbackBelowRate;
+}
+
 export function calculateGST(
   amount: number,
   customBelow7500Rate = 5,
   customAbove7500Rate = 18,
-  threshold = 7500
+  threshold = 7500,
+  slabs?: GSTSlab[],
+  perRoomPerNightTariff?: number
 ): { rate: number; tax: number; total: number } {
-  // Indian Hotel GST rules:
-  // Room tariff <= ₹7,500/night -> 5% GST (or dynamic setting)
-  // Room tariff > ₹7,500/night -> 18% GST (or dynamic setting)
-  const rate = amount > threshold ? customAbove7500Rate : customBelow7500Rate;
+  // CRITICAL RULE: In hotel hospitality billing, GST rate is governed by Per-Room-Per-Night tariff,
+  // NOT by total booking amount (e.g. 10 rooms @ ₹1,500/night = ₹15,000 total, but 5% GST applies because ₹1,500 <= ₹7,500).
+  const tariffForSlab =
+    perRoomPerNightTariff !== undefined && perRoomPerNightTariff > 0
+      ? perRoomPerNightTariff
+      : amount;
+
+  const rate = matchGSTRate(
+    tariffForSlab,
+    slabs,
+    customBelow7500Rate,
+    customAbove7500Rate,
+    threshold
+  );
   const tax = Math.round((amount * rate) / 100);
   return {
     rate,

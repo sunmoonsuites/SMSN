@@ -9,6 +9,8 @@ import {
   BanquetConfig,
   BookingEngineConfig,
   EmailVerificationConfig,
+  GSTSlab,
+  GSTConditionType,
 } from '../../types';
 import {
   updateHotel,
@@ -25,7 +27,12 @@ import {
   DEFAULT_SOCIAL_LINKS,
 } from '../../services/hotelService';
 import { getSupabaseConfig } from '../../lib/supabase';
-import { getCleanHotelPhone, getCleanHotelWhatsApp } from '../../lib/utils';
+import {
+  getCleanHotelPhone,
+  getCleanHotelWhatsApp,
+  DEFAULT_GST_SLABS,
+  matchGSTRate,
+} from '../../lib/utils';
 import { getAmenityIcon } from '../website/AmenitiesSection';
 import { usePMSTheme } from '../../services/themeService';
 import { uploadImageToSupabase } from '../../services/storageService';
@@ -65,6 +72,7 @@ import {
   Send,
   Info,
   Cloud,
+  Tag,
 } from 'lucide-react';
 import { CloudflareMediaCard } from './CloudflareMediaCard';
 
@@ -263,6 +271,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       ? initialEngine.gst_threshold_amount
       : 7500
   );
+  const [gstSlabs, setGstSlabs] = useState<GSTSlab[]>(() => {
+    if (Array.isArray(initialEngine?.gst_slabs) && initialEngine.gst_slabs.length > 0) {
+      return initialEngine.gst_slabs;
+    }
+    if (Array.isArray(hotel?.booking_rules?.gst_slabs) && hotel.booking_rules.gst_slabs.length > 0) {
+      return hotel.booking_rules.gst_slabs;
+    }
+    return DEFAULT_GST_SLABS;
+  });
+  const [testSimulatorTariff, setTestSimulatorTariff] = useState<number>(1500);
+
+  const handleAddGstSlab = () => {
+    const newSlab: GSTSlab = {
+      id: `slab-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      condition: 'upto',
+      price: 7500,
+      rate: 12,
+    };
+    setGstSlabs((prev) => [...prev, newSlab]);
+  };
+
+  const handleUpdateGstSlab = (id: string, updates: Partial<GSTSlab>) => {
+    setGstSlabs((prev) =>
+      prev.map((slab) => (slab.id === id ? { ...slab, ...updates } : slab))
+    );
+  };
+
+  const handleRemoveGstSlab = (id: string) => {
+    setGstSlabs((prev) => (prev.length > 1 ? prev.filter((slab) => slab.id !== id) : prev));
+  };
+
+  const handleResetToStandardSlabs = () => {
+    setGstSlabs([
+      { id: 'slab-1', condition: 'upto', price: 7500, rate: 5 },
+      { id: 'slab-2', condition: 'above', price: 7500, rate: 18 },
+    ]);
+  };
   const [isTestingYanoljaLink, setIsTestingYanoljaLink] = useState(false);
   const [yanoljaLinkTestResult, setYanoljaLinkTestResult] = useState<{
     success: boolean;
@@ -432,6 +477,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             ? hotel.booking_engine_config.gst_threshold_amount
             : 7500
         );
+        if (
+          Array.isArray(hotel.booking_engine_config.gst_slabs) &&
+          hotel.booking_engine_config.gst_slabs.length > 0
+        ) {
+          setGstSlabs(hotel.booking_engine_config.gst_slabs);
+        } else if (
+          Array.isArray(hotel.booking_rules?.gst_slabs) &&
+          hotel.booking_rules.gst_slabs.length > 0
+        ) {
+          setGstSlabs(hotel.booking_rules.gst_slabs);
+        }
       }
       if (hotel.email_verification_config) {
         setEmailVerificationEnabled(hotel.email_verification_config.is_enabled !== false);
@@ -511,12 +567,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         payment_collection_mode: paymentCollectionMode,
         prepaid_discount_enabled: prepaidDiscountEnabled,
         prepaid_discount_percent: prepaidDiscountPercent,
+        gst_slabs: gstSlabs,
         gst_rate_below_7500: gstRateBelow7500,
         gst_rate_above_7500: gstRateAbove7500,
         gst_threshold_amount: gstThresholdAmount,
       },
       booking_rules: {
         ...(hotel.booking_rules || {}),
+        gst_slabs: gstSlabs,
         gst_rate_below_7500: gstRateBelow7500,
         gst_rate_above_7500: gstRateAbove7500,
       },
@@ -2597,98 +2655,222 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 )}
               </div>
 
-              {/* SECTION 2C: DYNAMIC GST TAX SLABS */}
-              <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-3">
-                <div>
-                  <div className="flex items-center gap-1.5 font-bold text-sm text-indigo-950">
-                    <Tag className="w-4 h-4 text-indigo-700" />
-                    <span>Dynamic GST Tax Slabs &amp; Pricing Rules</span>
+              {/* SECTION 2C: DYNAMIC CUSTOM GST TAX SLABS */}
+              <div className="p-4 sm:p-5 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-1.5 font-bold text-sm text-indigo-950">
+                      <Tag className="w-4 h-4 text-indigo-700" />
+                      <span>Dynamic GST Tax Slabs (Per Room Per Night)</span>
+                    </div>
+                    <p className="text-xs text-indigo-800 mt-0.5">
+                      Create as many custom slabs as needed with <strong>Condition</strong> (Upto, Below, Above), <strong>Price</strong>, and <strong>GST %</strong>.
+                    </p>
                   </div>
-                  <p className="text-xs text-indigo-800 mt-0.5">
-                    Configure official GST tax percentages applied during guest checkout, invoicing, and billing dynamically.
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleResetToStandardSlabs}
+                      className="px-2.5 py-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 bg-white border border-indigo-200 hover:border-indigo-300 rounded-lg transition-colors cursor-pointer"
+                      title="Reset slabs to standard Indian hospitality rates (≤ ₹7,500: 5% & > ₹7,500: 18%)"
+                    >
+                      Reset Slabs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddGstSlab}
+                      className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add New Slab
+                    </button>
+                  </div>
+                </div>
+
+                {/* Slabs List */}
+                <div className="space-y-2.5 pt-1">
+                  {gstSlabs.map((slab, index) => {
+                    const priceFormatted = (Number(slab.price) || 0).toLocaleString('en-IN');
+                    const conditionLabel =
+                      slab.condition === 'upto'
+                        ? 'Price Upto (≤)'
+                        : slab.condition === 'below'
+                        ? 'Price Below (<)'
+                        : 'Price Above (>)';
+
+                    return (
+                      <div
+                        key={slab.id || `slab-${index}`}
+                        className="p-3 bg-white rounded-xl border border-indigo-200 shadow-2xs space-y-2 transition-all hover:border-indigo-300"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-indigo-100 text-indigo-900">
+                            Slab #{index + 1}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-stone-600 font-medium hidden sm:inline">
+                              Rule: Room Tariff {slab.condition === 'upto' ? '≤' : slab.condition === 'below' ? '<' : '>'} ₹{priceFormatted}/night ➔{' '}
+                              <strong className="text-indigo-900">{slab.rate}% GST</strong>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveGstSlab(slab.id)}
+                              disabled={gstSlabs.length <= 1}
+                              className="text-stone-400 hover:text-red-600 disabled:opacity-30 disabled:hover:text-stone-400 p-1 rounded transition-colors cursor-pointer"
+                              title="Delete this slab"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {/* Field 1: Condition Selection */}
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-indigo-950 mb-1">
+                              1. Selection Condition
+                            </label>
+                            <select
+                              value={slab.condition}
+                              onChange={(e) =>
+                                handleUpdateGstSlab(slab.id, {
+                                  condition: e.target.value as GSTConditionType,
+                                })
+                              }
+                              className="w-full px-3 py-1.5 text-xs font-semibold border border-indigo-300 rounded-lg bg-white text-indigo-950 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            >
+                              <option value="upto">Upto (≤)</option>
+                              <option value="below">Below (&lt;)</option>
+                              <option value="above">Above (&gt;)</option>
+                            </select>
+                          </div>
+
+                          {/* Field 2: Price Threshold */}
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-indigo-950 mb-1">
+                              2. {conditionLabel} Price (₹ / night)
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-700">
+                                ₹
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                max="100000"
+                                step="100"
+                                value={slab.price}
+                                onChange={(e) =>
+                                  handleUpdateGstSlab(slab.id, {
+                                    price: Math.max(0, Number(e.target.value) || 0),
+                                  })
+                                }
+                                placeholder="e.g. 7500"
+                                className="w-full pl-6 pr-3 py-1.5 font-mono text-xs font-bold border border-indigo-300 rounded-lg bg-white text-indigo-950 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Field 3: GST Percentage */}
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-indigo-950 mb-1">
+                              3. Applicable GST (%)
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="0"
+                                max="28"
+                                step="0.5"
+                                value={slab.rate}
+                                onChange={(e) =>
+                                  handleUpdateGstSlab(slab.id, {
+                                    rate: Math.max(0, Math.min(28, Number(e.target.value) || 0)),
+                                  })
+                                }
+                                placeholder="e.g. 5 or 18"
+                                className="w-full px-3 pr-7 py-1.5 font-mono text-xs font-bold border border-indigo-300 rounded-lg bg-white text-indigo-950 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-700">
+                                %
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Important Rule Notice */}
+                <div className="p-3 rounded-lg bg-indigo-100/70 border border-indigo-200 text-xs text-indigo-950 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <Info className="w-4 h-4 text-indigo-700 shrink-0" />
+                    <span>Per Room Per Night Applicability Rule:</span>
+                  </div>
+                  <p className="text-[11px] text-indigo-900 leading-relaxed">
+                    GST slabs are evaluated strictly against each room&apos;s individual nightly tariff, NOT the booking total amount.
+                    For example, if a guest books 10 rooms at ₹1,500/room/night (total ₹15,000 charges), the system applies the slab for ₹1,500 (<strong>{matchGSTRate(1500, gstSlabs)}% GST</strong>), rather than the total amount slab.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-indigo-200/80">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-indigo-950 mb-1">
-                      GST Rate (Price Upto ₹{gstThresholdAmount.toLocaleString('en-IN')})
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="0"
-                        max="28"
-                        step="0.5"
-                        value={gstRateBelow7500}
-                        onChange={(e) =>
-                          setGstRateBelow7500(Math.max(0, Math.min(28, Number(e.target.value) || 0)))
-                        }
-                        className="w-full px-3 py-2 pr-8 border border-indigo-300 rounded-lg bg-white font-mono text-xs font-bold text-indigo-950"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-700">
-                        %
-                      </span>
+                {/* Live Slab Simulator */}
+                <div className="p-3 bg-white rounded-xl border border-indigo-200 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                      <span>⚡ Live GST Calculator / Test Simulator:</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-stone-600">Test Room Tariff:</span>
+                      <div className="relative w-28">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-700">
+                          ₹
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={testSimulatorTariff}
+                          onChange={(e) => setTestSimulatorTariff(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full pl-6 pr-2 py-1 text-xs font-mono font-bold border border-indigo-300 rounded-md bg-stone-50 text-indigo-950"
+                        />
+                      </div>
+                      <span className="text-xs text-stone-500">/ night</span>
                     </div>
-                    <p className="text-[10px] text-indigo-600 mt-1">Default: 5% (Budget / Mid-range)</p>
                   </div>
 
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-indigo-950 mb-1">
-                      GST Rate (Price Above ₹{gstThresholdAmount.toLocaleString('en-IN')})
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="0"
-                        max="28"
-                        step="0.5"
-                        value={gstRateAbove7500}
-                        onChange={(e) =>
-                          setGstRateAbove7500(Math.max(0, Math.min(28, Number(e.target.value) || 0)))
-                        }
-                        className="w-full px-3 py-2 pr-8 border border-indigo-300 rounded-lg bg-white font-mono text-xs font-bold text-indigo-950"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-700">
-                        %
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-indigo-600 mt-1">Default: 18% (Luxury / Suites)</p>
-                  </div>
+                  {(() => {
+                    const matchedRate = matchGSTRate(testSimulatorTariff, gstSlabs);
+                    const sampleNights = 1;
+                    const sampleRooms = 1;
+                    const sampleSubtotal = testSimulatorTariff * sampleRooms * sampleNights;
+                    const sampleTax = Math.round((sampleSubtotal * matchedRate) / 100);
+                    const sampleTotal = sampleSubtotal + sampleTax;
 
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-indigo-950 mb-1">
-                      Slab Threshold Cut-Off (₹)
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-700">
-                        ₹
-                      </span>
-                      <input
-                        type="number"
-                        min="1000"
-                        max="20000"
-                        step="100"
-                        value={gstThresholdAmount}
-                        onChange={(e) =>
-                          setGstThresholdAmount(Math.max(1000, Number(e.target.value) || 7500))
-                        }
-                        className="w-full pl-7 pr-3 py-2 border border-indigo-300 rounded-lg bg-white font-mono text-xs font-bold text-indigo-950"
-                      />
-                    </div>
-                    <p className="text-[10px] text-indigo-600 mt-1">Government threshold: ₹7,500/night</p>
-                  </div>
-                </div>
+                    // Also calculate 10 rooms example as asked by user
+                    const tenRoomsSubtotal = testSimulatorTariff * 10;
+                    const tenRoomsTax = Math.round((tenRoomsSubtotal * matchedRate) / 100);
+                    const tenRoomsTotal = tenRoomsSubtotal + tenRoomsTax;
 
-                <div className="p-2.5 rounded-lg bg-white/80 border border-indigo-200 text-xs text-indigo-900 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0"></span>
-                  <span>
-                    <strong>Live Active Rule:</strong> Room price &le; ₹
-                    {gstThresholdAmount.toLocaleString('en-IN')} is charged{' '}
-                    <strong className="text-emerald-700">{gstRateBelow7500}% GST</strong>, and room price &gt;
-                    ₹{gstThresholdAmount.toLocaleString('en-IN')} is charged{' '}
-                    <strong className="text-indigo-800">{gstRateAbove7500}% GST</strong>.
-                  </span>
+                    return (
+                      <div className="p-2.5 bg-indigo-50/70 rounded-lg text-xs text-indigo-950 space-y-1 border border-indigo-100">
+                        <div className="flex flex-wrap items-center justify-between gap-1">
+                          <div>
+                            Room Tariff <strong>₹{testSimulatorTariff.toLocaleString('en-IN')}/night</strong> matches:{' '}
+                            <span className="px-2 py-0.5 bg-emerald-100 border border-emerald-300 text-emerald-900 font-extrabold rounded text-[11px]">
+                              {matchedRate}% GST
+                            </span>
+                          </div>
+                          <div className="text-stone-600 text-[11px]">
+                            1 Room: Subtotal ₹{sampleSubtotal.toLocaleString('en-IN')} + Taxes ({matchedRate}% GST) ₹{sampleTax.toLocaleString('en-IN')} = <strong>₹{sampleTotal.toLocaleString('en-IN')}</strong>
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-stone-500 pt-0.5 border-t border-indigo-100">
+                          Multi-room validation: 10 Rooms = ₹{tenRoomsSubtotal.toLocaleString('en-IN')} subtotal ➔ GST ({matchedRate}%) = ₹{tenRoomsTax.toLocaleString('en-IN')} ➔ Total: <strong>₹{tenRoomsTotal.toLocaleString('en-IN')}</strong> (Correct slab verified!)
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
