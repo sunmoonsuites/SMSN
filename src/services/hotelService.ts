@@ -10,6 +10,7 @@ import {
   InauguralOfferConfig,
   EmailVerificationConfig,
   BookingEngineConfig,
+  BookingRules,
   GSTSlab,
   RoomCategory,
   SocialLinks,
@@ -217,27 +218,55 @@ export const DEFAULT_BOOKING_ENGINE_CONFIG: BookingEngineConfig = {
 };
 
 export function normalizeBookingEngineConfig(
-  raw?: Partial<BookingEngineConfig> | null
+  raw?: Partial<BookingEngineConfig> | null,
+  fallbackRules?: Partial<BookingRules> | null,
+  fallbackConfig?: Partial<BookingEngineConfig> | null
 ): BookingEngineConfig {
-  if (!raw) return { ...DEFAULT_BOOKING_ENGINE_CONFIG };
+  if (!raw && !fallbackRules && !fallbackConfig) return { ...DEFAULT_BOOKING_ENGINE_CONFIG };
   // Upgrade legacy 'builtin' default from earlier configuration to 'yanolja_link_inbuilt'
-  const isLegacyBuiltin = !raw.mode || raw.mode === 'builtin';
-  const rawSlabs = Array.isArray(raw.gst_slabs) && raw.gst_slabs.length > 0 ? raw.gst_slabs : DEFAULT_GST_SLABS;
+  const isLegacyBuiltin = !raw?.mode || raw.mode === 'builtin';
+
+  let rawSlabs = DEFAULT_GST_SLABS;
+  if (Array.isArray(raw?.gst_slabs) && raw.gst_slabs.length > 0) {
+    rawSlabs = raw.gst_slabs;
+  } else if (Array.isArray(fallbackConfig?.gst_slabs) && fallbackConfig.gst_slabs.length > 0) {
+    rawSlabs = fallbackConfig.gst_slabs;
+  } else if (Array.isArray(fallbackRules?.gst_slabs) && fallbackRules.gst_slabs.length > 0) {
+    rawSlabs = fallbackRules.gst_slabs;
+  }
+
   return {
     ...DEFAULT_BOOKING_ENGINE_CONFIG,
-    ...raw,
-    is_enabled: isLegacyBuiltin ? true : raw.is_enabled !== false,
-    mode: isLegacyBuiltin ? 'yanolja_link_inbuilt' : raw.mode,
-    prepaid_discount_enabled: raw.prepaid_discount_enabled !== false,
-    prepaid_discount_percent: typeof raw.prepaid_discount_percent === 'number' ? raw.prepaid_discount_percent : 5,
+    ...(fallbackConfig || {}),
+    ...(raw || {}),
+    is_enabled: isLegacyBuiltin ? true : raw?.is_enabled !== false,
+    mode: isLegacyBuiltin ? 'yanolja_link_inbuilt' : (raw?.mode || 'yanolja_link_inbuilt'),
+    prepaid_discount_enabled: raw?.prepaid_discount_enabled !== false,
+    prepaid_discount_percent:
+      typeof raw?.prepaid_discount_percent === 'number'
+        ? raw.prepaid_discount_percent
+        : (typeof fallbackConfig?.prepaid_discount_percent === 'number' ? fallbackConfig.prepaid_discount_percent : 5),
     gst_slabs: rawSlabs,
-    gst_rate_below_7500: typeof raw.gst_rate_below_7500 === 'number' ? raw.gst_rate_below_7500 : 5,
-    gst_rate_above_7500: typeof raw.gst_rate_above_7500 === 'number' ? raw.gst_rate_above_7500 : 18,
-    gst_threshold_amount: typeof raw.gst_threshold_amount === 'number' ? raw.gst_threshold_amount : 7500,
+    gst_rate_below_7500:
+      typeof raw?.gst_rate_below_7500 === 'number'
+        ? raw.gst_rate_below_7500
+        : (typeof fallbackConfig?.gst_rate_below_7500 === 'number' ? fallbackConfig.gst_rate_below_7500 : 5),
+    gst_rate_above_7500:
+      typeof raw?.gst_rate_above_7500 === 'number'
+        ? raw.gst_rate_above_7500
+        : (typeof fallbackConfig?.gst_rate_above_7500 === 'number' ? fallbackConfig.gst_rate_above_7500 : 18),
+    gst_threshold_amount:
+      typeof raw?.gst_threshold_amount === 'number'
+        ? raw.gst_threshold_amount
+        : (typeof fallbackConfig?.gst_threshold_amount === 'number' ? fallbackConfig.gst_threshold_amount : 7500),
     yanolja_booking_url:
-      raw.yanolja_booking_url?.trim() || DEFAULT_BOOKING_ENGINE_CONFIG.yanolja_booking_url,
+      raw?.yanolja_booking_url?.trim() ||
+      fallbackConfig?.yanolja_booking_url?.trim() ||
+      DEFAULT_BOOKING_ENGINE_CONFIG.yanolja_booking_url,
     yanolja_hotel_code:
-      raw.yanolja_hotel_code?.trim() || DEFAULT_BOOKING_ENGINE_CONFIG.yanolja_hotel_code,
+      raw?.yanolja_hotel_code?.trim() ||
+      fallbackConfig?.yanolja_hotel_code?.trim() ||
+      DEFAULT_BOOKING_ENGINE_CONFIG.yanolja_hotel_code,
   };
 }
 
@@ -482,6 +511,9 @@ function encodeCmsPayloadForHotelsTable(config: Partial<Hotel>): string {
     email_verification_config:
       config.email_verification_config || DEFAULT_EMAIL_VERIFICATION_CONFIG,
     booking_engine_config: config.booking_engine_config || DEFAULT_BOOKING_ENGINE_CONFIG,
+    booking_rules: config.booking_rules || (config as any)?.booking_rules || {
+      gst_slabs: config.booking_engine_config?.gst_slabs,
+    },
     cancellation_policy:
       config.cancellation_policy || DEFAULT_HOTEL_INFO.cancellation_policy || '',
     terms_and_conditions:
@@ -841,10 +873,24 @@ export async function getHotel(): Promise<Hotel | null> {
             localConfig.email_verification_config
         ),
         booking_engine_config: normalizeBookingEngineConfig(
-          cmsFromHotelsTable.booking_engine_config ||
-            rawSettingsSocial.booking_engine_config ||
-            localConfig.booking_engine_config
+          cmsFromHotelsTable.booking_engine_config || rawSettingsSocial.booking_engine_config,
+          localConfig.booking_rules || (cmsFromHotelsTable as any)?.booking_rules,
+          localConfig.booking_engine_config
         ),
+        booking_rules: {
+          ...(localConfig.booking_rules || {}),
+          ...((cmsFromHotelsTable as any)?.booking_rules || {}),
+          gst_slabs:
+            (Array.isArray((cmsFromHotelsTable as any)?.booking_rules?.gst_slabs) && (cmsFromHotelsTable as any).booking_rules.gst_slabs.length > 0)
+              ? (cmsFromHotelsTable as any).booking_rules.gst_slabs
+              : (Array.isArray(cmsFromHotelsTable?.booking_engine_config?.gst_slabs) && cmsFromHotelsTable.booking_engine_config.gst_slabs.length > 0)
+                ? cmsFromHotelsTable.booking_engine_config.gst_slabs
+                : (Array.isArray(localConfig?.booking_rules?.gst_slabs) && localConfig.booking_rules.gst_slabs.length > 0)
+                  ? localConfig.booking_rules.gst_slabs
+                  : (Array.isArray(localConfig?.booking_engine_config?.gst_slabs) && localConfig.booking_engine_config.gst_slabs.length > 0)
+                    ? localConfig.booking_engine_config.gst_slabs
+                    : DEFAULT_GST_SLABS,
+        },
         social_links: {
           ...DEFAULT_SOCIAL_LINKS,
           ...(cmsFromHotelsTable.social_links || {}),

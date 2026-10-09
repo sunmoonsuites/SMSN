@@ -339,7 +339,10 @@ export async function checkRoomAvailability(
 
   // Optional Yanolja / eZee Live Availability Sync (Inbuilt letsbook.me Link or REST API)
   const localHotel = getStoredLocalConfig();
-  const engineCfg = normalizeBookingEngineConfig(localHotel?.booking_engine_config);
+  const engineCfg = normalizeBookingEngineConfig(
+    localHotel?.booking_engine_config,
+    localHotel?.booking_rules
+  );
   const yanoljaAvailabilityMap: Record<
     string,
     {
@@ -638,21 +641,24 @@ export async function createBooking(
   if (!supabase) return { success: false, error: 'Database configuration required' };
 
   try {
-    const { isInauguralActive } = getEffectiveRoomPrice({ base_price: 1500 });
     const nights = calculateNights(params.checkInDate, params.checkOutDate);
     const roomCharges = params.ratePerNight * nights;
-    const discount = isInauguralActive ? 0 : params.discountAmount || 0;
-    const effectivePromoCode = isInauguralActive ? null : params.promoCode || null;
+    const discount = params.discountAmount || 0;
+    const effectivePromoCode = params.promoCode || null;
     const taxableAmount = Math.max(0, roomCharges - discount);
+    const netPerRoomPerNight = nights > 0 ? (taxableAmount / nights) : params.ratePerNight;
     const localHotel = getStoredLocalConfig();
-    const engineCfg = normalizeBookingEngineConfig(localHotel?.booking_engine_config);
+    const engineCfg = normalizeBookingEngineConfig(
+      localHotel?.booking_engine_config,
+      localHotel?.booking_rules
+    );
     const { tax } = calculateGST(
       taxableAmount,
       engineCfg.gst_rate_below_7500,
       engineCfg.gst_rate_above_7500,
       engineCfg.gst_threshold_amount,
       engineCfg.gst_slabs,
-      params.ratePerNight
+      netPerRoomPerNight
     );
     const totalAmount = taxableAmount + tax;
 
@@ -761,21 +767,24 @@ export async function createBooking(
     return { success: true, booking: booking as Booking };
   } catch (err: any) {
     console.warn('Database booking insert failed or pending migration, saving locally:', err);
-    const { isInauguralActive } = getEffectiveRoomPrice({ base_price: 1500 });
     const nights = calculateNights(params.checkInDate, params.checkOutDate);
     const roomCharges = params.ratePerNight * nights;
-    const discount = isInauguralActive ? 0 : params.discountAmount || 0;
-    const effectivePromoCode = isInauguralActive ? undefined : params.promoCode || undefined;
+    const discount = params.discountAmount || 0;
+    const effectivePromoCode = params.promoCode || undefined;
     const taxableAmount = Math.max(0, roomCharges - discount);
+    const netPerRoomPerNight = nights > 0 ? (taxableAmount / nights) : params.ratePerNight;
     const localHotelFallback = getStoredLocalConfig();
-    const engineCfgFallback = normalizeBookingEngineConfig(localHotelFallback?.booking_engine_config);
+    const engineCfgFallback = normalizeBookingEngineConfig(
+      localHotelFallback?.booking_engine_config,
+      localHotelFallback?.booking_rules
+    );
     const { tax } = calculateGST(
       taxableAmount,
       engineCfgFallback.gst_rate_below_7500,
       engineCfgFallback.gst_rate_above_7500,
       engineCfgFallback.gst_threshold_amount,
       engineCfgFallback.gst_slabs,
-      params.ratePerNight
+      netPerRoomPerNight
     );
     const totalAmount = taxableAmount + tax;
     const bookingRef = generateBookingRef();

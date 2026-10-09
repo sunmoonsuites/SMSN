@@ -102,6 +102,7 @@ export const DEFAULT_GST_SLABS: GSTSlab[] = [
 /**
  * Matches the applicable GST tax percentage based on per-room-per-night tariff
  * and configured custom dynamic slabs (Upto / Below / Above).
+ * Evaluates net nightly tariff after all offers/discounts.
  */
 export function matchGSTRate(
   perRoomPerNightTariff: number,
@@ -118,7 +119,7 @@ export function matchGSTRate(
 
     for (const slab of uptoOrBelowSlabs) {
       const price = Number(slab.price) || 0;
-      const rate = Number(slab.rate) || 0;
+      const rate = typeof slab.rate === 'number' ? slab.rate : Number(slab.rate) || 0;
       if (slab.condition === 'upto' && perRoomPerNightTariff <= price) {
         return rate;
       }
@@ -134,16 +135,20 @@ export function matchGSTRate(
 
     for (const slab of aboveSlabs) {
       const price = Number(slab.price) || 0;
-      const rate = Number(slab.rate) || 0;
+      const rate = typeof slab.rate === 'number' ? slab.rate : Number(slab.rate) || 0;
       if (perRoomPerNightTariff > price) {
         return rate;
       }
     }
 
-    // Fallback to last slab if defined
-    const lastSlab = slabs[slabs.length - 1];
-    if (lastSlab && typeof lastSlab.rate === 'number') {
-      return Number(lastSlab.rate);
+    // If tariff exceeds all 'upto'/'below' slabs but no 'above' condition triggered
+    if (aboveSlabs.length > 0) {
+      const lowestAbove = aboveSlabs[aboveSlabs.length - 1];
+      return typeof lowestAbove?.rate === 'number' ? lowestAbove.rate : fallbackAboveRate;
+    }
+    const highestUptoOrBelow = uptoOrBelowSlabs[uptoOrBelowSlabs.length - 1];
+    if (highestUptoOrBelow && typeof highestUptoOrBelow.rate === 'number') {
+      return perRoomPerNightTariff > fallbackThreshold ? fallbackAboveRate : highestUptoOrBelow.rate;
     }
   }
 
@@ -161,8 +166,9 @@ export function calculateGST(
 ): { rate: number; tax: number; total: number } {
   // CRITICAL RULE: In hotel hospitality billing, GST rate is governed by Per-Room-Per-Night tariff,
   // NOT by total booking amount (e.g. 10 rooms @ ₹1,500/night = ₹15,000 total, but 5% GST applies because ₹1,500 <= ₹7,500).
+  // AND all discounts/offers are subtracted from Room Tariff first to get the net per-room-per-night price for slab matching.
   const tariffForSlab =
-    perRoomPerNightTariff !== undefined && perRoomPerNightTariff > 0
+    typeof perRoomPerNightTariff === 'number' && perRoomPerNightTariff >= 0
       ? perRoomPerNightTariff
       : amount;
 
@@ -221,6 +227,14 @@ export function getInitialHotelFast(): any {
   } catch {
     // ignore
   }
+
+  const effectiveSlabs =
+    (Array.isArray(localConfig?.booking_engine_config?.gst_slabs) && localConfig.booking_engine_config.gst_slabs.length > 0)
+      ? localConfig.booking_engine_config.gst_slabs
+      : (Array.isArray(localConfig?.booking_rules?.gst_slabs) && localConfig.booking_rules.gst_slabs.length > 0)
+        ? localConfig.booking_rules.gst_slabs
+        : DEFAULT_GST_SLABS;
+
   return {
     id: localConfig.id || 'ca8ca4c4-d493-490f-8d30-774e8fca42b6',
     name: localConfig.name || 'Sun Moon Suites',
@@ -260,6 +274,20 @@ export function getInitialHotelFast(): any {
       highlight3: 'Zero Booking Fees',
     },
     ...localConfig,
+    booking_engine_config: {
+      is_enabled: true,
+      mode: 'yanolja_link_inbuilt',
+      yanolja_booking_url: 'https://letsbook.me/booking/sunmoonsuites',
+      yanolja_hotel_code: '63594',
+      prepaid_discount_enabled: true,
+      prepaid_discount_percent: 5,
+      ...(localConfig.booking_engine_config || {}),
+      gst_slabs: effectiveSlabs,
+    },
+    booking_rules: {
+      ...(localConfig.booking_rules || {}),
+      gst_slabs: effectiveSlabs,
+    },
   };
 }
 

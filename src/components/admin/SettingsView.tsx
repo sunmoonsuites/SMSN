@@ -17,6 +17,7 @@ import {
   resetHotelToDefaults,
   exportHotelConfigJson,
   importHotelConfigJson,
+  getStoredLocalConfig,
   DEFAULT_HERO_CONFIG,
   DEFAULT_AMENITIES_LIST,
   DEFAULT_LANDMARKS_LIST,
@@ -272,11 +273,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       : 7500
   );
   const [gstSlabs, setGstSlabs] = useState<GSTSlab[]>(() => {
-    if (Array.isArray(initialEngine?.gst_slabs) && initialEngine.gst_slabs.length > 0) {
-      return initialEngine.gst_slabs;
+    const local = getStoredLocalConfig();
+    if (Array.isArray(hotel?.booking_engine_config?.gst_slabs) && hotel.booking_engine_config.gst_slabs.length > 0) {
+      return hotel.booking_engine_config.gst_slabs;
     }
     if (Array.isArray(hotel?.booking_rules?.gst_slabs) && hotel.booking_rules.gst_slabs.length > 0) {
       return hotel.booking_rules.gst_slabs;
+    }
+    if (Array.isArray(local?.booking_engine_config?.gst_slabs) && local.booking_engine_config.gst_slabs.length > 0) {
+      return local.booking_engine_config.gst_slabs;
+    }
+    if (Array.isArray(local?.booking_rules?.gst_slabs) && local.booking_rules.gst_slabs.length > 0) {
+      return local.booking_rules.gst_slabs;
+    }
+    if (Array.isArray(initialEngine?.gst_slabs) && initialEngine.gst_slabs.length > 0) {
+      return initialEngine.gst_slabs;
     }
     return DEFAULT_GST_SLABS;
   });
@@ -477,8 +488,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             ? hotel.booking_engine_config.gst_threshold_amount
             : 7500
         );
+        const local = getStoredLocalConfig();
         if (
-          Array.isArray(hotel.booking_engine_config.gst_slabs) &&
+          Array.isArray(hotel.booking_engine_config?.gst_slabs) &&
           hotel.booking_engine_config.gst_slabs.length > 0
         ) {
           setGstSlabs(hotel.booking_engine_config.gst_slabs);
@@ -487,6 +499,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           hotel.booking_rules.gst_slabs.length > 0
         ) {
           setGstSlabs(hotel.booking_rules.gst_slabs);
+        } else if (
+          Array.isArray(local?.booking_engine_config?.gst_slabs) &&
+          local.booking_engine_config.gst_slabs.length > 0
+        ) {
+          setGstSlabs(local.booking_engine_config.gst_slabs);
+        } else if (
+          Array.isArray(local?.booking_rules?.gst_slabs) &&
+          local.booking_rules.gst_slabs.length > 0
+        ) {
+          setGstSlabs(local.booking_rules.gst_slabs);
         }
       }
       if (hotel.email_verification_config) {

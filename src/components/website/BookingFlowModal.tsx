@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
-import { Hotel, RoomCategory } from '../../types';
+import { Hotel, RoomCategory, GSTSlab } from '../../types';
 import { checkRoomAvailability, createBooking, AvailabilityResult } from '../../services/bookingService';
 import { validatePromoCode } from '../../services/offersService';
 import {
@@ -9,6 +9,7 @@ import {
   buildYanoljaBookingUrl,
   updateHotelSettings,
   updateHotel,
+  getStoredLocalConfig,
 } from '../../services/hotelService';
 import {
   formatINR,
@@ -18,6 +19,7 @@ import {
   getTodayLocalDateStr,
   getNextDayLocalDateStr,
   matchGSTRate,
+  DEFAULT_GST_SLABS,
 } from '../../lib/utils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { attachGuestToLatestIntent, markLatestIntentConverted } from '../../services/bookingIntentService';
@@ -481,21 +483,25 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     typeof engineConfig?.gst_threshold_amount === 'number'
       ? engineConfig.gst_threshold_amount
       : 7500;
-  const gstSlabs =
+  const localHotel = getStoredLocalConfig();
+  const gstSlabs: GSTSlab[] =
     (Array.isArray(engineConfig?.gst_slabs) && engineConfig.gst_slabs.length > 0)
       ? engineConfig.gst_slabs
       : (Array.isArray(hotel?.booking_rules?.gst_slabs) && hotel.booking_rules.gst_slabs.length > 0)
         ? hotel.booking_rules.gst_slabs
-        : undefined;
+        : (Array.isArray(localHotel?.booking_rules?.gst_slabs) && localHotel.booking_rules.gst_slabs.length > 0)
+          ? localHotel.booking_rules.gst_slabs
+          : (Array.isArray(localHotel?.booking_engine_config?.gst_slabs) && localHotel.booking_engine_config.gst_slabs.length > 0)
+            ? localHotel.booking_engine_config.gst_slabs
+            : DEFAULT_GST_SLABS;
 
-  // Tariff Per Room Per Night (decides the official GST bracket)
-  const perRoomPerNightTariff =
-    selectedResult?.ratePerNight || (nights > 0 ? Math.round(roomTotal / nights) : roomTotal);
-
-  // Standard (Pay at Hotel) totals
+  // Standard (Pay at Hotel) totals: Room Tariff minus all standard offers
   const standardTaxableTotal = Math.max(0, roomTotal - discountTotal);
+  // Net Tariff Per Room Per Night after offers (decides the official GST bracket)
+  const standardPerRoomPerNight =
+    nights > 0 ? (standardTaxableTotal / nights) : (selectedResult?.ratePerNight || roomTotal);
   const standardGstRate = matchGSTRate(
-    perRoomPerNightTariff,
+    standardPerRoomPerNight,
     gstSlabs,
     gstRateBelow,
     gstRateAbove,
@@ -504,12 +510,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const standardTaxAmount = Math.round((standardTaxableTotal * standardGstRate) / 100);
   const standardGrandTotal = standardTaxableTotal + standardTaxAmount;
 
-  // Prepaid (Pay Online) calculations
+  // Prepaid (Pay Online) calculations: Room Tariff minus all offers (Inaugural + Promo + Online Payment Discount)
   const prepaidDiscountAmount = isPrepaidDiscountEligible
     ? Math.round((standardTaxableTotal * prepaidDiscountPercent) / 100)
     : 0;
   const onlineTaxableTotal = Math.max(0, standardTaxableTotal - prepaidDiscountAmount);
-  const onlinePerRoomPerNight = nights > 0 ? Math.round(onlineTaxableTotal / nights) : perRoomPerNightTariff;
+  // Net Tariff Per Room Per Night after all offers
+  const onlinePerRoomPerNight =
+    nights > 0 ? (onlineTaxableTotal / nights) : onlineTaxableTotal;
   const onlineGstRate = matchGSTRate(
     onlinePerRoomPerNight,
     gstSlabs,
