@@ -70,6 +70,7 @@ const AuditTrailView = lazyWithRetry(() => import('./components/admin/AuditTrail
 const SettingsView = lazyWithRetry(() => import('./components/admin/SettingsView').then((m) => ({ default: m.SettingsView })));
 const CRMDashboard = lazyWithRetry(() => import('./components/crm/CRMDashboard').then((m) => ({ default: m.CRMDashboard })));
 const CRMLoginScreen = lazyWithRetry(() => import('./components/crm/CRMLoginScreen').then((m) => ({ default: m.CRMLoginScreen })));
+const LiveFootfallTrackerPage = lazyWithRetry(() => import('./components/tracker/LiveFootfallTrackerPage').then((m) => ({ default: m.LiveFootfallTrackerPage })));
 
 // Common Modals
 const SupabaseConfigModal = lazyWithRetry(() => import('./components/common/SupabaseConfigModal').then((m) => ({ default: m.SupabaseConfigModal })));
@@ -157,11 +158,19 @@ export function MainApp() {
     ) {
       navigate('/CRM', { replace: true });
     } else if (
+      hash === '#tracker' ||
+      hash === '#/tracker' ||
+      search.includes('tracker=1') ||
+      search.includes('tracker=true')
+    ) {
+      navigate('/tracker', { replace: true });
+    } else if (
       (hash.includes('type=recovery') || search.includes('reset_password=true')) &&
       !location.pathname.toLowerCase().startsWith('/pms') &&
       !location.pathname.toLowerCase().startsWith('/admin') &&
       !location.pathname.toLowerCase().startsWith('/crm') &&
-      !location.pathname.toLowerCase().startsWith('/leads')
+      !location.pathname.toLowerCase().startsWith('/leads') &&
+      !location.pathname.toLowerCase().startsWith('/tracker')
     ) {
       navigate(`/PMS${window.location.search}${window.location.hash}`, { replace: true });
     }
@@ -172,8 +181,11 @@ export function MainApp() {
     const isCRMRoute =
       location.pathname.toLowerCase().startsWith('/crm') ||
       location.pathname.toLowerCase().startsWith('/leads');
+    const isTrackerRoute =
+      location.pathname.toLowerCase().startsWith('/tracker');
+
     applyPMSThemeToDocument(getPMSTheme(), isPMSRoute);
-    if (!isPMSRoute && !isCRMRoute) {
+    if (!isPMSRoute && !isCRMRoute && !isTrackerRoute) {
       applyRouteSeoToDocument(location.pathname);
       const sectionRoutes: Record<string, string> = {
         '/rooms': 'rooms',
@@ -507,6 +519,21 @@ export function MainApp() {
     </Suspense>
   );
 
+  const trackerPortalElement = (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-stone-900 text-amber-400">
+          <LoadingSpinner message="Opening Live Footfall Tracker..." />
+        </div>
+      }
+    >
+      <LiveFootfallTrackerPage
+        hotel={hotel}
+        onNavigateToWebsite={() => navigate('/')}
+      />
+    </Suspense>
+  );
+
   const publicWebsiteContent = (
     <>
       <Navbar
@@ -632,6 +659,10 @@ export function MainApp() {
         <Route path="/leads/*" element={crmPortalElement} />
         <Route path="/LEADS/*" element={crmPortalElement} />
 
+        {/* DEDICATED LIVE FOOTFALL & BOOKING INTENT TRACKER (/tracker, /TRACKER) */}
+        <Route path="/tracker/*" element={trackerPortalElement} />
+        <Route path="/TRACKER/*" element={trackerPortalElement} />
+
         {/* FALLBACK ROUTE: Render Public Website for any other path */}
         <Route path="*" element={publicWebsiteContent} />
       </Routes>
@@ -670,7 +701,8 @@ export function MainApp() {
       {!location.pathname.toLowerCase().startsWith('/pms') &&
         !location.pathname.toLowerCase().startsWith('/admin') &&
         !location.pathname.toLowerCase().startsWith('/crm') &&
-        !location.pathname.toLowerCase().startsWith('/leads') && (
+        !location.pathname.toLowerCase().startsWith('/leads') &&
+        !location.pathname.toLowerCase().startsWith('/tracker') && (
           <FloatingWhatsAppButton hotel={hotel} />
         )}
 
