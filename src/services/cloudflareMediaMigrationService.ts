@@ -2,6 +2,7 @@ import { getSupabase } from '../lib/supabase';
 import { GalleryItem } from '../types';
 import { getGalleryItems, getStoredGallery } from './galleryService';
 import { getHotel, updateHotel } from './hotelService';
+import { getStoredCategories } from './roomsService';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidUuid(id: string): boolean {
@@ -107,6 +108,26 @@ export async function auditMediaForEgressRisk(): Promise<EgressAuditResult> {
     }
   } catch (err) {
     console.warn('[EgressAudit] Failed to audit hotel hero image:', err);
+  }
+
+  // 3. Audit Room Categories
+  try {
+    const categories = getStoredCategories();
+    for (const cat of categories) {
+      const catImages = cat.images || [];
+      totalImages += catImages.length;
+      for (const imgUrl of catImages) {
+        if (imgUrl.startsWith('/assets/')) {
+          cloudflareImagesCount++;
+        } else if (imgUrl.includes('supabase.co') || imgUrl.startsWith('data:image/')) {
+          supabaseImagesCount++;
+        } else if (imgUrl.startsWith('http')) {
+          externalImagesCount++;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[EgressAudit] Failed to audit room category images:', err);
   }
 
   // Average 2 MB per image * 1000 visitors = ~2000 MB per image per month

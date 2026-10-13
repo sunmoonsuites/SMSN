@@ -16,7 +16,7 @@ interface HeroSectionProps {
 const SUN_MOON_FACADE_HERO =
   '/assets/mirrored/exterior---facade-sun-moon-suites-front-facade---muxpinlk.webp';
 const SUN_MOON_FACADE_FALLBACK =
-  'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602879979-main-gate.jpeg';
+  '/assets/mirrored/1790602879979-main-gate.jpeg';
 
 function isBuiltInHeroImage(url?: string): boolean {
   if (!url || url.trim() === '') return true;

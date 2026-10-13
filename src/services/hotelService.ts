@@ -18,6 +18,7 @@ import {
 } from '../types';
 import { logAction } from './auditService';
 import { getCleanHotelPhone, getCleanHotelWhatsApp, DEFAULT_GST_SLABS } from '../lib/utils';
+import { resolveZeroEgressImageUrl } from '../lib/mediaUtils';
 
 // Local storage key used strictly as a fast initial-render cache mirrored from Supabase
 export const LOCAL_STORAGE_HOTEL_KEY = 'pms_dynamic_website_config';
@@ -844,6 +845,9 @@ export async function getHotel(): Promise<Hotel | null> {
         hero_config: {
           ...DEFAULT_HERO_CONFIG,
           ...(cmsFromHotelsTable.hero_config || rawSettingsSocial.hero_config || {}),
+          image_url: resolveZeroEgressImageUrl(
+            (cmsFromHotelsTable.hero_config || rawSettingsSocial.hero_config || DEFAULT_HERO_CONFIG)?.image_url
+          ),
         },
         amenities_list:
           Array.isArray(cmsFromHotelsTable.amenities_list) &&

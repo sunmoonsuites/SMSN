@@ -1,4 +1,5 @@
 import type { GSTSlab } from '../types';
+export { resolveZeroEgressImageUrl, resolveZeroEgressImageUrls } from './mediaUtils';
 
 /**
  * Utility functions for Hotel Management System & Website

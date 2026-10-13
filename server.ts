@@ -5,9 +5,22 @@ import fs from 'fs';
 import nodemailer from 'nodemailer';
 import { GoogleGenAI, Type } from '@google/genai';
 
+function getCliArg(flag: string): string | undefined {
+  const idx = process.argv.indexOf(flag);
+  return idx !== -1 && idx + 1 < process.argv.length ? process.argv[idx + 1] : undefined;
+}
+
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  const cliPort = getCliArg('--port') || getCliArg('-p');
+  const cliHost = getCliArg('--host') || '0.0.0.0';
+
+  // AI Studio environment constraint: Dev server must run on port 3000.
+  // In development, prefer CLI --port or 3000 (ignore Cloud Run PORT=8080).
+  const isDevMode =
+    process.env.npm_lifecycle_event === 'dev' ||
+    process.env.NODE_ENV !== 'production';
+  const PORT = Number(cliPort) || (isDevMode ? 3000 : Number(process.env.PORT) || 3000);
 
   app.use(express.json({ limit: '10mb' }));
 
@@ -1832,22 +1845,32 @@ For each photo, return an object with:
   const distPath = path.join(process.cwd(), 'dist');
   const publicPath = path.join(process.cwd(), 'public');
   const hasBuiltDist = fs.existsSync(path.join(distPath, 'index.html'));
-  const isRunningViaTsx = process.execArgv.some((arg) => arg.includes('tsx'));
   const isProduction =
-    process.env.NODE_ENV === 'production' ||
-    process.env.npm_lifecycle_event === 'start' ||
-    (!isRunningViaTsx && hasBuiltDist);
+    !isDevMode &&
+    (process.env.NODE_ENV === 'production' || process.env.npm_lifecycle_event === 'start') &&
+    hasBuiltDist;
 
   // Directly serve public and assets folder so all mirrored and static media
   // (e.g. /assets/mirrored/*.webp, /assets/*.webp) are served immediately with correct image MIME types
-  app.use('/assets', express.static(path.join(publicPath, 'assets')));
+  app.use(
+    '/assets',
+    express.static(path.join(publicPath, 'assets'), {
+      maxAge: '365d',
+      immutable: true,
+    })
+  );
   app.use(express.static(publicPath));
 
   // Vite middleware for development vs static build for production
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true, host: '0.0.0.0', port: PORT },
+      server: {
+        middlewareMode: true,
+        host: cliHost,
+        port: PORT,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -1858,8 +1881,16 @@ For each photo, return an object with:
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Hotel PMS Server running on http://0.0.0.0:${PORT} (mode: ${isProduction ? 'production' : 'development'})`);
+  const server = app.listen(PORT, cliHost, () => {
+    console.log(`Hotel PMS Server running on http://${cliHost}:${PORT} (mode: ${isProduction ? 'production' : 'development'})`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[Server] Port ${PORT} is already in use.`);
+    } else {
+      console.error('[Server] Listen error:', err);
+    }
   });
 }
 

@@ -2,6 +2,7 @@ import { getSupabase } from '../lib/supabase';
 import { GalleryItem, RoomCategory } from '../types';
 import { logAction } from './auditService';
 import { isValidUuid, resolveSupabaseHotelId } from './hotelService';
+import { resolveZeroEgressImageUrl } from '../lib/mediaUtils';
 
 const LOCAL_STORAGE_GALLERY_KEY = 'pms_custom_gallery';
 
@@ -37,7 +38,12 @@ export function getStoredGallery(): GalleryItem[] {
         const nonUnsplash = parsed.filter(
           (g: GalleryItem) => g.image_url && !g.image_url.includes('unsplash.com')
         );
-        if (nonUnsplash.length >= 10) return nonUnsplash;
+        if (nonUnsplash.length >= 10) {
+          return nonUnsplash.map((g) => ({
+            ...g,
+            image_url: resolveZeroEgressImageUrl(g.image_url),
+          }));
+        }
       }
     }
   } catch (e) {
@@ -82,12 +88,20 @@ export async function getGalleryItems(hotelId: string): Promise<GalleryItem[]> {
             }));
             const { data: seeded } = await supabase.from('gallery').insert(seedRows).select('*');
             if (seeded && seeded.length > 0) {
-              saveStoredGallery(seeded as GalleryItem[]);
-              return seeded as GalleryItem[];
+              const cleaned = (seeded as GalleryItem[]).map((g) => ({
+                ...g,
+                image_url: resolveZeroEgressImageUrl(g.image_url),
+              }));
+              saveStoredGallery(cleaned);
+              return cleaned;
             }
           } else {
-            saveStoredGallery(data as GalleryItem[]);
-            return data as GalleryItem[];
+            const cleaned = (data as GalleryItem[]).map((g) => ({
+              ...g,
+              image_url: resolveZeroEgressImageUrl(g.image_url),
+            }));
+            saveStoredGallery(cleaned);
+            return cleaned;
           }
         }
       }
@@ -801,17 +815,17 @@ export function getPhotosForRoomCategory(
   if (result.length === 0) {
     const fallbackImageMap: Record<string, string> = {
       'standard-room':
-        'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg',
+        '/assets/mirrored/1790766506349-btxh-dsc06965-6-7-copy-2.jpg',
       'deluxe-room':
-        'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg',
+        '/assets/mirrored/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg',
       'super-deluxe-room':
-        'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg',
+        '/assets/mirrored/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg',
       'suite-room':
-        'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg',
+        '/assets/mirrored/1790602889189-room.jpeg',
     };
     const fallbackUrl =
       fallbackImageMap[normCatName] ||
-      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg';
+      '/assets/mirrored/1790602862099-reception.jpeg';
     result.push({
       url: fallbackUrl,
       caption: `${cat.name} at ${hotelName} in Sector 117 Noida`,

@@ -36,15 +36,15 @@ interface FeaturedRoomsProps {
 function getCategoryFallbackImage(categoryName?: string): string {
   const norm = (categoryName || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
   if (norm.includes('super-deluxe')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg';
+    return '/assets/mirrored/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg';
   }
   if (norm.includes('deluxe')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg';
+    return '/assets/mirrored/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg';
   }
   if (norm.includes('suite')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg';
+    return '/assets/mirrored/1790602889189-room.jpeg';
   }
-  return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg';
+  return '/assets/mirrored/1790766506349-btxh-dsc06965-6-7-copy-2.jpg';
 }
 
 export const FeaturedRooms: React.FC<FeaturedRoomsProps> = ({

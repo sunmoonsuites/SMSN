@@ -1485,7 +1485,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   type="button"
                   onClick={() =>
                     setHeroImageUrl(
-                      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766452744-r8ge-dsc06674-5-6-copy.jpg'
+                      '/assets/mirrored/1790766452744-r8ge-dsc06674-5-6-copy.jpg'
                     )
                   }
                   className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded cursor-pointer font-medium"
@@ -1496,7 +1496,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   type="button"
                   onClick={() =>
                     setHeroImageUrl(
-                      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790684387566-vhdi-reception.jpg'
+                      '/assets/mirrored/1790684387566-vhdi-reception.jpg'
                     )
                   }
                   className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded cursor-pointer"
@@ -1507,7 +1507,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   type="button"
                   onClick={() =>
                     setHeroImageUrl(
-                      'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg'
+                      '/assets/mirrored/1790602889189-room.jpeg'
                     )
                   }
                   className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded cursor-pointer"

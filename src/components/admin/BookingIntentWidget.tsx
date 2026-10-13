@@ -119,13 +119,13 @@ export const BookingIntentWidget: React.FC<BookingIntentWidgetProps> = ({
     }
   };
 
-  // Check if an intent record has real contact details
+  // Check if an intent record has real contact details (Phone or Email)
   const hasContactInfo = (item: BookingIntentLog) => {
-    return Boolean(
-      (item.guest_phone && item.guest_phone.trim()) ||
-      (item.guest_email && item.guest_email.trim()) ||
-      (item.guest_name && item.guest_name.trim() && item.guest_name.toLowerCase() !== 'anonymous visitor')
-    );
+    const cleanPhone = (item.guest_phone || '').trim().replace(/\D/g, '');
+    const cleanEmail = (item.guest_email || '').trim().toLowerCase();
+    const hasValidPhone = cleanPhone.length >= 6;
+    const hasValidEmail = cleanEmail.includes('@') && cleanEmail.includes('.');
+    return hasValidPhone || hasValidEmail;
   };
 
   const allRecent = summary?.recentIntents || [];

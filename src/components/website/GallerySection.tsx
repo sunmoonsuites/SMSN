@@ -25,34 +25,34 @@ function buildGalleryImageAlt(item: GalleryItem, index: number, hotelName: strin
 function getGalleryFallbackImage(category?: string, idx: number = 0): string {
   const norm = (category || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
   if (norm.includes('super-deluxe')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg';
+    return '/assets/mirrored/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg';
   }
   if (norm.includes('deluxe')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg';
+    return '/assets/mirrored/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg';
   }
   if (norm.includes('standard')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg';
+    return '/assets/mirrored/1790766506349-btxh-dsc06965-6-7-copy-2.jpg';
   }
   if (norm.includes('suite')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg';
+    return '/assets/mirrored/1790602889189-room.jpeg';
   }
   if (norm.includes('banquet')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766452744-r8ge-dsc06674-5-6-copy.jpg';
+    return '/assets/mirrored/1790766452744-r8ge-dsc06674-5-6-copy.jpg';
   }
   if (norm.includes('lobby') || norm.includes('hotel') || norm.includes('reception')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg';
+    return '/assets/mirrored/1790602862099-reception.jpeg';
   }
   if (norm.includes('exterior') || norm.includes('facade') || norm.includes('entrance')) {
-    return 'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602879979-main-gate.jpeg';
+    return '/assets/mirrored/1790602879979-main-gate.jpeg';
   }
 
   const rotation = [
-    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg',
-    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602862099-reception.jpeg',
-    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790602889189-room.jpeg',
-    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766452744-r8ge-dsc06674-5-6-copy.jpg',
-    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg',
-    'https://uaagbjoxehxmyhngyomv.supabase.co/storage/v1/object/public/hotel-media/gallery/1790766506349-btxh-dsc06965-6-7-copy-2.jpg',
+    '/assets/mirrored/1790766507446-eq1w-dsc06971-2-3-copy-2.jpg',
+    '/assets/mirrored/1790602862099-reception.jpeg',
+    '/assets/mirrored/1790602889189-room.jpeg',
+    '/assets/mirrored/1790766452744-r8ge-dsc06674-5-6-copy.jpg',
+    '/assets/mirrored/1790766473773-t4m2-dsc06758-59-60-copy-2.jpg',
+    '/assets/mirrored/1790766506349-btxh-dsc06965-6-7-copy-2.jpg',
   ];
   return rotation[idx % rotation.length];
 }

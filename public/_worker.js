@@ -1376,6 +1376,15 @@ export default {
         }
 
         if (assetResponse.status !== 404) {
+          if (url.pathname.startsWith('/assets/')) {
+            const newHeaders = new Headers(assetResponse.headers);
+            newHeaders.set('Cache-Control', 'public, max-age=31536000, immutable');
+            return new Response(assetResponse.body, {
+              status: assetResponse.status,
+              statusText: assetResponse.statusText,
+              headers: newHeaders,
+            });
+          }
           return assetResponse;
         }
 
