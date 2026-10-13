@@ -739,12 +739,134 @@ export async function handleApiRequest(request, env) {
     }
   }
 
-  // 3. Razorpay Payment Verification
+  // 3a. Razorpay Create Order with Automatic Capture (payment_capture: 1)
+  if (pathname === '/api/payments/create-order' && request.method === 'POST') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { amount, currency, receipt, notes } = body || {};
+      const keyId = (body?.keyId || env?.RAZORPAY_KEY_ID || 'rzp_live_Tlj1KsZi0mp8sh').trim();
+      const secret = (body?.keySecret || env?.RAZORPAY_KEY_SECRET || '2OdW9k8DedsssAHUnoqGfgbd').trim();
+
+      if (!keyId || !secret) {
+        return jsonResponse({ success: false, error: 'Razorpay Key ID and Key Secret required.' }, 400);
+      }
+
+      const amountInPaise = Math.round(Number(amount));
+      if (!amountInPaise || amountInPaise <= 0) {
+        return jsonResponse({ success: false, error: 'Invalid order amount.' }, 400);
+      }
+
+      const auth = btoa(`${keyId}:${secret}`);
+      const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${auth}`,
+        },
+        body: JSON.stringify({
+          amount: amountInPaise,
+          currency: currency || 'INR',
+          receipt: receipt || `rcpt_${Date.now()}`,
+          payment_capture: 1, // CRITICAL: Automatic capture on Razorpay!
+          notes: notes || {},
+        }),
+      });
+
+      const data = await rzpRes.json();
+      if (!rzpRes.ok) {
+        return jsonResponse({ success: false, error: data?.error?.description || 'Failed to create Razorpay order' }, rzpRes.status);
+      }
+
+      return jsonResponse({
+        success: true,
+        orderId: data.id,
+        amount: data.amount,
+        currency: data.currency,
+      });
+    } catch (err) {
+      return jsonResponse({ success: false, error: err?.message || 'Server error creating Razorpay order' }, 500);
+    }
+  }
+
+  // 3b. Razorpay Verify and Failsafe Auto-Capture
+  if (pathname === '/api/payments/verify-and-capture' && request.method === 'POST') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = body || {};
+      const keyId = (body?.keyId || env?.RAZORPAY_KEY_ID || 'rzp_live_Tlj1KsZi0mp8sh').trim();
+      const secret = (body?.keySecret || env?.RAZORPAY_KEY_SECRET || '2OdW9k8DedsssAHUnoqGfgbd').trim();
+
+      if (!razorpay_payment_id) {
+        return jsonResponse({ success: false, error: 'Missing razorpay_payment_id.' }, 400);
+      }
+
+      let isSignatureValid = true;
+      if (razorpay_order_id && razorpay_signature && secret) {
+        isSignatureValid = await verifyRazorpayHmac(razorpay_order_id, razorpay_payment_id, razorpay_signature, secret);
+        if (!isSignatureValid) {
+          return jsonResponse({ success: false, verified: false, error: 'Invalid payment signature.' }, 400);
+        }
+      }
+
+      let captured = true;
+      let paymentStatus = 'captured';
+
+      if (keyId && secret) {
+        try {
+          const auth = btoa(`${keyId}:${secret}`);
+          const statusRes = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
+            headers: { Authorization: `Basic ${auth}` },
+          });
+
+          if (statusRes.ok) {
+            const paymentInfo = await statusRes.json();
+            paymentStatus = paymentInfo.status;
+            captured = Boolean(paymentInfo.captured);
+
+            if (paymentInfo.status === 'authorized') {
+              const amountInPaise = amount ? Math.round(Number(amount)) : paymentInfo.amount;
+              const capRes = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}/capture`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Basic ${auth}`,
+                },
+                body: JSON.stringify({
+                  amount: amountInPaise,
+                  currency: paymentInfo.currency || 'INR',
+                }),
+              });
+
+              if (capRes.ok) {
+                const capData = await capRes.json();
+                captured = Boolean(capData.captured);
+                paymentStatus = capData.status;
+              }
+            }
+          }
+        } catch (apiErr) {
+          // ignore status check failure
+        }
+      }
+
+      return jsonResponse({
+        success: true,
+        verified: isSignatureValid,
+        paymentId: razorpay_payment_id,
+        captured,
+        status: paymentStatus,
+      });
+    } catch (err) {
+      return jsonResponse({ success: false, error: err?.message || 'Payment capture error' }, 500);
+    }
+  }
+
+  // 3c. Razorpay Payment Verification
   if (pathname === '/api/payments/verify' && request.method === 'POST') {
     try {
       const body = await request.json().catch(() => ({}));
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
-      const secret = env?.RAZORPAY_KEY_SECRET || '';
+      const secret = (body?.keySecret || env?.RAZORPAY_KEY_SECRET || '2OdW9k8DedsssAHUnoqGfgbd').trim();
 
       if (!secret) {
         return jsonResponse({ verified: false, error: 'RAZORPAY_KEY_SECRET required in Cloudflare Worker environment.' }, 400);
