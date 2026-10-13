@@ -744,8 +744,8 @@ export async function handleApiRequest(request, env) {
     try {
       const body = await request.json().catch(() => ({}));
       const { amount, currency, receipt, notes } = body || {};
-      const keyId = (body?.keyId || env?.RAZORPAY_KEY_ID || 'rzp_live_Tlj1KsZi0mp8sh').trim();
-      const secret = (body?.keySecret || env?.RAZORPAY_KEY_SECRET || '2OdW9k8DedsssAHUnoqGfgbd').trim();
+      const keyId = (body?.keyId?.trim() || env?.RAZORPAY_KEY_ID || 'rzp_live_Tlj1KsZi0mp8sh').trim();
+      const secret = (body?.keySecret?.trim() || env?.RAZORPAY_KEY_SECRET || '2OdW9k8DedsssAHUnoqGfgbd').trim();
 
       if (!keyId || !secret) {
         return jsonResponse({ success: false, error: 'Razorpay Key ID and Key Secret required.' }, 400);
@@ -793,8 +793,8 @@ export async function handleApiRequest(request, env) {
     try {
       const body = await request.json().catch(() => ({}));
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = body || {};
-      const keyId = (body?.keyId || env?.RAZORPAY_KEY_ID || 'rzp_live_Tlj1KsZi0mp8sh').trim();
-      const secret = (body?.keySecret || env?.RAZORPAY_KEY_SECRET || '2OdW9k8DedsssAHUnoqGfgbd').trim();
+      const keyId = (body?.keyId?.trim() || env?.RAZORPAY_KEY_ID || 'rzp_live_Tlj1KsZi0mp8sh').trim();
+      const secret = (body?.keySecret?.trim() || env?.RAZORPAY_KEY_SECRET || '2OdW9k8DedsssAHUnoqGfgbd').trim();
 
       if (!razorpay_payment_id) {
         return jsonResponse({ success: false, error: 'Missing razorpay_payment_id.' }, 400);

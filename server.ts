@@ -65,12 +65,12 @@ async function startServer() {
   // Helper to resolve Razorpay credentials from request, environment, or hotel config
   function resolveRazorpayCredentials(body?: any): { keyId: string; keySecret: string } {
     const keyId = (
-      body?.keyId ||
+      body?.keyId?.trim() ||
       process.env.RAZORPAY_KEY_ID ||
       'rzp_live_Tlj1KsZi0mp8sh'
     ).trim();
     const keySecret = (
-      body?.keySecret ||
+      body?.keySecret?.trim() ||
       process.env.RAZORPAY_KEY_SECRET ||
       '2OdW9k8DedsssAHUnoqGfgbd'
     ).trim();

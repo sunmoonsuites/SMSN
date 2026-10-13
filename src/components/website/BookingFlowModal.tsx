@@ -641,19 +641,23 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             if (orderPayload.success && orderPayload.orderId) {
               razorpayOrderId = orderPayload.orderId;
             }
+          } else {
+            const errData = await createOrderRes.json().catch(() => ({}));
+            console.warn('Razorpay pre-order creation returned non-OK status:', createOrderRes.status, errData);
           }
         } catch (orderErr) {
           console.warn('Could not pre-create Razorpay order, continuing with direct checkout:', orderErr);
         }
 
         const rzpOptions: any = {
-          key: engineConfig.razorpay_key_id?.trim(),
+          key: engineConfig.razorpay_key_id?.trim() || 'rzp_live_Tlj1KsZi0mp8sh',
           amount: amountInPaise,
           currency: 'INR',
           name: hotel?.name || 'Sun Moon Suites',
           description: `${selectedResult.category.name} (${nights} ${
             nights === 1 ? 'Night' : 'Nights'
           }: ${formatDate(checkIn)} to ${formatDate(checkOut)})`,
+          ...(razorpayOrderId ? { order_id: razorpayOrderId } : {}),
           prefill: {
             name: `${guestFirstName.trim()} ${guestLastName.trim()}`.trim(),
             email: guestEmail.trim(),
